@@ -1,52 +1,16 @@
 import { createClient } from '@supabase/supabase-js';
+import { Database } from './types';
 
 // Retrieve configuration from environment variables
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder-project.supabase.co';
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'http://127.0.0.1:54321';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-anon-key';
 
-// Initialize the Supabase client
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// Initialize the Supabase client with strongly typed database schema
+export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey);
 
-/**
- * Types representing core entities retrieved from our PostgreSQL DB schema.
- * You can regenerate these using: `supabase gen types typescript` once local CLI is fully configured.
- */
-
-export interface Company {
-  id: string;
-  name: string;
-  slug: string;
-  status: 'active' | 'suspended' | 'pending';
-  created_at: string;
-  updated_at: string;
-}
-
-export interface Profile {
-  id: string;
-  company_id: string | null;
-  full_name: string | null;
-  email: string;
-  avatar_url: string | null;
-  created_at: string;
-}
-
-export interface Role {
-  id: string;
-  company_id: string;
-  name: string;
-  description: string | null;
-  created_at: string;
-}
-
-export interface Permission {
-  id: string;
-  action: string;
-  description: string | null;
-  created_at: string;
-}
-
-export interface UserRoleRelation {
-  user_id: string;
-  role_id: string;
-  created_at: string;
-}
+export type Company = Database['public']['Tables']['companies']['Row'];
+export type Profile = Database['public']['Tables']['profiles']['Row'];
+export type Role = Database['public']['Tables']['roles']['Row'];
+export type Permission = Database['public']['Tables']['permissions']['Row'];
+export type UserRole = Database['public']['Tables']['user_roles']['Row'];
+export type RolePermission = Database['public']['Tables']['role_permissions']['Row'];
