@@ -34,6 +34,59 @@ export type Database = {
   }
   public: {
     Tables: {
+      clients: {
+        Row: {
+          address: string | null
+          avg_kwh_consumption: number | null
+          category: string | null
+          company_id: string
+          created_at: string
+          created_by: string | null
+          document_id: string
+          gps_coordinates: string | null
+          id: string
+          name: string
+          phone: string | null
+          status: string
+        }
+        Insert: {
+          address?: string | null
+          avg_kwh_consumption?: number | null
+          category?: string | null
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          document_id: string
+          gps_coordinates?: string | null
+          id?: string
+          name: string
+          phone?: string | null
+          status?: string
+        }
+        Update: {
+          address?: string | null
+          avg_kwh_consumption?: number | null
+          category?: string | null
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          document_id?: string
+          gps_coordinates?: string | null
+          id?: string
+          name?: string
+          phone?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "clients_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       companies: {
         Row: {
           created_at: string
@@ -113,6 +166,60 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "profiles_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      projects: {
+        Row: {
+          capacity: string | null
+          client_id: string
+          company_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          location: string | null
+          name: string
+          phase: string
+          status: string
+        }
+        Insert: {
+          capacity?: string | null
+          client_id: string
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          location?: string | null
+          name: string
+          phase?: string
+          status?: string
+        }
+        Update: {
+          capacity?: string | null
+          client_id?: string
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          location?: string | null
+          name?: string
+          phase?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "projects_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "projects_company_id_fkey"
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"

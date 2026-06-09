@@ -1,6 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { supabase } from '@/core/database/supabase';
 
 export interface UserProfile {
   id: string;
@@ -8,12 +9,13 @@ export interface UserProfile {
   fullName: string;
   avatarUrl?: string;
   companyId: string;
+  companyName?: string;
 }
 
 export interface UserRole {
   id: string;
   name: string;
-  permissions: string[]; // List of permission actions, e.g., 'project:create'
+  permissions: string[];
 }
 
 export interface AuthContextType {
@@ -23,6 +25,7 @@ export interface AuthContextType {
   loading: boolean;
   hasPermission: (action: string) => boolean;
   switchCompany: (companyId: string) => Promise<void>;
+  signOut: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -33,67 +36,200 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [permissions, setPermissions] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
 
+  const loadProfile = async (authUser: any) => {
+    try {
+      // 1. Fetch user profile
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select(`
+          id,
+          company_id,
+          full_name,
+          email,
+          avatar_url,
+          companies (
+            id,
+            name
+          )
+        `)
+        .eq('id', authUser.id)
+        .single();
+
+      if (profileError) {
+        console.error('Error fetching profile from DB:', profileError.message);
+        // Fallback profile if profile isn't generated yet or error occurs
+        setUser({
+          id: authUser.id,
+          email: authUser.email || '',
+          fullName: authUser.email ? authUser.email.split('@')[0] : 'Usuario',
+          companyId: '',
+        });
+        setRoles([]);
+        setPermissions(new Set());
+        return;
+      }
+
+      if (!profile) {
+        setUser(null);
+        setRoles([]);
+        setPermissions(new Set());
+        return;
+      }
+
+      // 2. Fetch roles and permissions for this profile scoped to their company
+      const { data: userRolesData, error: rolesError } = await supabase
+        .from('user_roles')
+        .select(`
+          role_id,
+          roles (
+            id,
+            company_id,
+            name,
+            description,
+            role_permissions (
+              permission_id,
+              permissions (
+                id,
+                action,
+                description
+              )
+            )
+          )
+        `)
+        .eq('user_id', authUser.id);
+
+      if (rolesError) {
+        console.error('Error fetching user roles:', rolesError.message);
+      }
+
+      const activeRoles: UserRole[] = [];
+      const allPermissions = new Set<string>();
+
+      if (userRolesData) {
+        userRolesData.forEach((ur: any) => {
+          const role = ur.roles;
+          // Verify that role belongs to user's active company
+          if (role && role.company_id === profile.company_id) {
+            const rolePerms: string[] = [];
+            if (role.role_permissions) {
+              role.role_permissions.forEach((rp: any) => {
+                const perm = rp.permissions;
+                if (perm && perm.action) {
+                  rolePerms.push(perm.action);
+                  allPermissions.add(perm.action);
+                }
+              });
+            }
+
+            activeRoles.push({
+              id: role.id,
+              name: role.name,
+              permissions: rolePerms,
+            });
+          }
+        });
+      }
+
+      const companyObj = profile.companies as any;
+
+      setUser({
+        id: profile.id,
+        email: profile.email,
+        fullName: profile.full_name || 'Nuevo Usuario',
+        avatarUrl: profile.avatar_url || undefined,
+        companyId: profile.company_id || '',
+        companyName: companyObj ? companyObj.name : 'Default Solar Hub Tenant',
+      });
+      setRoles(activeRoles);
+      setPermissions(allPermissions);
+    } catch (error) {
+      console.error('Failed to load profile details:', error);
+    }
+  };
+
   useEffect(() => {
-    // Mock authentication check - In production, this integrates with Supabase Auth
-    const initSession = async () => {
+    // Check initial session
+    const checkSession = async () => {
       try {
-        // Simulating loading session from supabase
-        await new Promise((resolve) => setTimeout(resolve, 800));
-        
-        const mockUser: UserProfile = {
-          id: 'usr-123',
-          email: 'tecnico@solarhub.com',
-          fullName: 'Juan Técnico',
-          companyId: 'comp-abc',
-        };
-
-        const mockRoles: UserRole[] = [
-          {
-            id: 'role-tech',
-            name: 'Técnico de Campo',
-            permissions: [
-              'project:read',
-              'project:update',
-              'inventory:read',
-              'inventory:use_material',
-              'client:read',
-            ],
-          },
-        ];
-
-        setUser(mockUser);
-        setRoles(mockRoles);
-        
-        const allPermissions = new Set<string>();
-        mockRoles.forEach((r) => r.permissions.forEach((p) => allPermissions.add(p)));
-        setPermissions(allPermissions);
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          await loadProfile(session.user);
+        } else {
+          setUser(null);
+          setRoles([]);
+          setPermissions(new Set());
+        }
       } catch (error) {
-        console.error('Failed to initialize session:', error);
+        console.error('Initial session check failed:', error);
       } finally {
         setLoading(false);
       }
     };
 
-    initSession();
+    checkSession();
+
+    // Listen to session changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      setLoading(true);
+      if (session?.user) {
+        await loadProfile(session.user);
+      } else {
+        setUser(null);
+        setRoles([]);
+        setPermissions(new Set());
+      }
+      setLoading(false);
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
   const hasPermission = (action: string): boolean => {
-    // Superuser or exact match
     if (permissions.has('admin:*')) return true;
     return permissions.has(action);
   };
 
   const switchCompany = async (companyId: string) => {
     setLoading(true);
-    // In production, update user profile's active company in Supabase
-    if (user) {
-      setUser({ ...user, companyId });
+    try {
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      if (!authUser) throw new Error('No active authenticated user session');
+
+      // Update active company in database profile
+      const { error } = await supabase
+        .from('profiles')
+        .update({ company_id: companyId })
+        .eq('id', authUser.id);
+
+      if (error) throw error;
+
+      // Reload profile configuration
+      await loadProfile(authUser);
+    } catch (error) {
+      console.error('Error switching company context:', error);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
+  };
+
+  const signOut = async () => {
+    setLoading(true);
+    try {
+      await supabase.auth.signOut();
+      setUser(null);
+      setRoles([]);
+      setPermissions(new Set());
+    } catch (error) {
+      console.error('Signout failed:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <AuthContext.Provider value={{ user, roles, permissions, loading, hasPermission, switchCompany }}>
+    <AuthContext.Provider value={{ user, roles, permissions, loading, hasPermission, switchCompany, signOut }}>
       {children}
     </AuthContext.Provider>
   );
@@ -121,7 +257,7 @@ export const RequirePermission: React.FC<RequirePermissionProps> = ({
   const { hasPermission, loading } = useAuth();
 
   if (loading) {
-    return <div className="animate-pulse h-8 bg-gray-200 dark:bg-zinc-800 rounded w-full" />;
+    return <div className="animate-pulse h-8 bg-zinc-200 dark:bg-zinc-800 rounded w-full" />;
   }
 
   if (!hasPermission(action)) {
