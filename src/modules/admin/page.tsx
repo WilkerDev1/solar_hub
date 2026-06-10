@@ -14,11 +14,13 @@ import {
   Server,
   CloudLightning,
   AlertTriangle,
-  Loader2
+  Loader2,
+  Plus
 } from 'lucide-react';
 import { RequirePermission } from '@/core/auth/AuthContext';
 import { getRoleTemplates, saveRoleTemplate, RoleTemplateRow } from '@/core/services/admin';
 import { Button } from '@/core/components/ui/button';
+import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/core/components/ui/dialog';
 
 interface OrionMetrics {
   clientsActive: number;
@@ -40,6 +42,10 @@ export default function AdminModule() {
   const [selectedRole, setSelectedRole] = useState<string>('Técnico de Campo');
   const [rolePerms, setRolePerms] = useState<string[]>([]);
   const [savingTemplate, setSavingTemplate] = useState(false);
+  
+  // Create role states
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [newRoleName, setNewRoleName] = useState('');
 
   // Load real metrics and role templates
   useEffect(() => {
@@ -130,6 +136,23 @@ export default function AdminModule() {
     const activeTemp = templates.find((t) => t.role_name === selectedRole);
     setRolePerms(activeTemp ? (activeTemp.permission_actions as string[]) : []);
   }, [selectedRole, templates]);
+
+  const handleCreateRole = async () => {
+    if (!newRoleName.trim()) return;
+    setSavingTemplate(true);
+    try {
+      await saveRoleTemplate(newRoleName, []);
+      const temps = await getRoleTemplates();
+      setTemplates(temps);
+      setSelectedRole(newRoleName);
+      setIsCreateDialogOpen(false);
+      setNewRoleName('');
+    } catch (err: any) {
+      alert(err.message || 'Error al crear rol');
+    } finally {
+      setSavingTemplate(false);
+    }
+  };
 
   const handleSaveTemplate = async () => {
     setSavingTemplate(true);
@@ -300,15 +323,54 @@ export default function AdminModule() {
             <div className="space-y-4">
               <div className="space-y-1">
                 <label className="text-zinc-500 text-xs font-mono uppercase tracking-wider block">Seleccionar Rol</label>
-                <select
-                  value={selectedRole}
-                  onChange={(e) => setSelectedRole(e.target.value)}
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-lg text-sm p-2.5 text-white h-11 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
-                >
-                  <option value="Técnico de Campo">Técnico de Campo</option>
-                  <option value="Ingeniero">Ingeniero</option>
-                  <option value="Administrador">Administrador</option>
-                </select>
+                <div className="flex items-center gap-2">
+                  <select
+                    value={selectedRole}
+                    onChange={(e) => setSelectedRole(e.target.value)}
+                    className="flex-1 bg-zinc-950 border border-zinc-800 rounded-lg text-sm p-2.5 text-white h-11 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+                  >
+                    {templates.length === 0 ? (
+                      <>
+                        <option value="Técnico de Campo">Técnico de Campo</option>
+                        <option value="Ingeniero">Ingeniero</option>
+                        <option value="Administrador">Administrador</option>
+                      </>
+                    ) : (
+                      templates.map((t) => (
+                        <option key={t.role_name} value={t.role_name}>
+                          {t.role_name}
+                        </option>
+                      ))
+                    )}
+                  </select>
+
+                  <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+                    <DialogTrigger className="h-11 px-3 bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 rounded-lg shrink-0 flex items-center justify-center">
+                      <Plus className="h-4 w-4 text-zinc-300" />
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Crear nuevo rol</DialogTitle>
+                      </DialogHeader>
+                      <div className="py-4 space-y-2">
+                        <label className="text-xs font-bold text-zinc-400 uppercase">Nombre del Rol</label>
+                        <input 
+                          type="text" 
+                          value={newRoleName} 
+                          onChange={(e) => setNewRoleName(e.target.value)}
+                          className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-3 text-white text-sm focus:border-emerald-500 focus:outline-none"
+                          placeholder="Ej: Asesor Legal"
+                        />
+                      </div>
+                      <DialogFooter>
+                        <Button onClick={handleCreateRole} disabled={savingTemplate || !newRoleName.trim()} className="bg-emerald-600 hover:bg-emerald-500">
+                          {savingTemplate ? <Loader2 className="animate-spin h-4 w-4 mr-2" /> : null}
+                          Crear Rol
+                        </Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
+                </div>
               </div>
 
               <div className="bg-zinc-950/40 border border-zinc-800/60 p-4 rounded-xl text-xs space-y-2">

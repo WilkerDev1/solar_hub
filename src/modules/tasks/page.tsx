@@ -135,7 +135,7 @@ export default function TasksModule() {
         <div className="space-y-4">
           {filteredTasks.map((task) => {
             const isCompleted = task.status === 'completada';
-            const isDeliverable = task.task_type === 'entregable';
+            const isDeliverable = ['entregable', 'reporte', 'evidencia'].includes(task.task_type);
 
             return (
               <div 

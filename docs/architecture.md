@@ -86,6 +86,8 @@ erDiagram
     projects ||--o{ global_tasks : "vincula"
     profiles ||--o{ global_tasks : "asignado a"
     companies ||--o{ role_permissions_templates : "define"
+    projects ||--o{ project_messages : "tiene"
+    profiles ||--o{ project_messages : "escribe"
 
     companies {
         uuid id PK
@@ -155,9 +157,20 @@ erDiagram
         text origin
         text status
         text task_type
+        text area
+        text audit_status
+        text_array evidence_urls
         uuid assigned_to FK
         timestamp created_at
         uuid created_by FK
+    }
+
+    project_messages {
+        uuid id PK
+        uuid project_id FK
+        uuid profile_id FK
+        text message
+        timestamp created_at
     }
 
     role_permissions_templates {

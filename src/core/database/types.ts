@@ -113,11 +113,14 @@ export type Database = {
       }
       global_tasks: {
         Row: {
+          area: string | null
           assigned_to: string
+          audit_status: string | null
           company_id: string
           created_at: string
           created_by: string | null
           description: string | null
+          evidence_urls: string[] | null
           id: string
           origin: string
           project_id: string | null
@@ -126,11 +129,14 @@ export type Database = {
           title: string
         }
         Insert: {
+          area?: string | null
           assigned_to: string
+          audit_status?: string | null
           company_id: string
           created_at?: string
           created_by?: string | null
           description?: string | null
+          evidence_urls?: string[] | null
           id?: string
           origin: string
           project_id?: string | null
@@ -139,11 +145,14 @@ export type Database = {
           title: string
         }
         Update: {
+          area?: string | null
           assigned_to?: string
+          audit_status?: string | null
           company_id?: string
           created_at?: string
           created_by?: string | null
           description?: string | null
+          evidence_urls?: string[] | null
           id?: string
           origin?: string
           project_id?: string | null
@@ -236,6 +245,45 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      project_messages: {
+        Row: {
+          created_at: string
+          id: string
+          message: string
+          profile_id: string
+          project_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          message: string
+          profile_id: string
+          project_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          message?: string
+          profile_id?: string
+          project_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_messages_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_messages_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
             referencedColumns: ["id"]
           },
         ]

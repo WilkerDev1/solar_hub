@@ -10,11 +10,12 @@ export interface TaskFilters {
   projectId?: string;
   origin?: 'proyecto' | 'administracion' | 'consulta' | 'almacen';
   status?: 'pendiente' | 'en_progreso' | 'completada';
+  area?: 'legal' | 'almacen' | 'operaciones' | 'administracion' | 'general';
 }
 
 /**
  * Fetch all tasks scoped to the company via RLS.
- * Filter by assignment, project, origin, or status.
+ * Filter by assignment, project, origin, status, or area.
  */
 export async function getTasks(filters?: TaskFilters): Promise<TaskRow[]> {
   let query = supabase.from('global_tasks').select('*');
@@ -30,6 +31,9 @@ export async function getTasks(filters?: TaskFilters): Promise<TaskRow[]> {
   }
   if (filters?.status) {
     query = query.eq('status', filters.status);
+  }
+  if (filters?.area) {
+    query = query.eq('area', filters.area);
   }
 
   // Order by newest first
@@ -52,9 +56,10 @@ export async function createTask(taskData: {
   title: string;
   description?: string | null;
   origin: 'proyecto' | 'administracion' | 'consulta' | 'almacen';
-  task_type: 'check' | 'entregable';
+  task_type: 'check' | 'entregable' | 'reporte' | 'evidencia';
   assigned_to: string;
   project_id?: string | null;
+  area?: 'legal' | 'almacen' | 'operaciones' | 'administracion' | 'general';
 }): Promise<TaskRow> {
   // Get active session user
   const { data: { user }, error: userError } = await supabase.auth.getUser();
@@ -82,7 +87,9 @@ export async function createTask(taskData: {
     task_type: taskData.task_type,
     assigned_to: taskData.assigned_to,
     project_id: taskData.project_id || null,
+    area: taskData.area || 'general',
     status: 'pendiente',
+    audit_status: 'pendiente',
   };
 
   const { data, error } = await supabase
@@ -115,6 +122,72 @@ export async function updateTaskStatus(
 
   if (error) {
     console.error('Error updating task status:', error);
+    throw new Error(error.message);
+  }
+
+  return data;
+}
+
+/**
+ * Audit a task (Admin/Leader only).
+ */
+export async function auditTaskStatus(
+  taskId: string,
+  audit_status: 'pendiente' | 'aceptado' | 'denegado' | 'requiere_revision'
+): Promise<TaskRow> {
+  const { data, error } = await supabase
+    .from('global_tasks')
+    .update({ audit_status } as TaskUpdate)
+    .eq('id', taskId)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error auditing task status:', error);
+    throw new Error(error.message);
+  }
+
+  return data;
+}
+
+/**
+ * Upload task evidence to Supabase Storage and append to task.
+ */
+export async function uploadTaskEvidence(
+  taskId: string,
+  file: File,
+  currentUrls: string[] = []
+): Promise<TaskRow> {
+  // 1. Upload to storage bucket "task_evidence"
+  const fileExt = file.name.split('.').pop();
+  const fileName = `${taskId}_${Math.random().toString(36).substring(2)}.${fileExt}`;
+  const filePath = `${taskId}/${fileName}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from('task_evidence')
+    .upload(filePath, file);
+
+  if (uploadError) {
+    console.error('Error uploading evidence to bucket:', uploadError);
+    throw new Error('No se pudo subir la evidencia. Asegúrate de que el Bucket "task_evidence" existe en Supabase.');
+  }
+
+  const { data: publicUrlData } = supabase.storage
+    .from('task_evidence')
+    .getPublicUrl(filePath);
+
+  const newUrls = [...currentUrls, publicUrlData.publicUrl];
+
+  // 2. Update task record
+  const { data, error } = await supabase
+    .from('global_tasks')
+    .update({ evidence_urls: newUrls } as TaskUpdate)
+    .eq('id', taskId)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error linking evidence to task:', error);
     throw new Error(error.message);
   }
 

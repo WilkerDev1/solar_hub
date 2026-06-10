@@ -4,6 +4,18 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
 
 ---
 
+## [5.0.0] - 2026-06-10
+
+### Añadido
+- **Persistencia Nativa**: Inserción directa de cuentas en la tabla de auth interna de Supabase usando el módulo `pgcrypto` para los entornos de desarrollo, garantizando que no se pierdan los perfiles (`admin@solarhub.com`) tras un reset local.
+- **Centro de Mando de Proyectos**: La vista de Detalles del Proyecto (`/projects/[id]`) fue transformada en una interfaz modular de pestañas (Detalles, Tareas, Chat).
+- **Mini-Chat de Proyecto (Realtime)**: Nueva tabla `project_messages` con suscripción nativa a WebSockets para chatear entre involucrados en la obra de forma interactiva y reactiva.
+- **Auditoría de Entregables**: Funcionalidades de aprobación/denegación/revisión para tareas de área de `reporte` o `evidencia`, visibles sólo para perfiles `admin:*`.
+- **RBAC Customizado en Cliente**: El panel de Datos & Sistema permite crear desde cero nuevas plantillas de roles inyectando un nombre y las facultades requeridas, propagando automáticamente los accesos mediante un trigger de base de datos.
+- Subida de archivos mock/preparatoria conectada a `supabase.storage` en la capa de servicios API-First (`uploadTaskEvidence`).
+
+---
+
 ## [4.0.0] - 2026-06-10
 
 ### Añadido

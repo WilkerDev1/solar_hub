@@ -247,6 +247,11 @@ export async function saveRoleTemplate(
 }
 
 /**
+ * Alias for saveRoleTemplate to fulfill the creation of a custom role.
+ */
+export const createCustomRole = saveRoleTemplate;
+
+/**
  * Trigger backend password reset for a given employee (Admin privilege required)
  */
 export async function resetEmployeePassword(
