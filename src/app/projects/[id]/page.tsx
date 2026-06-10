@@ -1,22 +1,22 @@
 import { Suspense } from 'react';
-import ClientProfileModule from '@/modules/clients/[id]/page';
+import ProjectDetailModule from '@/modules/projects/[id]/page';
 import { DashboardShell } from '@/app/page';
 
 interface PageProps {
   params: Promise<{ id: string }>;
 }
 
-export default async function ClientProfilePage({ params }: PageProps) {
+export default async function ProjectDetailPage({ params }: PageProps) {
   const { id } = await params;
 
   return (
     <Suspense fallback={
       <div className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center space-y-4">
-        <span className="text-zinc-400 text-sm font-medium">Cargando cliente...</span>
+        <span className="text-zinc-400 text-sm font-medium">Cargando proyecto...</span>
       </div>
     }>
-      <DashboardShell defaultTab="clients">
-        <ClientProfileModule clientId={id} />
+      <DashboardShell defaultTab="projects">
+        <ProjectDetailModule projectId={id} />
       </DashboardShell>
     </Suspense>
   );

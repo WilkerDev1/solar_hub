@@ -17,6 +17,8 @@ import {
   Loader2
 } from 'lucide-react';
 import { RequirePermission } from '@/core/auth/AuthContext';
+import { getRoleTemplates, saveRoleTemplate, RoleTemplateRow } from '@/core/services/admin';
+import { Button } from '@/core/components/ui/button';
 
 interface OrionMetrics {
   clientsActive: number;
@@ -32,7 +34,14 @@ export default function AdminModule() {
   const [metrics, setMetrics] = useState<OrionMetrics | null>(null);
   const [metricsLoading, setMetricsLoading] = useState(true);
 
-  // Load real metrics from Supabase
+  // Role permissions templates states
+  const [templates, setTemplates] = useState<RoleTemplateRow[]>([]);
+  const [allPerms, setAllPerms] = useState<{ id: string; action: string; description: string | null }[]>([]);
+  const [selectedRole, setSelectedRole] = useState<string>('Técnico de Campo');
+  const [rolePerms, setRolePerms] = useState<string[]>([]);
+  const [savingTemplate, setSavingTemplate] = useState(false);
+
+  // Load real metrics and role templates
   useEffect(() => {
     const loadMetrics = async () => {
       setMetricsLoading(true);
@@ -94,6 +103,47 @@ export default function AdminModule() {
 
     loadMetrics();
   }, []);
+
+  // Load role templates and permissions catalogue
+  useEffect(() => {
+    const loadTemplatesAndPerms = async () => {
+      try {
+        const temps = await getRoleTemplates();
+        setTemplates(temps);
+
+        const { data: dbPerms } = await supabase
+          .from('permissions')
+          .select('id, action, description');
+        setAllPerms(dbPerms || []);
+
+        const activeTemp = temps.find((t) => t.role_name === selectedRole);
+        setRolePerms(activeTemp ? (activeTemp.permission_actions as string[]) : []);
+      } catch (err) {
+        console.error('Error loading role templates or perms:', err);
+      }
+    };
+    loadTemplatesAndPerms();
+  }, []);
+
+  // Update checkbox state when selectedRole changes
+  useEffect(() => {
+    const activeTemp = templates.find((t) => t.role_name === selectedRole);
+    setRolePerms(activeTemp ? (activeTemp.permission_actions as string[]) : []);
+  }, [selectedRole, templates]);
+
+  const handleSaveTemplate = async () => {
+    setSavingTemplate(true);
+    try {
+      await saveRoleTemplate(selectedRole, rolePerms);
+      alert(`Plantilla para el rol "${selectedRole}" guardada con éxito.`);
+      const temps = await getRoleTemplates();
+      setTemplates(temps);
+    } catch (err: any) {
+      alert(err.message || 'Error al guardar la plantilla.');
+    } finally {
+      setSavingTemplate(false);
+    }
+  };
 
   const categories = [
     {
@@ -231,6 +281,94 @@ export default function AdminModule() {
               </div>
             );
           })}
+        </div>
+
+        {/* Plantillas de Permisos por Rol (RBAC Dinámico) */}
+        <div className="bg-zinc-900/40 border border-zinc-800 rounded-2xl p-6 space-y-6 text-left">
+          <div>
+            <h2 className="text-lg font-bold text-white tracking-wide flex items-center gap-2">
+              <ShieldCheck className="h-5 w-5 text-emerald-400" />
+              Gestión de Plantillas de Roles y Permisos (RBAC Dinámico)
+            </h2>
+            <p className="text-zinc-400 text-xs mt-1">
+              Asocia facultades a los roles base de la empresa en caliente. Los cambios se propagan de forma reactiva a todos los usuarios del rol.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Left Column: Role Selector */}
+            <div className="space-y-4">
+              <div className="space-y-1">
+                <label className="text-zinc-500 text-xs font-mono uppercase tracking-wider block">Seleccionar Rol</label>
+                <select
+                  value={selectedRole}
+                  onChange={(e) => setSelectedRole(e.target.value)}
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-lg text-sm p-2.5 text-white h-11 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+                >
+                  <option value="Técnico de Campo">Técnico de Campo</option>
+                  <option value="Ingeniero">Ingeniero</option>
+                  <option value="Administrador">Administrador</option>
+                </select>
+              </div>
+
+              <div className="bg-zinc-950/40 border border-zinc-800/60 p-4 rounded-xl text-xs space-y-2">
+                <span className="font-bold text-white block">Estado de Sincronización</span>
+                <p className="text-zinc-500 leading-normal">
+                  Al pulsar guardar, un trigger PostgreSQL intercepta la operación y actualiza la tabla real de <code className="text-emerald-400">role_permissions</code>.
+                </p>
+              </div>
+            </div>
+
+            {/* Right Column (spans 2 columns): Perms Selection checklist */}
+            <div className="lg:col-span-2 space-y-4">
+              <span className="text-zinc-500 text-xs font-mono uppercase tracking-wider block">Permisos Disponibles</span>
+              
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-56 overflow-y-auto pr-2">
+                {allPerms.map((perm) => {
+                  const isChecked = rolePerms.includes(perm.action);
+                  return (
+                    <label
+                      key={perm.id}
+                      className="flex items-start gap-2.5 p-2 bg-zinc-950 border border-zinc-850 hover:border-zinc-800 rounded-lg cursor-pointer transition-colors"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isChecked}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setRolePerms([...rolePerms, perm.action]);
+                          } else {
+                            setRolePerms(rolePerms.filter((a) => a !== perm.action));
+                          }
+                        }}
+                        className="mt-0.5 rounded text-emerald-600 focus:ring-emerald-500"
+                      />
+                      <div>
+                        <span className="block text-xs font-bold text-white font-mono">{perm.action}</span>
+                        {perm.description && (
+                          <span className="block text-[10px] text-zinc-500 mt-0.5 leading-tight">{perm.description}</span>
+                        )}
+                      </div>
+                    </label>
+                  );
+                })}
+              </div>
+
+              <div className="flex justify-end pt-2">
+                <Button
+                  onClick={handleSaveTemplate}
+                  disabled={savingTemplate}
+                  className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold h-11 px-5 rounded-xl text-sm shadow-lg shadow-emerald-950/40 flex items-center gap-2"
+                >
+                  {savingTemplate ? (
+                    <><Loader2 className="h-4 w-4 animate-spin" /> Guardando...</>
+                  ) : (
+                    'Guardar Plantilla de Permisos'
+                  )}
+                </Button>
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Host Status bar */}

@@ -61,9 +61,15 @@ export async function createEmployee(data: {
   password?: string;
   occupation?: string[];
 }): Promise<{ success: boolean; message: string; profileId?: string }> {
+  const { data: { session } } = await supabase.auth.getSession();
+  const token = session?.access_token;
+
   const response = await fetch('/api/admin/create-employee', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token || ''}`
+    },
     body: JSON.stringify(data),
   });
 
@@ -156,4 +162,114 @@ export async function restoreEmployee(profileId: string): Promise<void> {
     console.error('Error restoring employee:', error);
     throw new Error(error.message);
   }
+}
+
+/**
+ * Extract the unique non-empty occupation strings already present in profiles
+ */
+export async function getUniqueOccupations(): Promise<string[]> {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('occupation')
+    .eq('is_active', true);
+
+  if (error) {
+    console.error('Error fetching unique occupations:', error);
+    return [];
+  }
+
+  const uniqueSet = new Set<string>();
+  data.forEach((p: any) => {
+    if (p.occupation && Array.isArray(p.occupation)) {
+      p.occupation.forEach((occ: string) => {
+        const clean = occ?.trim();
+        if (clean) uniqueSet.add(clean);
+      });
+    }
+  });
+
+  return Array.from(uniqueSet).sort();
+}
+
+/**
+ * Fetch all dynamic role permissions templates for the active company
+ */
+export type RoleTemplateRow = Database['public']['Tables']['role_permissions_templates']['Row'];
+
+export async function getRoleTemplates(): Promise<RoleTemplateRow[]> {
+  const { data, error } = await supabase
+    .from('role_permissions_templates')
+    .select('*')
+    .order('role_name', { ascending: true });
+
+  if (error) {
+    console.error('Error fetching role templates:', error);
+    throw new Error(error.message);
+  }
+  return data || [];
+}
+
+/**
+ * Upsert dynamic permissions configuration for a specific role
+ */
+export async function saveRoleTemplate(
+  roleName: string,
+  permissionActions: string[]
+): Promise<void> {
+  const { data: { user }, error: userError } = await supabase.auth.getUser();
+  if (userError || !user) throw new Error('No active user session');
+
+  const { data: profile, error: profileErr } = await supabase
+    .from('profiles')
+    .select('company_id')
+    .eq('id', user.id)
+    .single();
+
+  if (profileErr || !profile || !profile.company_id) {
+    throw new Error('User company not found');
+  }
+
+  const { error } = await supabase
+    .from('role_permissions_templates')
+    .upsert({
+      company_id: profile.company_id,
+      role_name: roleName,
+      permission_actions: permissionActions,
+      updated_at: new Date().toISOString(),
+    }, {
+      onConflict: 'company_id,role_name',
+    });
+
+  if (error) {
+    console.error('Error saving role template:', error);
+    throw new Error(error.message);
+  }
+}
+
+/**
+ * Trigger backend password reset for a given employee (Admin privilege required)
+ */
+export async function resetEmployeePassword(
+  profileId: string,
+  newPassword: string
+): Promise<{ success: boolean; message: string }> {
+  const { data: { session } } = await supabase.auth.getSession();
+  const token = session?.access_token;
+
+  const response = await fetch('/api/admin/reset-password', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token || ''}`,
+    },
+    body: JSON.stringify({ userId: profileId, password: newPassword }),
+  });
+
+  const result = await response.json();
+
+  if (!response.ok) {
+    throw new Error(result.error || 'Error al restablecer la contraseña');
+  }
+
+  return result;
 }

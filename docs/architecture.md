@@ -82,6 +82,10 @@ erDiagram
     profiles ||--o{ clients : "creado por"
     companies ||--o{ projects : "pertenece a"
     clients ||--o{ projects : "tiene (1:N)"
+    companies ||--o{ global_tasks : "tiene"
+    projects ||--o{ global_tasks : "vincula"
+    profiles ||--o{ global_tasks : "asignado a"
+    companies ||--o{ role_permissions_templates : "define"
 
     companies {
         uuid id PK
@@ -140,6 +144,29 @@ erDiagram
         text gps_coordinates
         timestamp created_at
         uuid created_by FK
+    }
+
+    global_tasks {
+        uuid id PK
+        uuid company_id FK
+        uuid project_id FK
+        text title
+        text description
+        text origin
+        text status
+        text task_type
+        uuid assigned_to FK
+        timestamp created_at
+        uuid created_by FK
+    }
+
+    role_permissions_templates {
+        uuid id PK
+        uuid company_id FK
+        text role_name
+        text_array permission_actions
+        timestamp created_at
+        timestamp updated_at
     }
 ```
 

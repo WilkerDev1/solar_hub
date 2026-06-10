@@ -4,6 +4,23 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
 
 ---
 
+## [4.0.0] - 2026-06-10
+
+### Añadido
+- Nuevo motor de tareas relacionales con tabla `global_tasks` en base de datos PostgreSQL, soportando tareas de tipo "check" y "entregable".
+- Tabla `role_permissions_templates` para gestionar plantillas de rol en caliente.
+- Triggers PL/pgSQL en Supabase para sincronizar automáticamente plantillas de rol con la asignación física de `roles` y `role_permissions`.
+- Nueva vista `/tasks` para que los usuarios gestionen sus tareas personales, con un botón táctil de 48px optimizado para campo ("Ir al Proyecto").
+- Nuevo componente Combobox inteligente en el diálogo de añadir proyecto para autocompletar clientes con creación inline integrada ("Crear nuevo cliente").
+- Endpoint `/api/admin/reset-password` para restablecer contraseñas de empleados.
+- Autocompletado mediante `datalist` con sugerencias de ocupaciones históricas reales para la edición de empleados en la Consola Orion.
+- Tarjetas de Producción e Inventario en Orion vinculadas reactivamente a pestañas específicas del shell.
+
+### Modificado
+- API Routes `/api/admin/create-employee` y `/api/admin/reset-password` ahora exigen y validan cabecera `Authorization: Bearer <token>`, comprobando rol Administrador.
+- Vista de proyectos (`/projects`) para mostrar contador dinámico de tareas y estado de entregables en lugar de hitos/planos estáticos.
+- Seccion "Datos & Sistema" en la Consola Orion para editar plantillas de permisos en caliente con guardado reactivo.
+
 ## [3.0.0] - 2026-06-10
 
 ### Añadido

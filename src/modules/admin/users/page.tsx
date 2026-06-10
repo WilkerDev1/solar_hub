@@ -10,6 +10,8 @@ import {
   updateEmployee,
   archiveEmployee,
   restoreEmployee,
+  getUniqueOccupations,
+  resetEmployeePassword,
   EmployeeWithRole,
 } from '@/core/services/admin';
 import { 
@@ -87,6 +89,12 @@ export default function EmployeeManagementModule() {
   const [modalSubmitting, setModalSubmitting] = useState(false);
   const [modalError, setModalError] = useState<string | null>(null);
 
+  // Suggested occupations and password reset states
+  const [suggestedOccupations, setSuggestedOccupations] = useState<string[]>([]);
+  const [resetPasswordVal, setResetPasswordVal] = useState('');
+  const [resetPasswordSubmitting, setResetPasswordSubmitting] = useState(false);
+  const [resetPasswordSuccess, setResetPasswordSuccess] = useState(false);
+
   // Load all data
   const loadEmployeeData = async () => {
     setLoading(true);
@@ -108,9 +116,13 @@ export default function EmployeeManagementModule() {
 
       if (permsErr) throw permsErr;
 
+      // Fetch unique occupations
+      const uniqueOccs = await getUniqueOccupations();
+
       setEmployees(emps);
       setRoles(dbRoles || []);
       setAllPermissions(dbPerms || []);
+      setSuggestedOccupations(uniqueOccs);
     } catch (err: any) {
       console.error('Error loading employee config:', err);
       setError(err.message || 'Error al obtener perfiles o roles.');
@@ -406,6 +418,7 @@ export default function EmployeeManagementModule() {
                       onChange={(e) => setNewOccupation(e.target.value)}
                       placeholder="Almacén, Administración"
                       className="bg-zinc-950 border-zinc-800 text-white text-sm h-11"
+                      list="suggested-occupations-list"
                     />
                     <p className="text-zinc-600 text-[10px]">Opcional. Define las áreas de responsabilidad del colaborador.</p>
                   </div>
@@ -633,6 +646,7 @@ export default function EmployeeManagementModule() {
                     onChange={(e) => setEditOccupation(e.target.value)}
                     placeholder="Ingeniería, Ventas"
                     className="bg-zinc-950 border-zinc-800 text-white text-sm h-10"
+                    list="suggested-occupations-list"
                   />
                 </div>
 
@@ -688,6 +702,42 @@ export default function EmployeeManagementModule() {
                   </div>
                 )}
 
+                {/* Password Reset Section */}
+                <div className="space-y-2 pt-4 border-t border-zinc-800/80">
+                  <Label className="text-zinc-400 text-xs font-bold block">Restablecer Contraseña</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      type="password"
+                      placeholder="Nueva contraseña temporal"
+                      value={resetPasswordVal}
+                      onChange={(e) => setResetPasswordVal(e.target.value)}
+                      className="bg-zinc-950 border-zinc-800 text-white text-sm h-10 flex-1"
+                    />
+                    <Button
+                      type="button"
+                      disabled={resetPasswordSubmitting || !resetPasswordVal.trim()}
+                      onClick={async () => {
+                        if (!selectedUser) return;
+                        setResetPasswordSubmitting(true);
+                        try {
+                          await resetEmployeePassword(selectedUser.id, resetPasswordVal);
+                          setResetPasswordSuccess(true);
+                          setResetPasswordVal('');
+                          setTimeout(() => setResetPasswordSuccess(false), 3000);
+                        } catch (err: any) {
+                          alert(err.message || 'Error al restablecer la contraseña.');
+                        } finally {
+                          setResetPasswordSubmitting(false);
+                        }
+                      }}
+                      className="bg-zinc-800 hover:bg-zinc-700 text-white text-xs px-3 font-semibold h-10 rounded-lg"
+                    >
+                      {resetPasswordSubmitting ? 'Procesando...' : resetPasswordSuccess ? '¡Listo!' : 'Cambiar'}
+                    </Button>
+                  </div>
+                  <p className="text-zinc-650 text-[10px]">Permite soporte técnico inmediato en campo para el usuario.</p>
+                </div>
+
                 <DialogFooter className="mt-6 flex gap-2">
                   <DialogClose
                     render={
@@ -714,6 +764,11 @@ export default function EmployeeManagementModule() {
           </Dialog>
         )}
       </div>
+      <datalist id="suggested-occupations-list">
+        {suggestedOccupations.map((occ) => (
+          <option key={occ} value={occ} />
+        ))}
+      </datalist>
     </RequirePermission>
   );
 }

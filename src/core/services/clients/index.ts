@@ -235,3 +235,29 @@ export async function createProject(
 
   return data;
 }
+
+/**
+ * Quick-create a new client inline. Only `name` is required.
+ */
+export async function createClientInline(name: string): Promise<ClientRow> {
+  return createClient({ name });
+}
+
+/**
+ * Search clients by approximate name match using ILIKE.
+ */
+export async function searchClients(query: string): Promise<ClientRow[]> {
+  if (!query || query.trim() === '') return [];
+  const { data, error } = await supabase
+    .from('clients')
+    .select('*')
+    .ilike('name', `%${query}%`)
+    .order('name', { ascending: true })
+    .limit(10);
+
+  if (error) {
+    console.error('Error searching clients:', error);
+    return [];
+  }
+  return data || [];
+}

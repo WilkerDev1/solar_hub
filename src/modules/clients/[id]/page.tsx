@@ -23,8 +23,11 @@ import {
   getClientProfile,
   updateClient,
   createProject,
+  createClientInline,
+  searchClients,
   ClientProfile,
-  ProjectRow
+  ProjectRow,
+  ClientRow
 } from '@/core/services/clients';
 import { Button } from '@/core/components/ui/button';
 import { Input } from '@/core/components/ui/input';
@@ -39,6 +42,13 @@ import {
   DialogTrigger,
   DialogClose
 } from '@/core/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/core/components/ui/select';
 
 interface ClientProfileModuleProps {
   clientId: string;
@@ -57,6 +67,7 @@ export default function ClientProfileModule({ clientId }: ClientProfileModulePro
   const [editAddress, setEditAddress] = useState('');
   const [editCategory, setEditCategory] = useState('');
   const [editKwh, setEditKwh] = useState('');
+  const [editStatus, setEditStatus] = useState('');
   const [saving, setSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
 
@@ -69,6 +80,14 @@ export default function ClientProfileModule({ clientId }: ClientProfileModulePro
   const [projPhase, setProjPhase] = useState<'Diseno' | 'Permisos' | 'Construccion' | 'Operacion'>('Diseno');
   const [projSubmitting, setProjSubmitting] = useState(false);
   const [projError, setProjError] = useState<string | null>(null);
+
+  // Combobox search and inline client states inside Add Project Form
+  const [clientSearchQuery, setClientSearchQuery] = useState('');
+  const [selectedClientId, setSelectedClientId] = useState(clientId);
+  const [selectedClientName, setSelectedClientName] = useState('');
+  const [searchResults, setSearchResults] = useState<ClientRow[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [creatingClientInline, setCreatingClientInline] = useState(false);
 
   const loadProfile = async () => {
     setLoading(true);
@@ -83,6 +102,8 @@ export default function ClientProfileModule({ clientId }: ClientProfileModulePro
       setEditAddress(data.address || '');
       setEditCategory(data.category || '');
       setEditKwh(data.avg_kwh_consumption?.toString() || '');
+      setEditStatus(data.status || 'prospecto');
+      setSelectedClientName(data.name || '');
     } catch (err: any) {
       setError(err.message || 'Error al cargar el perfil del cliente.');
     } finally {
@@ -93,6 +114,34 @@ export default function ClientProfileModule({ clientId }: ClientProfileModulePro
   useEffect(() => {
     loadProfile();
   }, [clientId]);
+
+  // Debounced search for clients combobox
+  useEffect(() => {
+    if (clientSearchQuery.trim().length > 1) {
+      const delay = setTimeout(async () => {
+        const results = await searchClients(clientSearchQuery);
+        setSearchResults(results);
+      }, 300);
+      return () => clearTimeout(delay);
+    } else {
+      setSearchResults([]);
+    }
+  }, [clientSearchQuery]);
+
+  const handleStatusChange = async (newStatus: string) => {
+    if (!profile) return;
+    setEditStatus(newStatus);
+    try {
+      await updateClient(profile.id, {
+        status: newStatus as any
+      });
+      // reload
+      const data = await getClientProfile(profile.id);
+      setProfile(data);
+    } catch (err: any) {
+      alert(err.message || 'Error al actualizar el estado.');
+    }
+  };
 
   const handleSaveProfile = async () => {
     if (!profile) return;
@@ -130,7 +179,7 @@ export default function ClientProfileModule({ clientId }: ClientProfileModulePro
 
     try {
       await createProject({
-        client_id: clientId,
+        client_id: selectedClientId,
         name: projName.trim(),
         location: projLocation.trim() || undefined,
         gps_coordinates: projGps.trim() || undefined,
@@ -311,13 +360,17 @@ export default function ClientProfileModule({ clientId }: ClientProfileModulePro
             <div className="bg-zinc-950/60 border border-zinc-800/50 rounded-xl p-4 mt-4">
               <div className="grid grid-cols-2 gap-4 text-xs">
                 <div>
-                  <span className="block text-zinc-500 font-mono uppercase text-[9px]">Estado</span>
-                  <span className={`block font-bold mt-0.5 ${
-                    profile.status === 'activo' ? 'text-emerald-400' :
-                    profile.status === 'prospecto' ? 'text-amber-400' : 'text-zinc-400'
-                  }`}>
-                    {profile.status.toUpperCase()}
-                  </span>
+                  <span className="block text-zinc-500 font-mono uppercase text-[9px] mb-1">Estado</span>
+                  <Select value={editStatus} onValueChange={(val) => { if (val) handleStatusChange(val); }}>
+                    <SelectTrigger className="bg-zinc-950 border-zinc-800 text-[11px] h-8 text-white w-full rounded-md px-2 flex justify-between items-center focus-visible:ring-1 focus-visible:ring-emerald-500">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="bg-zinc-900 border border-zinc-800 text-zinc-300">
+                      <SelectItem value="prospecto" className="text-amber-400 hover:bg-zinc-850 px-2 py-1 cursor-pointer">PROSPECTO</SelectItem>
+                      <SelectItem value="activo" className="text-emerald-400 hover:bg-zinc-850 px-2 py-1 cursor-pointer">ACTIVO</SelectItem>
+                      <SelectItem value="inactivo" className="text-zinc-400 hover:bg-zinc-850 px-2 py-1 cursor-pointer">INACTIVO</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div>
                   <span className="block text-zinc-500 font-mono uppercase text-[9px]">Proyectos</span>
@@ -374,7 +427,79 @@ export default function ClientProfileModule({ clientId }: ClientProfileModulePro
                 </div>
               )}
 
-              <form onSubmit={handleCreateProject} className="space-y-4 pt-3">
+              <form onSubmit={handleCreateProject} className="space-y-4 pt-3 text-left">
+                {/* Client Selection Combobox with inline creation support */}
+                <div className="space-y-1 relative">
+                  <Label className="text-zinc-450 text-xs font-semibold">Cliente Asociado *</Label>
+                  <div className="relative">
+                    <Input
+                      value={clientSearchQuery || selectedClientName}
+                      onChange={(e) => {
+                        setClientSearchQuery(e.target.value);
+                        setSelectedClientName(e.target.value);
+                        setShowSuggestions(true);
+                      }}
+                      onFocus={() => setShowSuggestions(true)}
+                      onBlur={() => setTimeout(() => setShowSuggestions(false), 250)}
+                      placeholder="Buscar o escribir para crear cliente..."
+                      className="bg-zinc-950 border-zinc-800 text-white text-sm h-11"
+                    />
+                    {showSuggestions && (
+                      <div className="absolute top-full left-0 right-0 bg-zinc-900 border border-zinc-800 rounded-xl mt-1 max-h-48 overflow-y-auto z-50 text-sm shadow-2xl divide-y divide-zinc-800/80">
+                        {searchResults.length > 0 ? (
+                          searchResults.map((c) => (
+                            <button
+                              key={c.id}
+                              type="button"
+                              onClick={() => {
+                                setSelectedClientId(c.id);
+                                setSelectedClientName(c.name);
+                                setClientSearchQuery('');
+                                setShowSuggestions(false);
+                              }}
+                              className="w-full text-left px-4 py-3 hover:bg-zinc-800 text-zinc-300 hover:text-white transition-colors"
+                              style={{ minHeight: '40px' }}
+                            >
+                              {c.name}
+                            </button>
+                          ))
+                        ) : (
+                          clientSearchQuery.trim().length > 1 && (
+                            <div className="p-3 text-xs text-zinc-500 italic">
+                              No se encontraron coincidencias.
+                            </div>
+                          )
+                        )}
+                        {clientSearchQuery.trim().length > 0 && (
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              setCreatingClientInline(true);
+                              try {
+                                const newClient = await createClientInline(clientSearchQuery);
+                                setSelectedClientId(newClient.id);
+                                setSelectedClientName(newClient.name);
+                                setClientSearchQuery('');
+                                setShowSuggestions(false);
+                              } catch (err: any) {
+                                alert('Error al crear cliente inline: ' + err.message);
+                              } finally {
+                                setCreatingClientInline(false);
+                              }
+                            }}
+                            disabled={creatingClientInline}
+                            className="w-full text-left px-4 py-3 bg-emerald-950/40 text-emerald-400 hover:bg-emerald-900/40 hover:text-emerald-300 font-bold text-xs transition-colors flex items-center justify-between border-t border-zinc-800"
+                            style={{ minHeight: '48px' }}
+                          >
+                            <span>+ Crear "{clientSearchQuery}" en caliente</span>
+                            {creatingClientInline && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
                 <div className="space-y-1">
                   <Label className="text-zinc-400 text-xs">Nombre del Proyecto *</Label>
                   <Input
@@ -382,7 +507,6 @@ export default function ClientProfileModule({ clientId }: ClientProfileModulePro
                     onChange={(e) => setProjName(e.target.value)}
                     placeholder="Planta Solar Copiapó 50MW"
                     className="bg-zinc-950 border-zinc-800 text-white text-sm h-11"
-                    autoFocus
                   />
                 </div>
 

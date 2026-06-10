@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import React, { useState, useEffect, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/core/auth/AuthContext';
 import DashboardModule from '@/modules/dashboard/page';
 import ChatModule from '@/modules/chat/page';
@@ -9,6 +9,7 @@ import ProjectsModule from '@/modules/projects/page';
 import InventoryModule from '@/modules/inventory/page';
 import ClientsModule from '@/modules/clients/page';
 import AdminModule from '@/modules/admin/page';
+import TasksModule from '@/modules/tasks/page';
 
 import { 
   Sun, 
@@ -21,30 +22,31 @@ import {
   Building,
   Menu,
   X,
-  LogOut
+  LogOut,
+  ClipboardList
 } from 'lucide-react';
 
 interface DashboardShellProps {
   children?: React.ReactNode;
-  defaultTab?: 'dashboard' | 'chat' | 'projects' | 'inventory' | 'clients' | 'admin';
+  defaultTab?: 'dashboard' | 'chat' | 'projects' | 'inventory' | 'clients' | 'admin' | 'tasks';
 }
 
 export function DashboardShell({ children, defaultTab = 'dashboard' }: DashboardShellProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { user, roles, loading, signOut, hasPermission } = useAuth();
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'chat' | 'projects' | 'inventory' | 'clients' | 'admin'>(defaultTab);
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'chat' | 'projects' | 'inventory' | 'clients' | 'admin' | 'tasks'>(defaultTab);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  // Sync tab from query parameter on initial load or browser navigation (only on root page)
+  // Sync tab from query parameter on initial load or browser navigation
   useEffect(() => {
-    if (typeof window !== 'undefined' && !children) {
-      const searchParams = new URLSearchParams(window.location.search);
-      const tabParam = searchParams.get('tab') as any;
-      if (tabParam && ['dashboard', 'chat', 'projects', 'inventory', 'clients', 'admin'].includes(tabParam)) {
-        setActiveTab(tabParam);
+    if (searchParams) {
+      const tabParam = searchParams.get('tab');
+      if (tabParam && ['dashboard', 'chat', 'projects', 'inventory', 'clients', 'admin', 'tasks'].includes(tabParam)) {
+        setActiveTab(tabParam as any);
       }
     }
-  }, [children]);
+  }, [searchParams]);
 
   // Redirect if not authenticated
   useEffect(() => {
@@ -76,16 +78,19 @@ export function DashboardShell({ children, defaultTab = 'dashboard' }: Dashboard
         return <ClientsModule />;
       case 'admin':
         return <AdminModule />;
+      case 'tasks':
+        return <TasksModule />;
       default:
         return <DashboardModule />;
     }
   };
 
-  const handleTabClick = (tabId: 'dashboard' | 'chat' | 'projects' | 'inventory' | 'clients' | 'admin') => {
+  const handleTabClick = (tabId: 'dashboard' | 'chat' | 'projects' | 'inventory' | 'clients' | 'admin' | 'tasks') => {
     if (children) {
       router.push(`/?tab=${tabId}`);
     } else {
       setActiveTab(tabId);
+      router.push(`/?tab=${tabId}`);
     }
   };
 
@@ -95,6 +100,7 @@ export function DashboardShell({ children, defaultTab = 'dashboard' }: Dashboard
     { id: 'projects', label: 'Proyectos (Core)', icon: FolderKanban },
     { id: 'inventory', label: 'Inventario', icon: Package },
     { id: 'clients', label: 'Clientes CRM', icon: UsersRound },
+    { id: 'tasks', label: 'Mis Tareas', icon: ClipboardList },
   ] as const;
 
   return (
@@ -320,5 +326,14 @@ export function DashboardShell({ children, defaultTab = 'dashboard' }: Dashboard
 }
 
 export default function Home() {
-  return <DashboardShell />;
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center space-y-4">
+        <Sun className="h-10 w-10 text-amber-500 animate-spin" />
+        <span className="text-zinc-400 text-sm font-medium">Cargando aplicación...</span>
+      </div>
+    }>
+      <DashboardShell />
+    </Suspense>
+  );
 }
