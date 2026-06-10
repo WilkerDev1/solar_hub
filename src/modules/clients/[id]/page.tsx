@@ -2,25 +2,43 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { 
-  getClientProfile, 
-  ClientProfile, 
-  ProjectRow 
-} from '@/core/services/clients';
-import { 
-  ArrowLeft, 
-  MapPin, 
-  Phone, 
-  Activity, 
-  Compass, 
-  LayoutGrid, 
+import {
+  ArrowLeft,
+  User,
+  Phone,
+  MapPin,
+  FileText,
+  Tag,
+  Zap,
   Folder,
-  Calendar,
-  AlertTriangle,
+  LayoutGrid,
   Loader2,
-  Sparkles
+  AlertCircle,
+  Save,
+  Plus,
+  ExternalLink,
+  CheckCircle
 } from 'lucide-react';
+import {
+  getClientProfile,
+  updateClient,
+  createProject,
+  ClientProfile,
+  ProjectRow
+} from '@/core/services/clients';
 import { Button } from '@/core/components/ui/button';
+import { Input } from '@/core/components/ui/input';
+import { Label } from '@/core/components/ui/label';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogClose
+} from '@/core/components/ui/dialog';
 
 interface ClientProfileModuleProps {
   clientId: string;
@@ -32,54 +50,132 @@ export default function ClientProfileModule({ clientId }: ClientProfileModulePro
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    const fetchProfile = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const data = await getClientProfile(clientId);
-        setProfile(data);
-      } catch (err: any) {
-        console.error('Error fetching client profile:', err);
-        setError(err.message || 'Error al cargar el expediente del cliente.');
-      } finally {
-        setLoading(false);
-      }
-    };
+  // Editable form states
+  const [editName, setEditName] = useState('');
+  const [editDocumentId, setEditDocumentId] = useState('');
+  const [editPhone, setEditPhone] = useState('');
+  const [editAddress, setEditAddress] = useState('');
+  const [editCategory, setEditCategory] = useState('');
+  const [editKwh, setEditKwh] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
 
-    if (clientId) {
-      fetchProfile();
+  // New Project Dialog
+  const [projectDialogOpen, setProjectDialogOpen] = useState(false);
+  const [projName, setProjName] = useState('');
+  const [projLocation, setProjLocation] = useState('');
+  const [projGps, setProjGps] = useState('');
+  const [projCapacity, setProjCapacity] = useState('');
+  const [projPhase, setProjPhase] = useState<'Diseno' | 'Permisos' | 'Construccion' | 'Operacion'>('Diseno');
+  const [projSubmitting, setProjSubmitting] = useState(false);
+  const [projError, setProjError] = useState<string | null>(null);
+
+  const loadProfile = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await getClientProfile(clientId);
+      setProfile(data);
+      // Pre-fill editable fields
+      setEditName(data.name || '');
+      setEditDocumentId(data.document_id || '');
+      setEditPhone(data.phone || '');
+      setEditAddress(data.address || '');
+      setEditCategory(data.category || '');
+      setEditKwh(data.avg_kwh_consumption?.toString() || '');
+    } catch (err: any) {
+      setError(err.message || 'Error al cargar el perfil del cliente.');
+    } finally {
+      setLoading(false);
     }
+  };
+
+  useEffect(() => {
+    loadProfile();
   }, [clientId]);
+
+  const handleSaveProfile = async () => {
+    if (!profile) return;
+    setSaving(true);
+    setSaveSuccess(false);
+    try {
+      await updateClient(profile.id, {
+        name: editName.trim() || profile.name,
+        document_id: editDocumentId.trim() || null,
+        phone: editPhone.trim() || null,
+        address: editAddress.trim() || null,
+        category: editCategory || null,
+        avg_kwh_consumption: editKwh ? parseFloat(editKwh) : null,
+      });
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 3000);
+      await loadProfile();
+    } catch (err: any) {
+      alert(err.message || 'Error al actualizar el expediente.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleCreateProject = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setProjError(null);
+    setProjSubmitting(true);
+
+    if (!projName.trim()) {
+      setProjError('El nombre del proyecto es obligatorio.');
+      setProjSubmitting(false);
+      return;
+    }
+
+    try {
+      await createProject({
+        client_id: clientId,
+        name: projName.trim(),
+        location: projLocation.trim() || undefined,
+        gps_coordinates: projGps.trim() || undefined,
+        capacity: projCapacity.trim() || undefined,
+        phase: projPhase,
+      });
+
+      // Reset & close
+      setProjName('');
+      setProjLocation('');
+      setProjGps('');
+      setProjCapacity('');
+      setProjPhase('Diseno');
+      setProjectDialogOpen(false);
+
+      // Reload profile to show new project
+      await loadProfile();
+    } catch (err: any) {
+      setProjError(err.message || 'Error al crear el proyecto.');
+    } finally {
+      setProjSubmitting(false);
+    }
+  };
 
   if (loading) {
     return (
       <div className="py-20 flex flex-col items-center justify-center space-y-4">
         <Loader2 className="h-10 w-10 text-emerald-500 animate-spin" />
-        <span className="text-zinc-500 text-sm font-medium">Buscando expediente relacional...</span>
+        <span className="text-zinc-500 text-sm font-medium">Cargando expediente del cliente...</span>
       </div>
     );
   }
 
   if (error || !profile) {
     return (
-      <div className="bg-zinc-900 border border-zinc-800 p-8 text-center rounded-2xl max-w-md mx-auto mt-12">
-        <AlertTriangle className="h-10 w-10 text-rose-500 mx-auto mb-4" />
-        <h3 className="text-white font-bold text-lg">Error de Carga</h3>
-        <p className="text-zinc-400 text-sm mt-2">{error || 'El cliente no existe o está inaccesible.'}</p>
-        <Button 
-          onClick={() => router.push('/?tab=clients')}
-          className="mt-6 bg-zinc-800 hover:bg-zinc-700 text-white font-semibold rounded-xl"
-        >
-          Volver a Clientes
-        </Button>
+      <div className="bg-rose-500/10 border border-rose-500/30 text-rose-300 p-6 rounded-xl flex items-center space-x-3 text-sm max-w-lg mx-auto mt-12">
+        <AlertCircle className="h-6 w-6 text-rose-400" />
+        <span>{error || 'Cliente no encontrado.'}</span>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      {/* Back link & Actions header */}
+    <div className="space-y-8">
+      {/* Header with Back Button */}
       <div className="flex flex-wrap items-center justify-between gap-4 border-b border-zinc-800 pb-5">
         <div className="flex items-center gap-3">
           <button
@@ -90,105 +186,282 @@ export default function ClientProfileModule({ clientId }: ClientProfileModulePro
             <ArrowLeft className="h-4 w-4" />
           </button>
           <div>
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] font-mono font-bold text-emerald-400 uppercase tracking-widest">[EXPEDIENTE]</span>
-              <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold uppercase ${
-                profile.status === 'activo' ? 'bg-emerald-950/50 text-emerald-400 border border-emerald-500/20' :
-                profile.status === 'prospecto' ? 'bg-amber-950/50 text-amber-400 border border-amber-500/20' :
-                'bg-zinc-800 text-zinc-400 border border-zinc-750'
-              }`}>
-                {profile.status}
-              </span>
-            </div>
-            <h1 className="text-xl font-bold text-white tracking-wide mt-1">{profile.name}</h1>
+            <h1 className="text-xl font-bold text-white tracking-wide">{profile.name}</h1>
+            <p className="text-zinc-400 text-xs mt-0.5">
+              Expediente detallado — Edita los campos y guarda los cambios.
+            </p>
           </div>
         </div>
+
+        {/* Save button */}
+        <Button
+          onClick={handleSaveProfile}
+          disabled={saving}
+          className={`flex items-center gap-2 h-11 px-5 rounded-xl font-bold text-sm transition-all ${
+            saveSuccess
+              ? 'bg-emerald-600 text-white'
+              : 'bg-zinc-800 hover:bg-emerald-600 text-zinc-300 hover:text-white border border-zinc-700 hover:border-emerald-500'
+          }`}
+        >
+          {saving ? (
+            <><Loader2 className="h-4 w-4 animate-spin" /> Guardando...</>
+          ) : saveSuccess ? (
+            <><CheckCircle className="h-4 w-4" /> Guardado</>
+          ) : (
+            <><Save className="h-4 w-4" /> Actualizar Expediente</>
+          )}
+        </Button>
       </div>
 
-      {/* Technical profile grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* Card of base metadata */}
-        <div className="bg-zinc-900/50 backdrop-blur-xl border border-zinc-800 p-5 rounded-2xl md:col-span-2 space-y-4">
+      {/* Editable Profile Fields */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Left Column: Identity & Contact */}
+        <div className="bg-zinc-900/50 backdrop-blur-xl border border-zinc-800 p-6 rounded-2xl space-y-5">
           <h3 className="text-sm font-bold text-white tracking-wide flex items-center gap-2 pb-3 border-b border-zinc-800/60">
-            <Sparkles className="h-4 w-4 text-emerald-400" />
-            Metadatos Técnicos
+            <User className="h-4 w-4 text-emerald-400" />
+            Datos del Cliente
           </h3>
-          
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-            <div className="space-y-1">
-              <span className="block text-[10px] font-mono text-zinc-500 uppercase tracking-wider">Identificación Fiscal</span>
-              <span className="block font-semibold text-white font-mono">{profile.document_id}</span>
-            </div>
-            <div className="space-y-1">
-              <span className="block text-[10px] font-mono text-zinc-500 uppercase tracking-wider">Categoría</span>
-              <span className="block font-semibold text-emerald-400">{profile.category}</span>
-            </div>
-            <div className="space-y-1">
-              <span className="block text-[10px] font-mono text-zinc-500 uppercase tracking-wider">Consumo Promedio Mensual</span>
-              <span className="block font-bold text-white text-base">
-                {profile.avg_kwh_consumption?.toLocaleString() || 0} <span className="text-xs text-zinc-400 font-normal">kWh/mes</span>
-              </span>
-            </div>
-            <div className="space-y-1">
-              <span className="block text-[10px] font-mono text-zinc-500 uppercase tracking-wider">Teléfono</span>
-              <span className="block font-semibold text-zinc-300 flex items-center gap-1.5">
-                <Phone className="h-3.5 w-3.5 text-zinc-500" />
-                {profile.phone || 'N/D'}
-              </span>
-            </div>
-          </div>
 
-          <div className="space-y-1 pt-2 border-t border-zinc-850">
-            <span className="block text-[10px] font-mono text-zinc-500 uppercase tracking-wider">Dirección Física</span>
-            <span className="block text-xs text-zinc-300 flex items-start gap-1.5">
-              <MapPin className="h-4 w-4 text-zinc-500 shrink-0 mt-0.5" />
-              {profile.address || 'Sin dirección registrada'}
-            </span>
+          <div className="space-y-4">
+            <div className="space-y-1">
+              <Label className="text-zinc-500 text-xs uppercase tracking-wider font-mono">Nombre / Razón Social</Label>
+              <Input
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                className="bg-zinc-950 border-zinc-800 text-white text-sm h-11"
+                placeholder="Nombre del cliente"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <Label className="text-zinc-500 text-xs uppercase tracking-wider font-mono flex items-center gap-1">
+                <FileText className="h-3 w-3" /> Identificación Fiscal
+              </Label>
+              <Input
+                value={editDocumentId}
+                onChange={(e) => setEditDocumentId(e.target.value)}
+                className="bg-zinc-950 border-zinc-800 text-white text-sm h-11"
+                placeholder="Cédula / RNC (opcional)"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <Label className="text-zinc-500 text-xs uppercase tracking-wider font-mono flex items-center gap-1">
+                <Phone className="h-3 w-3" /> Teléfono de Contacto
+              </Label>
+              <Input
+                value={editPhone}
+                onChange={(e) => setEditPhone(e.target.value)}
+                className="bg-zinc-950 border-zinc-800 text-white text-sm h-11"
+                placeholder="+1 (809) 555-0199"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <Label className="text-zinc-500 text-xs uppercase tracking-wider font-mono flex items-center gap-1">
+                <MapPin className="h-3 w-3" /> Dirección Física
+              </Label>
+              <Input
+                value={editAddress}
+                onChange={(e) => setEditAddress(e.target.value)}
+                className="bg-zinc-950 border-zinc-800 text-white text-sm h-11"
+                placeholder="Av. Apoquindo 4500, Las Condes"
+              />
+            </div>
           </div>
         </div>
 
-        {/* GPS Location Panel */}
-        <div className="bg-zinc-900/50 backdrop-blur-xl border border-zinc-800 p-5 rounded-2xl flex flex-col justify-between space-y-4">
-          <div>
-            <h3 className="text-sm font-bold text-white tracking-wide flex items-center gap-2 pb-3 border-b border-zinc-800/60">
-              <Compass className="h-4 w-4 text-amber-500" />
-              Ubicación GPS Campo
-            </h3>
-            <p className="text-xs text-zinc-400 mt-3 leading-relaxed">
-              Coordenadas de geolocalización registradas para el replanteo y montaje de paneles solares.
-            </p>
-            <div className="mt-4 bg-zinc-950/80 p-3.5 rounded-xl border border-zinc-850 font-mono text-xs text-center text-white">
-              {profile.gps_coordinates || 'Sin coordenadas GPS'}
+        {/* Right Column: Technical Data */}
+        <div className="bg-zinc-900/50 backdrop-blur-xl border border-zinc-800 p-6 rounded-2xl space-y-5">
+          <h3 className="text-sm font-bold text-white tracking-wide flex items-center gap-2 pb-3 border-b border-zinc-800/60">
+            <Zap className="h-4 w-4 text-amber-500" />
+            Datos Técnicos
+          </h3>
+
+          <div className="space-y-4">
+            <div className="space-y-1">
+              <Label className="text-zinc-500 text-xs uppercase tracking-wider font-mono flex items-center gap-1">
+                <Tag className="h-3 w-3" /> Categoría
+              </Label>
+              <select
+                value={editCategory}
+                onChange={(e) => setEditCategory(e.target.value)}
+                className="w-full bg-zinc-950 border border-zinc-800 rounded-lg text-sm p-2.5 text-white h-11 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+              >
+                <option value="">Sin categoría</option>
+                <option value="Residencial">Residencial</option>
+                <option value="Comercial">Comercial</option>
+                <option value="Industrial">Industrial</option>
+              </select>
+            </div>
+
+            <div className="space-y-1">
+              <Label className="text-zinc-500 text-xs uppercase tracking-wider font-mono flex items-center gap-1">
+                <Zap className="h-3 w-3" /> Consumo Promedio Mensual (kWh)
+              </Label>
+              <Input
+                value={editKwh}
+                onChange={(e) => setEditKwh(e.target.value)}
+                type="number"
+                className="bg-zinc-950 border-zinc-800 text-white text-sm h-11"
+                placeholder="0"
+              />
+            </div>
+
+            <div className="bg-zinc-950/60 border border-zinc-800/50 rounded-xl p-4 mt-4">
+              <div className="grid grid-cols-2 gap-4 text-xs">
+                <div>
+                  <span className="block text-zinc-500 font-mono uppercase text-[9px]">Estado</span>
+                  <span className={`block font-bold mt-0.5 ${
+                    profile.status === 'activo' ? 'text-emerald-400' :
+                    profile.status === 'prospecto' ? 'text-amber-400' : 'text-zinc-400'
+                  }`}>
+                    {profile.status.toUpperCase()}
+                  </span>
+                </div>
+                <div>
+                  <span className="block text-zinc-500 font-mono uppercase text-[9px]">Proyectos</span>
+                  <span className="block font-bold text-white mt-0.5">{profile.projects.length}</span>
+                </div>
+                <div>
+                  <span className="block text-zinc-500 font-mono uppercase text-[9px]">Registrado</span>
+                  <span className="block font-bold text-zinc-300 mt-0.5">
+                    {new Date(profile.created_at).toLocaleDateString('es-CL')}
+                  </span>
+                </div>
+              </div>
             </div>
           </div>
-
-          {profile.gps_coordinates && (
-            <a
-              href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(profile.gps_coordinates)}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="w-full flex items-center justify-center gap-2 py-3 bg-zinc-800 hover:bg-amber-600 hover:text-white text-zinc-300 text-xs font-bold rounded-xl transition-all duration-200 border border-zinc-750"
-              style={{ minHeight: '48px' }}
-            >
-              <MapPin className="h-4 w-4 shrink-0" />
-              <span>Ver en Google Maps</span>
-            </a>
-          )}
         </div>
       </div>
 
       {/* Associated Projects Section */}
       <div className="space-y-4">
-        <h2 className="text-lg font-bold text-white tracking-wide flex items-center gap-2">
-          <Folder className="h-5 w-5 text-emerald-400" />
-          Proyectos Solares Asociados
-        </h2>
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+          <h2 className="text-lg font-bold text-white tracking-wide flex items-center gap-2">
+            <Folder className="h-5 w-5 text-emerald-400" />
+            Proyectos Solares Asociados
+          </h2>
+
+          {/* Add Project Button */}
+          <Dialog open={projectDialogOpen} onOpenChange={setProjectDialogOpen}>
+            <DialogTrigger
+              render={
+                <Button
+                  onClick={() => setProjectDialogOpen(true)}
+                  className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl flex items-center gap-2 h-11 px-4 text-sm shadow-lg shadow-emerald-950/40"
+                />
+              }
+            >
+              <Plus className="h-4 w-4" />
+              Añadir Proyecto
+            </DialogTrigger>
+            <DialogContent className="max-w-md bg-zinc-900 border border-zinc-800 text-white p-6 rounded-2xl">
+              <DialogHeader>
+                <DialogTitle className="text-lg font-bold text-white flex items-center gap-2">
+                  <Folder className="h-5 w-5 text-emerald-400" />
+                  Nuevo Proyecto para {profile.name}
+                </DialogTitle>
+                <DialogDescription className="text-zinc-400 text-xs">
+                  Registra una obra solar vinculada a este cliente. El ID del cliente se inyecta automáticamente.
+                </DialogDescription>
+              </DialogHeader>
+
+              {projError && (
+                <div className="bg-rose-500/10 border border-rose-500/30 text-rose-300 p-3 rounded-lg flex items-start space-x-2 text-xs">
+                  <AlertCircle className="h-4 w-4 shrink-0 text-rose-400" />
+                  <span>{projError}</span>
+                </div>
+              )}
+
+              <form onSubmit={handleCreateProject} className="space-y-4 pt-3">
+                <div className="space-y-1">
+                  <Label className="text-zinc-400 text-xs">Nombre del Proyecto *</Label>
+                  <Input
+                    value={projName}
+                    onChange={(e) => setProjName(e.target.value)}
+                    placeholder="Planta Solar Copiapó 50MW"
+                    className="bg-zinc-950 border-zinc-800 text-white text-sm h-11"
+                    autoFocus
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <Label className="text-zinc-400 text-xs">Ubicación</Label>
+                    <Input
+                      value={projLocation}
+                      onChange={(e) => setProjLocation(e.target.value)}
+                      placeholder="Copiapó, Atacama"
+                      className="bg-zinc-950 border-zinc-800 text-white text-sm"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-zinc-400 text-xs">Capacidad (kWp/MWp)</Label>
+                    <Input
+                      value={projCapacity}
+                      onChange={(e) => setProjCapacity(e.target.value)}
+                      placeholder="100 MWp"
+                      className="bg-zinc-950 border-zinc-800 text-white text-sm"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-zinc-400 text-xs">Coordenadas GPS de la Obra</Label>
+                  <Input
+                    value={projGps}
+                    onChange={(e) => setProjGps(e.target.value)}
+                    placeholder="-27.3670,-70.3320"
+                    className="bg-zinc-950 border-zinc-800 text-white text-sm font-mono"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-zinc-400 text-xs">Fase Inicial</Label>
+                  <select
+                    value={projPhase}
+                    onChange={(e) => setProjPhase(e.target.value as any)}
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-lg text-sm p-2 text-white h-9 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+                  >
+                    <option value="Diseno">Diseño</option>
+                    <option value="Permisos">Permisos</option>
+                    <option value="Construccion">Construcción</option>
+                    <option value="Operacion">Operación</option>
+                  </select>
+                </div>
+
+                <DialogFooter className="mt-6 flex gap-2">
+                  <DialogClose
+                    render={
+                      <Button type="button" variant="outline" className="bg-transparent border-zinc-800 text-zinc-400 hover:text-white hover:bg-zinc-850" />
+                    }
+                  >
+                    Cancelar
+                  </DialogClose>
+                  <Button
+                    type="submit"
+                    disabled={projSubmitting}
+                    className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold"
+                  >
+                    {projSubmitting ? (
+                      <span className="flex items-center gap-1.5">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Creando...
+                      </span>
+                    ) : 'Crear Proyecto'}
+                  </Button>
+                </DialogFooter>
+              </form>
+            </DialogContent>
+          </Dialog>
+        </div>
 
         {profile.projects.length === 0 ? (
           <div className="bg-zinc-900/40 border border-zinc-850 p-12 text-center rounded-xl">
             <LayoutGrid className="h-10 w-10 text-zinc-650 mx-auto mb-3" />
             <h3 className="text-zinc-400 font-bold text-sm">Ningún proyecto contratado</h3>
-            <p className="text-zinc-500 text-xs mt-1">Este cliente actualmente no cuenta con proyectos solares registrados en el tenant.</p>
+            <p className="text-zinc-500 text-xs mt-1">Añade el primer proyecto solar para este cliente.</p>
           </div>
         ) : (
           <>
@@ -200,6 +473,7 @@ export default function ClientProfileModule({ clientId }: ClientProfileModulePro
                     <th className="p-4">Proyecto</th>
                     <th className="p-4">Ubicación</th>
                     <th className="p-4">Capacidad</th>
+                    <th className="p-4">GPS Obra</th>
                     <th className="p-4">Fase</th>
                     <th className="p-4">Estado</th>
                   </tr>
@@ -210,6 +484,22 @@ export default function ClientProfileModule({ clientId }: ClientProfileModulePro
                       <td className="p-4 font-bold text-white">{proj.name}</td>
                       <td className="p-4 text-xs text-zinc-400">{proj.location || 'N/D'}</td>
                       <td className="p-4 text-xs font-mono text-zinc-300">{proj.capacity || 'N/D'}</td>
+                      <td className="p-4">
+                        {proj.gps_coordinates ? (
+                          <a
+                            href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(proj.gps_coordinates)}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 text-xs text-amber-400 hover:text-amber-300 hover:underline font-mono"
+                          >
+                            <MapPin className="h-3 w-3" />
+                            {proj.gps_coordinates}
+                            <ExternalLink className="h-2.5 w-2.5" />
+                          </a>
+                        ) : (
+                          <span className="text-xs text-zinc-600 italic">Sin GPS</span>
+                        )}
+                      </td>
                       <td className="p-4 text-xs font-semibold text-emerald-400">{proj.phase}</td>
                       <td className="p-4">
                         <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold uppercase ${
@@ -243,7 +533,7 @@ export default function ClientProfileModule({ clientId }: ClientProfileModulePro
                       {proj.status.replace('_', ' ')}
                     </span>
                   </div>
-                  
+
                   <div className="grid grid-cols-2 gap-2 text-xs pt-3 border-t border-zinc-850">
                     <div className="space-y-0.5">
                       <span className="block text-[9px] text-zinc-500 uppercase font-mono">Ubicación</span>
@@ -254,6 +544,19 @@ export default function ClientProfileModule({ clientId }: ClientProfileModulePro
                       <span className="block text-zinc-300 font-mono truncate">{proj.capacity || 'N/D'}</span>
                     </div>
                   </div>
+
+                  {proj.gps_coordinates && (
+                    <a
+                      href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(proj.gps_coordinates)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="w-full flex items-center justify-center gap-2 py-3 bg-zinc-800 hover:bg-amber-600 hover:text-white text-zinc-300 text-xs font-bold rounded-xl transition-all duration-200 border border-zinc-750"
+                      style={{ minHeight: '48px' }}
+                    >
+                      <MapPin className="h-4 w-4 shrink-0" />
+                      <span>Ver en Google Maps</span>
+                    </a>
+                  )}
                 </div>
               ))}
             </div>

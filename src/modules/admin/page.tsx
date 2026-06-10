@@ -1,7 +1,8 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { supabase } from '@/core/database/supabase';
 import { 
   Building, 
   FolderKanban, 
@@ -12,12 +13,87 @@ import {
   ShieldCheck,
   Server,
   CloudLightning,
-  AlertTriangle
+  AlertTriangle,
+  Loader2
 } from 'lucide-react';
 import { RequirePermission } from '@/core/auth/AuthContext';
 
+interface OrionMetrics {
+  clientsActive: number;
+  clientsProspect: number;
+  projectsBuilding: number;
+  projectsDesign: number;
+  employeesActive: number;
+  employeesTotal: number;
+}
+
 export default function AdminModule() {
   const router = useRouter();
+  const [metrics, setMetrics] = useState<OrionMetrics | null>(null);
+  const [metricsLoading, setMetricsLoading] = useState(true);
+
+  // Load real metrics from Supabase
+  useEffect(() => {
+    const loadMetrics = async () => {
+      setMetricsLoading(true);
+      try {
+        // Clients metrics
+        const { count: clientsActive } = await supabase
+          .from('clients')
+          .select('*', { count: 'exact', head: true })
+          .eq('status', 'activo');
+
+        const { count: clientsProspect } = await supabase
+          .from('clients')
+          .select('*', { count: 'exact', head: true })
+          .eq('status', 'prospecto');
+
+        // Projects metrics
+        const { count: projectsBuilding } = await supabase
+          .from('projects')
+          .select('*', { count: 'exact', head: true })
+          .in('phase', ['Construccion', 'Permisos']);
+
+        const { count: projectsDesign } = await supabase
+          .from('projects')
+          .select('*', { count: 'exact', head: true })
+          .eq('phase', 'Diseno');
+
+        // Employee metrics
+        const { count: employeesActive } = await supabase
+          .from('profiles')
+          .select('*', { count: 'exact', head: true })
+          .eq('is_active', true);
+
+        const { count: employeesTotal } = await supabase
+          .from('profiles')
+          .select('*', { count: 'exact', head: true });
+
+        setMetrics({
+          clientsActive: clientsActive || 0,
+          clientsProspect: clientsProspect || 0,
+          projectsBuilding: projectsBuilding || 0,
+          projectsDesign: projectsDesign || 0,
+          employeesActive: employeesActive || 0,
+          employeesTotal: employeesTotal || 0,
+        });
+      } catch (err) {
+        console.error('Error loading Orion metrics:', err);
+        setMetrics({
+          clientsActive: 0,
+          clientsProspect: 0,
+          projectsBuilding: 0,
+          projectsDesign: 0,
+          employeesActive: 0,
+          employeesTotal: 0,
+        });
+      } finally {
+        setMetricsLoading(false);
+      }
+    };
+
+    loadMetrics();
+  }, []);
 
   const categories = [
     {
@@ -27,15 +103,11 @@ export default function AdminModule() {
       icon: Building,
       accent: 'border-emerald-500/20 text-emerald-400',
       stats: [
-        { label: 'Clientes Activos', value: '2' },
-        { label: 'Prospectos en Negociación', value: '1' }
+        { label: 'Clientes Activos', value: metricsLoading ? '...' : String(metrics?.clientsActive ?? 0) },
+        { label: 'Prospectos en Negociación', value: metricsLoading ? '...' : String(metrics?.clientsProspect ?? 0) }
       ],
       actionLabel: 'Ir a Clientes CRM',
-      action: () => {
-        if (typeof window !== 'undefined') {
-          window.location.search = '?tab=clients';
-        }
-      }
+      action: () => router.push('/?tab=clients'),
     },
     {
       title: 'PRODUCCIÓN',
@@ -44,15 +116,11 @@ export default function AdminModule() {
       icon: FolderKanban,
       accent: 'border-amber-500/20 text-amber-400',
       stats: [
-        { label: 'Obras en Construcción', value: '2' },
-        { label: 'Proyectos en Diseño', value: '2' }
+        { label: 'Obras en Ejecución', value: metricsLoading ? '...' : String(metrics?.projectsBuilding ?? 0) },
+        { label: 'Proyectos en Diseño', value: metricsLoading ? '...' : String(metrics?.projectsDesign ?? 0) }
       ],
       actionLabel: 'Monitorear Proyectos',
-      action: () => {
-        if (typeof window !== 'undefined') {
-          window.location.search = '?tab=projects';
-        }
-      }
+      action: () => router.push('/?tab=projects'),
     },
     {
       title: 'INVENTARIO',
@@ -61,30 +129,24 @@ export default function AdminModule() {
       icon: Package,
       accent: 'border-blue-500/20 text-blue-400',
       stats: [
-        { label: 'Items Registrados', value: '84' },
-        { label: 'Stock Alerta Crítica', value: '0' }
+        { label: 'Items Registrados', value: '—' },
+        { label: 'Stock Alerta Crítica', value: '—' }
       ],
       actionLabel: 'Ver Inventario',
-      action: () => {
-        if (typeof window !== 'undefined') {
-          window.location.search = '?tab=inventory';
-        }
-      }
+      action: () => router.push('/?tab=inventory'),
     },
     {
       title: 'DATOS & SISTEMA',
       tag: '[DATOS]',
-      description: 'Respaldo de base de datos, logs de auditoría multi-tenant y accesos de personal.',
+      description: 'Gestión de empleados, accesos de personal y configuración multi-tenant.',
       icon: Database,
       accent: 'border-purple-500/20 text-purple-400',
       stats: [
-        { label: 'Conexión Supabase', value: 'Activa' },
-        { label: 'Políticas RLS', value: 'Habilitadas' }
+        { label: 'Empleados Activos', value: metricsLoading ? '...' : String(metrics?.employeesActive ?? 0) },
+        { label: 'Perfiles Totales', value: metricsLoading ? '...' : String(metrics?.employeesTotal ?? 0) }
       ],
       actionLabel: 'Gestión de Empleados',
-      action: () => {
-        router.push('/admin/users');
-      }
+      action: () => router.push('/admin/users'),
     }
   ];
 
@@ -146,8 +208,11 @@ export default function AdminModule() {
                         <span className="block text-[9px] font-mono text-zinc-500 uppercase tracking-wider truncate">
                           {stat.label}
                         </span>
-                        <span className="block text-sm font-bold text-white truncate mt-0.5">
-                          {stat.value}
+                        <span className={`block text-sm font-bold truncate mt-0.5 ${
+                          stat.value === '...' ? 'text-zinc-600 animate-pulse' : 
+                          stat.value === '—' ? 'text-zinc-600' : 'text-white'
+                        }`}>
+                          {stat.value === '...' ? <Loader2 className="h-4 w-4 animate-spin inline" /> : stat.value}
                         </span>
                       </div>
                     ))}
@@ -172,7 +237,7 @@ export default function AdminModule() {
         <div className="bg-zinc-950/80 border border-zinc-850 p-4 rounded-xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 text-xs text-zinc-400">
           <div className="flex items-center gap-2">
             <Server className="h-4 w-4 text-emerald-400 animate-pulse" />
-            <span>Servidor local de desarrollo: <strong>Supabase CLI v2.102.0 (Docker)</strong></span>
+            <span>Servidor local: <strong>Supabase CLI v2.102.0 (Docker)</strong></span>
           </div>
           <div className="flex items-center gap-2">
             <CloudLightning className="h-4 w-4 text-amber-500" />

@@ -47,3 +47,24 @@ Inicialmente, al navegar a rutas internas como `/clients` o `/admin`, la página
 
 ### Solución Implementada
 Se modularizó el `DashboardShell` de la raíz (`src/app/page.tsx`) para actuar como un layout shell real que acepta un prop `children`. De esta manera, el layout transversal envuelve las sub-páginas a través de los layouts de Next.js, preservando el estado de la barra lateral, el multi-tenant y la sesión del usuario durante la navegación.
+
+---
+
+## 4. Aprovisionamiento Seguro de Usuarios con Next.js API Routes
+
+### Problema
+Para registrar nuevos empleados en la base de datos de Supabase, es necesario usar la API de administración de Supabase Auth (`supabase.auth.admin.createUser`). Esta API requiere privilegios de `service_role`, cuya clave jamás debe exponerse en el cliente web debido a riesgos críticos de seguridad (permite saltarse todas las políticas de RLS).
+
+### Solución Implementada
+Se implementó una API Route de Next.js en `src/app/api/admin/create-employee/route.ts` que se ejecuta exclusivamente en el servidor. Esta ruta lee la clave `SUPABASE_SERVICE_ROLE_KEY` del entorno seguro, inicializa un cliente administrativo de Supabase y realiza la creación del usuario Auth. Adicionalmente, se valida que la sesión del usuario que solicita la creación sea de un Administrador (`roleId` de Administrador) para evitar escalado de privilegios.
+
+---
+
+## 5. Reubicación de Geolocalización a Obras (Proyectos) y Flexibilización de CRM
+
+### Problema
+La geolocalización por coordenadas GPS estaba previamente asociada al perfil de cliente. Sin embargo, en el mundo real, un mismo cliente (por ejemplo, una empresa comercial o industrial) puede encargar múltiples proyectos solares en diferentes ubicaciones geográficas. Asimismo, el formulario de creación de clientes requería demasiados campos iniciales obligatorios, dificultando el registro rápido de prospectos.
+
+### Solución Implementada
+Se realizó una migración incremental que eliminó `gps_coordinates` de la tabla `clients` y la incorporó a la tabla `projects`. Además, se modificó `document_id` en la tabla `clients` para ser nullable. En la interfaz de usuario, el modal de creación de cliente se simplificó para solicitar únicamente el nombre del cliente, y se expandió la página `/clients/[id]` para permitir actualizar el expediente de forma detallada y registrar múltiples proyectos asociados con sus coordenadas GPS y dirección de obra específicas.
+

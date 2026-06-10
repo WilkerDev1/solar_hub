@@ -42,8 +42,7 @@ export type Database = {
           company_id: string
           created_at: string
           created_by: string | null
-          document_id: string
-          gps_coordinates: string | null
+          document_id: string | null
           id: string
           name: string
           phone: string | null
@@ -56,8 +55,7 @@ export type Database = {
           company_id: string
           created_at?: string
           created_by?: string | null
-          document_id: string
-          gps_coordinates?: string | null
+          document_id?: string | null
           id?: string
           name: string
           phone?: string | null
@@ -70,8 +68,7 @@ export type Database = {
           company_id?: string
           created_at?: string
           created_by?: string | null
-          document_id?: string
-          gps_coordinates?: string | null
+          document_id?: string | null
           id?: string
           name?: string
           phone?: string | null
@@ -143,6 +140,8 @@ export type Database = {
           email: string
           full_name: string | null
           id: string
+          is_active: boolean | null
+          occupation: string[] | null
           updated_at: string
         }
         Insert: {
@@ -152,6 +151,8 @@ export type Database = {
           email: string
           full_name?: string | null
           id: string
+          is_active?: boolean | null
+          occupation?: string[] | null
           updated_at?: string
         }
         Update: {
@@ -161,6 +162,8 @@ export type Database = {
           email?: string
           full_name?: string | null
           id?: string
+          is_active?: boolean | null
+          occupation?: string[] | null
           updated_at?: string
         }
         Relationships: [
@@ -180,6 +183,7 @@ export type Database = {
           company_id: string
           created_at: string
           created_by: string | null
+          gps_coordinates: string | null
           id: string
           location: string | null
           name: string
@@ -192,6 +196,7 @@ export type Database = {
           company_id: string
           created_at?: string
           created_by?: string | null
+          gps_coordinates?: string | null
           id?: string
           location?: string | null
           name: string
@@ -204,6 +209,7 @@ export type Database = {
           company_id?: string
           created_at?: string
           created_by?: string | null
+          gps_coordinates?: string | null
           id?: string
           location?: string | null
           name?: string

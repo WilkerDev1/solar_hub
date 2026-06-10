@@ -4,6 +4,27 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
 
 ---
 
+## [3.0.0] - 2026-06-10
+
+### Añadido
+- Nueva API Route `/api/admin/create-employee` para el aprovisionamiento seguro de usuarios utilizando `supabase.auth.admin.createUser` con la `service_role_key`.
+- Columnas `occupation` (`text[]`) y `is_active` (`boolean`) en la tabla `profiles` en base de datos.
+- Columna `gps_coordinates` (`text`) en la tabla `projects` en base de datos.
+- Diálogo modal de creación de proyectos directamente desde la vista del expediente de cliente (`/clients/[id]`).
+- Panel completo de CRUD para administración de empleados en `/admin/users`, con filtros de estado y edición en caliente.
+
+### Modificado
+- Columna `document_id` de la tabla `clients` modificada a opcional (nullable).
+- Formulario de creación rápida de clientes simplificado para exigir únicamente el campo **Nombre**.
+- Vista de expediente de cliente `/clients/[id]` ahora es editable en caliente, permitiendo actualizar todos los metadatos técnicos.
+- La geolocalización GPS (`gps_coordinates`) se trasladó de clientes a proyectos (obras).
+- Consola Orion (`/admin`) actualizada con consultas reactivas reales de Supabase (`COUNT`) en lugar de datos estáticos.
+
+### Eliminado
+- Columna `gps_coordinates` de la tabla `clients`.
+
+---
+
 ## [2.0.0] - 2026-06-09
 
 ### Añadido

@@ -4,21 +4,28 @@ import { Database } from '@/core/database/types';
 export type ClientRow = Database['public']['Tables']['clients']['Row'];
 export type ClientInsert = Database['public']['Tables']['clients']['Insert'];
 export type ClientUpdate = Database['public']['Tables']['clients']['Update'];
+export type ProjectRow = Database['public']['Tables']['projects']['Row'];
+export type ProjectInsert = Database['public']['Tables']['projects']['Insert'];
 
 export interface ClientFilters {
   status?: string;
   search?: string;
+  category?: string;
 }
 
 /**
  * Fetch all clients belonging to the authenticated user's tenant (handled by RLS).
- * Optionally filter by status or search query (matching name or document_id).
+ * Optionally filter by status, category, or search query (matching name or document_id).
  */
 export async function getClients(filters?: ClientFilters): Promise<ClientRow[]> {
   let query = supabase.from('clients').select('*');
 
   if (filters?.status && filters.status !== 'all') {
     query = query.eq('status', filters.status);
+  }
+
+  if (filters?.category && filters.category !== 'all') {
+    query = query.eq('category', filters.category);
   }
 
   if (filters?.search) {
@@ -40,11 +47,11 @@ export async function getClients(filters?: ClientFilters): Promise<ClientRow[]> 
 }
 
 /**
- * Create a new client record.
+ * Quick-create a new client. Only `name` is required.
  * RLS ensures the record is associated with the user's active company.
  */
 export async function createClient(
-  clientData: Omit<ClientInsert, 'id' | 'company_id' | 'created_at' | 'created_by'>
+  clientData: { name: string } & Partial<Omit<ClientInsert, 'id' | 'company_id' | 'created_at' | 'created_by' | 'name'>>
 ): Promise<ClientRow> {
   // Get active session user
   const { data: { user }, error: userError } = await supabase.auth.getUser();
@@ -64,9 +71,15 @@ export async function createClient(
   }
 
   const newClient: ClientInsert = {
-    ...clientData,
+    name: clientData.name,
     company_id: profile.company_id,
     created_by: user.id,
+    status: clientData.status || 'prospecto',
+    ...(clientData.document_id && { document_id: clientData.document_id }),
+    ...(clientData.phone && { phone: clientData.phone }),
+    ...(clientData.address && { address: clientData.address }),
+    ...(clientData.category && { category: clientData.category }),
+    ...(clientData.avg_kwh_consumption !== undefined && { avg_kwh_consumption: clientData.avg_kwh_consumption }),
   };
 
   const { data, error } = await supabase
@@ -106,7 +119,7 @@ export async function updateClientStatus(
 }
 
 /**
- * Update client details.
+ * Update client details (for the editable profile form).
  */
 export async function updateClient(
   clientId: string,
@@ -126,8 +139,6 @@ export async function updateClient(
 
   return data;
 }
-
-export type ProjectRow = Database['public']['Tables']['projects']['Row'];
 
 export interface ClientProfile extends ClientRow {
   projects: ProjectRow[];
@@ -149,7 +160,7 @@ export async function getClientProfile(clientId: string): Promise<ClientProfile>
     throw new Error(clientError?.message || 'Client not found');
   }
 
-  // 2. Fetch projects associated with client
+  // 2. Fetch projects associated with client (now includes gps_coordinates)
   const { data: projects, error: projectsError } = await supabase
     .from('projects')
     .select('*')
@@ -165,4 +176,62 @@ export async function getClientProfile(clientId: string): Promise<ClientProfile>
     ...client,
     projects: projects || [],
   };
+}
+
+/**
+ * Create a new project linked to a specific client.
+ * Automatically injects company_id and created_by from the active session.
+ */
+export async function createProject(
+  projectData: {
+    client_id: string;
+    name: string;
+    location?: string;
+    gps_coordinates?: string;
+    capacity?: string;
+    phase?: 'Diseno' | 'Permisos' | 'Construccion' | 'Operacion';
+    status?: 'completado' | 'en_progreso' | 'demorado';
+  }
+): Promise<ProjectRow> {
+  // Get active session user
+  const { data: { user }, error: userError } = await supabase.auth.getUser();
+  if (userError || !user) {
+    throw new Error('No active user session');
+  }
+
+  // Fetch the company ID of the current user
+  const { data: profile, error: profileError } = await supabase
+    .from('profiles')
+    .select('company_id')
+    .eq('id', user.id)
+    .single();
+
+  if (profileError || !profile || !profile.company_id) {
+    throw new Error('User does not have an active company profile');
+  }
+
+  const newProject: ProjectInsert = {
+    client_id: projectData.client_id,
+    company_id: profile.company_id,
+    created_by: user.id,
+    name: projectData.name,
+    location: projectData.location || null,
+    gps_coordinates: projectData.gps_coordinates || null,
+    capacity: projectData.capacity || null,
+    phase: projectData.phase || 'Diseno',
+    status: projectData.status || 'en_progreso',
+  };
+
+  const { data, error } = await supabase
+    .from('projects')
+    .insert(newProject)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error creating project:', error);
+    throw new Error(error.message);
+  }
+
+  return data;
 }

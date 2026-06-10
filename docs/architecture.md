@@ -97,6 +97,8 @@ erDiagram
         text full_name
         text email
         text avatar_url
+        text_array occupation
+        boolean is_active
     }
 
     roles {
@@ -122,7 +124,6 @@ erDiagram
         text status
         text category
         numeric avg_kwh_consumption
-        text gps_coordinates
         timestamp created_at
         uuid created_by FK
     }
@@ -136,6 +137,7 @@ erDiagram
         text capacity
         text phase
         text status
+        text gps_coordinates
         timestamp created_at
         uuid created_by FK
     }

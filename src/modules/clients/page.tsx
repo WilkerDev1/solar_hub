@@ -1,14 +1,12 @@
 'use client';
 
-import React, { useState, useEffect, startTransition } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { 
   Plus, 
   Search, 
   Filter, 
-  MapPin, 
   Phone, 
-  FileText, 
   User, 
   Building, 
   Briefcase, 
@@ -17,7 +15,9 @@ import {
   AlertCircle,
   RotateCcw,
   Sparkles,
-  Loader2
+  Loader2,
+  Tag,
+  ChevronRight
 } from 'lucide-react';
 import { 
   getClients, 
@@ -46,6 +46,19 @@ import {
   DropdownMenuTrigger,
 } from '@/core/components/ui/dropdown-menu';
 
+const categoryBadge = (cat: string | null) => {
+  switch (cat) {
+    case 'Residencial':
+      return 'bg-blue-950/50 text-blue-400 border-blue-500/20';
+    case 'Comercial':
+      return 'bg-amber-950/50 text-amber-400 border-amber-500/20';
+    case 'Industrial':
+      return 'bg-purple-950/50 text-purple-400 border-purple-500/20';
+    default:
+      return 'bg-zinc-800 text-zinc-400 border-zinc-700';
+  }
+};
+
 export default function ClientsModule() {
   const router = useRouter();
   const [clients, setClients] = useState<ClientRow[]>([]);
@@ -57,13 +70,9 @@ export default function ClientsModule() {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [showFiltersPanel, setShowFiltersPanel] = useState(false);
 
-  // Form States
+  // Form States — Solo nombre obligatorio
   const [dialogOpen, setDialogOpen] = useState(false);
   const [name, setName] = useState('');
-  const [documentId, setDocumentId] = useState('');
-  const [phone, setPhone] = useState('');
-  const [address, setAddress] = useState('');
-  const [status, setStatus] = useState<'activo' | 'inactivo' | 'prospecto'>('prospecto');
   const [formSubmitting, setFormSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -104,27 +113,17 @@ export default function ClientsModule() {
     setFormError(null);
     setFormSubmitting(true);
 
-    if (!name.trim() || !documentId.trim()) {
-      setFormError('Nombre y Cédula/RNC son campos obligatorios.');
+    if (!name.trim()) {
+      setFormError('El nombre del cliente es obligatorio.');
       setFormSubmitting(false);
       return;
     }
 
     try {
-      await createClient({
-        name,
-        document_id: documentId,
-        phone: phone || null,
-        address: address || null,
-        status,
-      });
+      await createClient({ name: name.trim() });
 
       // Clear Form and Close Dialog
       setName('');
-      setDocumentId('');
-      setPhone('');
-      setAddress('');
-      setStatus('prospecto');
       setDialogOpen(false);
       
       // Reload list
@@ -159,7 +158,7 @@ export default function ClientsModule() {
           </p>
         </div>
 
-        {/* Dialog of creation */}
+        {/* Dialog of creation — SIMPLIFIED: Solo nombre */}
         <RequirePermission action="client:write">
           <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
             <DialogTrigger
@@ -173,14 +172,14 @@ export default function ClientsModule() {
               <Plus className="h-4 w-4" />
               Registrar Cliente
             </DialogTrigger>
-            <DialogContent className="max-w-md bg-zinc-900 border border-zinc-800 text-white p-6 rounded-2xl">
+            <DialogContent className="max-w-sm bg-zinc-900 border border-zinc-800 text-white p-6 rounded-2xl">
               <DialogHeader>
                 <DialogTitle className="text-lg font-bold text-white flex items-center gap-2">
                   <Sparkles className="h-5 w-5 text-amber-500" />
-                  Nuevo Registro de Cliente
+                  Registro Rápido
                 </DialogTitle>
                 <DialogDescription className="text-zinc-400 text-xs">
-                  Completa los datos fiscales y de contacto. Todos los registros se auditan e inyectan automáticamente en el tenant actual.
+                  Ingresa el nombre del cliente o empresa. Los datos técnicos se completan después desde el expediente.
                 </DialogDescription>
               </DialogHeader>
 
@@ -199,55 +198,8 @@ export default function ClientsModule() {
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     placeholder="Distribuidora de Energía Solar S.A."
-                    className="bg-zinc-950 border-zinc-800 text-white text-sm"
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <Label htmlFor="documentId" className="text-zinc-400 text-xs">Cédula / RNC (Identificación Fiscal)</Label>
-                  <Input 
-                    id="documentId"
-                    value={documentId}
-                    onChange={(e) => setDocumentId(e.target.value)}
-                    placeholder="1-31-88888-2"
-                    className="bg-zinc-950 border-zinc-800 text-white text-sm"
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1">
-                    <Label htmlFor="phone" className="text-zinc-400 text-xs">Teléfono de Contacto</Label>
-                    <Input 
-                      id="phone"
-                      value={phone}
-                      onChange={(e) => setPhone(e.target.value)}
-                      placeholder="+1 (809) 555-0199"
-                      className="bg-zinc-950 border-zinc-800 text-white text-sm"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label htmlFor="status" className="text-zinc-400 text-xs">Estado Inicial</Label>
-                    <select
-                      id="status"
-                      value={status}
-                      onChange={(e) => setStatus(e.target.value as any)}
-                      className="w-full bg-zinc-950 border border-zinc-800 rounded-lg text-sm p-2 text-white h-9 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
-                    >
-                      <option value="prospecto">Prospecto</option>
-                      <option value="activo">Activo</option>
-                      <option value="inactivo">Inactivo</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div className="space-y-1">
-                  <Label htmlFor="address" className="text-zinc-400 text-xs">Dirección Física</Label>
-                  <Input 
-                    id="address"
-                    value={address}
-                    onChange={(e) => setAddress(e.target.value)}
-                    placeholder="Av. Winston Churchill, Santo Domingo"
-                    className="bg-zinc-950 border-zinc-800 text-white text-sm"
+                    className="bg-zinc-950 border-zinc-800 text-white text-sm h-11"
+                    autoFocus
                   />
                 </div>
 
@@ -269,7 +221,7 @@ export default function ClientsModule() {
                         <Loader2 className="h-4 w-4 animate-spin" />
                         Guardando...
                       </span>
-                    ) : 'Guardar Cliente'}
+                    ) : 'Crear Cliente'}
                   </Button>
                 </DialogFooter>
               </form>
@@ -377,33 +329,35 @@ export default function ClientsModule() {
                   <th className="p-4">Cliente</th>
                   <th className="p-4">Identificación</th>
                   <th className="p-4">Contacto</th>
-                  <th className="p-4">Dirección</th>
+                  <th className="p-4">Categoría</th>
                   <th className="p-4">Estado</th>
                   <th className="p-4 text-center">Acciones</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-800/60 text-sm text-zinc-300">
                 {clients.map((client) => (
-                  <tr key={client.id} className="hover:bg-zinc-850/30 transition-colors">
+                  <tr key={client.id} className="hover:bg-zinc-850/30 transition-colors group">
                     <td className="p-4 font-bold text-white">
                       <button 
                         onClick={() => router.push(`/clients/${client.id}`)}
-                        className="hover:text-emerald-400 hover:underline transition-colors text-left"
+                        className="hover:text-emerald-400 hover:underline transition-colors text-left flex items-center gap-2"
                       >
                         {client.name}
+                        <ChevronRight className="h-3 w-3 text-zinc-600 group-hover:text-emerald-400 transition-colors" />
                       </button>
                     </td>
-                    <td className="p-4 font-mono text-xs">{client.document_id}</td>
+                    <td className="p-4 font-mono text-xs">{client.document_id || <span className="text-zinc-600 italic">Sin ID</span>}</td>
                     <td className="p-4">
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-1.5 text-zinc-400 text-xs">
-                          <Phone className="h-3 w-3" />
-                          <span>{client.phone || 'N/D'}</span>
-                        </div>
+                      <div className="flex items-center gap-1.5 text-zinc-400 text-xs">
+                        <Phone className="h-3 w-3" />
+                        <span>{client.phone || 'N/D'}</span>
                       </div>
                     </td>
-                    <td className="p-4 text-xs text-zinc-400 max-w-xs truncate" title={client.address || ''}>
-                      {client.address || 'Sin dirección registrada'}
+                    <td className="p-4">
+                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase border ${categoryBadge(client.category)}`}>
+                        <Tag className="h-2.5 w-2.5" />
+                        {client.category || 'Sin categoría'}
+                      </span>
                     </td>
                     <td className="p-4">
                       <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
@@ -424,6 +378,12 @@ export default function ClientsModule() {
                           <MoreVertical className="h-4 w-4 text-zinc-400" />
                         </DropdownMenuTrigger>
                         <DropdownMenuContent className="bg-zinc-900 border border-zinc-800 text-zinc-300">
+                          <DropdownMenuItem 
+                            onClick={() => router.push(`/clients/${client.id}`)}
+                            className="hover:bg-zinc-850 focus:bg-zinc-850 cursor-pointer"
+                          >
+                            Ver Expediente
+                          </DropdownMenuItem>
                           <DropdownMenuItem 
                             onClick={() => handleStatusChange(client.id, 'activo')}
                             className="hover:bg-zinc-850 focus:bg-zinc-850 cursor-pointer"
@@ -468,48 +428,44 @@ export default function ClientsModule() {
                         {client.name}
                       </button>
                     </h3>
-                    <p className="text-[10px] font-mono text-zinc-500 mt-1 uppercase">Identificación: {client.document_id}</p>
+                    <div className="flex items-center gap-2 mt-1.5">
+                      <span className={`text-[9px] font-bold uppercase px-2 py-0.5 rounded border ${categoryBadge(client.category)}`}>
+                        {client.category || 'Sin cat.'}
+                      </span>
+                      <span className={`text-[9px] font-extrabold uppercase px-2 py-0.5 rounded-md border ${
+                        client.status === 'activo' ? 'bg-emerald-950/80 text-emerald-300 border-emerald-500/50' :
+                        client.status === 'prospecto' ? 'bg-amber-950/80 text-amber-300 border-amber-500/50' :
+                        'bg-zinc-800 text-zinc-400 border-zinc-600'
+                      }`}>
+                        {client.status}
+                      </span>
+                    </div>
                   </div>
-                  <span className={`text-[10px] font-extrabold uppercase px-3 py-1 rounded-md border ${
-                    client.status === 'activo' ? 'bg-emerald-950/80 text-emerald-300 border-emerald-500/50' :
-                    client.status === 'prospecto' ? 'bg-amber-950/80 text-amber-300 border-amber-500/50' :
-                    'bg-zinc-800 text-zinc-400 border-zinc-600'
-                  }`}>
-                    {client.status}
-                  </span>
                 </div>
 
-                <div className="grid grid-cols-1 gap-2.5 text-sm text-zinc-300 pt-3 border-t border-zinc-850">
-                  <div className="flex items-center gap-2">
-                    <Phone className="h-4 w-4 text-zinc-400" />
-                    <span className="font-semibold">{client.phone || 'Sin teléfono'}</span>
-                  </div>
-                  <div className="flex items-start gap-2">
-                    <MapPin className="h-4 w-4 text-zinc-400 shrink-0 mt-0.5" />
-                    <span className="text-xs text-zinc-400">{client.address || 'Sin dirección registrada'}</span>
-                  </div>
+                <div className="flex items-center gap-2 text-sm text-zinc-300 pt-2 border-t border-zinc-850">
+                  <Phone className="h-4 w-4 text-zinc-400" />
+                  <span className="font-semibold">{client.phone || 'Sin teléfono'}</span>
                 </div>
 
                 {/* Tactile Action buttons - Minimum 48px tactile height */}
                 <div className="grid grid-cols-2 gap-2 pt-2">
+                  <button
+                    onClick={() => router.push(`/clients/${client.id}`)}
+                    className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs py-3 rounded-lg border border-emerald-500 transition-colors flex items-center justify-center gap-1.5 col-span-2"
+                    style={{ minHeight: '48px' }}
+                  >
+                    <User className="h-4 w-4" />
+                    <span>Ver Expediente</span>
+                  </button>
                   {client.status !== 'activo' && (
                     <button
                       onClick={() => handleStatusChange(client.id, 'activo')}
-                      className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs py-3 rounded-lg border border-emerald-500 transition-colors flex items-center justify-center gap-1.5"
+                      className="bg-zinc-800 hover:bg-zinc-700 text-emerald-400 font-bold text-xs py-3 rounded-lg border border-zinc-700 transition-colors flex items-center justify-center gap-1.5"
                       style={{ minHeight: '48px' }}
                     >
                       <CheckCircle className="h-4 w-4" />
                       <span>Activar</span>
-                    </button>
-                  )}
-                  {client.status !== 'prospecto' && (
-                    <button
-                      onClick={() => handleStatusChange(client.id, 'prospecto')}
-                      className="bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs py-3 rounded-lg border border-amber-500 transition-colors flex items-center justify-center gap-1.5"
-                      style={{ minHeight: '48px' }}
-                    >
-                      <RotateCcw className="h-4 w-4" />
-                      <span>Prospecto</span>
                     </button>
                   )}
                   {client.status !== 'inactivo' && (
