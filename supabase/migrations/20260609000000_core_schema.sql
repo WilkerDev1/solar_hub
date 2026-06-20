@@ -119,7 +119,7 @@ CREATE POLICY "Admins can update their own company details" ON companies
 
 -- Profiles Policies
 CREATE POLICY "Users can view other profiles in the same company" ON profiles
-  FOR SELECT USING (company_id = get_user_active_company());
+  FOR SELECT USING (id = auth.uid() OR company_id = get_user_active_company());
 
 CREATE POLICY "Users can update their own profile details" ON profiles
   FOR UPDATE USING (id = auth.uid());

@@ -225,18 +225,18 @@ export default function ClientProfileModule({ clientId }: ClientProfileModulePro
   return (
     <div className="space-y-8">
       {/* Header with Back Button */}
-      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-zinc-800 pb-5">
+      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-zinc-200 dark:border-zinc-800 pb-5">
         <div className="flex items-center gap-3">
           <button
             onClick={() => router.push('/?tab=clients')}
-            className="h-10 w-10 flex items-center justify-center rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors"
+            className="h-10 w-10 flex items-center justify-center rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-550 dark:text-zinc-400 hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
             style={{ minHeight: '40px', minWidth: '40px' }}
           >
             <ArrowLeft className="h-4 w-4" />
           </button>
           <div>
-            <h1 className="text-xl font-bold text-white tracking-wide">{profile.name}</h1>
-            <p className="text-zinc-400 text-xs mt-0.5">
+            <h1 className="text-xl font-bold text-zinc-800 dark:text-white tracking-wide">{profile.name}</h1>
+            <p className="text-zinc-550 dark:text-zinc-400 text-xs mt-0.5">
               Expediente detallado — Edita los campos y guarda los cambios.
             </p>
           </div>
@@ -246,7 +246,7 @@ export default function ClientProfileModule({ clientId }: ClientProfileModulePro
         <Button
           onClick={handleSaveProfile}
           disabled={saving}
-          className={`flex items-center gap-2 h-11 px-5 rounded-xl font-bold text-sm transition-all ${
+          className={`flex items-center gap-2 h-11 px-5 rounded-xl font-bold text-sm transition-all${
             saveSuccess
               ? 'bg-emerald-600 text-white'
               : 'bg-zinc-800 hover:bg-emerald-600 text-zinc-300 hover:text-white border border-zinc-700 hover:border-emerald-500'
@@ -265,8 +265,8 @@ export default function ClientProfileModule({ clientId }: ClientProfileModulePro
       {/* Editable Profile Fields */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Left Column: Identity & Contact */}
-        <div className="bg-zinc-900/50 backdrop-blur-xl border border-zinc-800 p-6 rounded-2xl space-y-5">
-          <h3 className="text-sm font-bold text-white tracking-wide flex items-center gap-2 pb-3 border-b border-zinc-800/60">
+        <div className="bg-zinc-50/50 dark:bg-zinc-900/50 backdrop-blur-xl border border-zinc-200 dark:border-zinc-800 p-6 rounded-2xl space-y-5">
+          <h3 className="text-sm font-bold text-zinc-800 dark:text-white tracking-wide flex items-center gap-2 pb-3 border-b border-zinc-200/60 dark:border-zinc-800/60">
             <User className="h-4 w-4 text-emerald-400" />
             Datos del Cliente
           </h3>
@@ -277,7 +277,7 @@ export default function ClientProfileModule({ clientId }: ClientProfileModulePro
               <Input
                 value={editName}
                 onChange={(e) => setEditName(e.target.value)}
-                className="bg-zinc-950 border-zinc-800 text-white text-sm h-11"
+                className="bg-white dark:bg-zinc-950 border-zinc-200 dark:border-zinc-800 text-zinc-800 dark:text-white text-sm h-11"
                 placeholder="Nombre del cliente"
               />
             </div>
@@ -289,7 +289,7 @@ export default function ClientProfileModule({ clientId }: ClientProfileModulePro
               <Input
                 value={editDocumentId}
                 onChange={(e) => setEditDocumentId(e.target.value)}
-                className="bg-zinc-950 border-zinc-800 text-white text-sm h-11"
+                className="bg-white dark:bg-zinc-950 border-zinc-200 dark:border-zinc-800 text-zinc-800 dark:text-white text-sm h-11"
                 placeholder="Cédula / RNC (opcional)"
               />
             </div>
@@ -301,7 +301,7 @@ export default function ClientProfileModule({ clientId }: ClientProfileModulePro
               <Input
                 value={editPhone}
                 onChange={(e) => setEditPhone(e.target.value)}
-                className="bg-zinc-950 border-zinc-800 text-white text-sm h-11"
+                className="bg-white dark:bg-zinc-950 border-zinc-200 dark:border-zinc-800 text-zinc-800 dark:text-white text-sm h-11"
                 placeholder="+1 (809) 555-0199"
               />
             </div>
@@ -313,7 +313,7 @@ export default function ClientProfileModule({ clientId }: ClientProfileModulePro
               <Input
                 value={editAddress}
                 onChange={(e) => setEditAddress(e.target.value)}
-                className="bg-zinc-950 border-zinc-800 text-white text-sm h-11"
+                className="bg-white dark:bg-zinc-950 border-zinc-200 dark:border-zinc-800 text-zinc-800 dark:text-white text-sm h-11"
                 placeholder="Av. Apoquindo 4500, Las Condes"
               />
             </div>
@@ -321,8 +321,8 @@ export default function ClientProfileModule({ clientId }: ClientProfileModulePro
         </div>
 
         {/* Right Column: Technical Data */}
-        <div className="bg-zinc-900/50 backdrop-blur-xl border border-zinc-800 p-6 rounded-2xl space-y-5">
-          <h3 className="text-sm font-bold text-white tracking-wide flex items-center gap-2 pb-3 border-b border-zinc-800/60">
+        <div className="bg-zinc-50/50 dark:bg-zinc-900/50 backdrop-blur-xl border border-zinc-200 dark:border-zinc-800 p-6 rounded-2xl space-y-5">
+          <h3 className="text-sm font-bold text-zinc-800 dark:text-white tracking-wide flex items-center gap-2 pb-3 border-b border-zinc-200/60 dark:border-zinc-800/60">
             <Zap className="h-4 w-4 text-amber-500" />
             Datos Técnicos
           </h3>
@@ -335,7 +335,7 @@ export default function ClientProfileModule({ clientId }: ClientProfileModulePro
               <select
                 value={editCategory}
                 onChange={(e) => setEditCategory(e.target.value)}
-                className="w-full bg-zinc-950 border border-zinc-800 rounded-lg text-sm p-2.5 text-white h-11 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+                className="w-full bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-lg text-sm p-2.5 text-zinc-800 dark:text-white h-11 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
               >
                 <option value="">Sin categoría</option>
                 <option value="Residencial">Residencial</option>
@@ -352,33 +352,33 @@ export default function ClientProfileModule({ clientId }: ClientProfileModulePro
                 value={editKwh}
                 onChange={(e) => setEditKwh(e.target.value)}
                 type="number"
-                className="bg-zinc-950 border-zinc-800 text-white text-sm h-11"
+                className="bg-white dark:bg-zinc-950 border-zinc-200 dark:border-zinc-800 text-zinc-800 dark:text-white text-sm h-11"
                 placeholder="0"
               />
             </div>
 
-            <div className="bg-zinc-950/60 border border-zinc-800/50 rounded-xl p-4 mt-4">
+            <div className="bg-zinc-50 dark:bg-zinc-950/60 border border-zinc-800/50 rounded-xl p-4 mt-4">
               <div className="grid grid-cols-2 gap-4 text-xs">
                 <div>
                   <span className="block text-zinc-500 font-mono uppercase text-[9px] mb-1">Estado</span>
                   <Select value={editStatus} onValueChange={(val) => { if (val) handleStatusChange(val); }}>
-                    <SelectTrigger className="bg-zinc-950 border-zinc-800 text-[11px] h-8 text-white w-full rounded-md px-2 flex justify-between items-center focus-visible:ring-1 focus-visible:ring-emerald-500">
+                    <SelectTrigger className="bg-white dark:bg-zinc-950 border-zinc-200 dark:border-zinc-800 text-[11px] h-8 text-zinc-800 dark:text-white w-full rounded-md px-2 flex justify-between items-center focus-visible:ring-1 focus-visible:ring-emerald-500">
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent className="bg-zinc-900 border border-zinc-800 text-zinc-300">
+                    <SelectContent className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300">
                       <SelectItem value="prospecto" className="text-amber-400 hover:bg-zinc-850 px-2 py-1 cursor-pointer">PROSPECTO</SelectItem>
                       <SelectItem value="activo" className="text-emerald-400 hover:bg-zinc-850 px-2 py-1 cursor-pointer">ACTIVO</SelectItem>
-                      <SelectItem value="inactivo" className="text-zinc-400 hover:bg-zinc-850 px-2 py-1 cursor-pointer">INACTIVO</SelectItem>
+                      <SelectItem value="inactivo" className="text-zinc-550 dark:text-zinc-400 hover:bg-zinc-850 px-2 py-1 cursor-pointer">INACTIVO</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 <div>
                   <span className="block text-zinc-500 font-mono uppercase text-[9px]">Proyectos</span>
-                  <span className="block font-bold text-white mt-0.5">{profile.projects.length}</span>
+                  <span className="block font-bold text-zinc-800 dark:text-white mt-0.5">{profile.projects.length}</span>
                 </div>
                 <div>
                   <span className="block text-zinc-500 font-mono uppercase text-[9px]">Registrado</span>
-                  <span className="block font-bold text-zinc-300 mt-0.5">
+                  <span className="block font-bold text-zinc-700 dark:text-zinc-300 mt-0.5">
                     {new Date(profile.created_at).toLocaleDateString('es-CL')}
                   </span>
                 </div>
@@ -391,7 +391,7 @@ export default function ClientProfileModule({ clientId }: ClientProfileModulePro
       {/* Associated Projects Section */}
       <div className="space-y-4">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-          <h2 className="text-lg font-bold text-white tracking-wide flex items-center gap-2">
+          <h2 className="text-lg font-bold text-zinc-800 dark:text-white tracking-wide flex items-center gap-2">
             <Folder className="h-5 w-5 text-emerald-400" />
             Proyectos Solares Asociados
           </h2>
@@ -409,13 +409,13 @@ export default function ClientProfileModule({ clientId }: ClientProfileModulePro
               <Plus className="h-4 w-4" />
               Añadir Proyecto
             </DialogTrigger>
-            <DialogContent className="max-w-md bg-zinc-900 border border-zinc-800 text-white p-6 rounded-2xl">
+            <DialogContent className="max-w-md bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-800 dark:text-white p-6 rounded-2xl">
               <DialogHeader>
-                <DialogTitle className="text-lg font-bold text-white flex items-center gap-2">
+                <DialogTitle className="text-lg font-bold text-zinc-800 dark:text-white flex items-center gap-2">
                   <Folder className="h-5 w-5 text-emerald-400" />
                   Nuevo Proyecto para {profile.name}
                 </DialogTitle>
-                <DialogDescription className="text-zinc-400 text-xs">
+                <DialogDescription className="text-zinc-550 dark:text-zinc-400 text-xs">
                   Registra una obra solar vinculada a este cliente. El ID del cliente se inyecta automáticamente.
                 </DialogDescription>
               </DialogHeader>
@@ -430,7 +430,7 @@ export default function ClientProfileModule({ clientId }: ClientProfileModulePro
               <form onSubmit={handleCreateProject} className="space-y-4 pt-3 text-left">
                 {/* Client Selection Combobox with inline creation support */}
                 <div className="space-y-1 relative">
-                  <Label className="text-zinc-450 text-xs font-semibold">Cliente Asociado *</Label>
+                  <Label className="text-zinc-550 dark:text-zinc-450 text-xs font-semibold">Cliente Asociado *</Label>
                   <div className="relative">
                     <Input
                       value={clientSearchQuery || selectedClientName}
@@ -442,10 +442,10 @@ export default function ClientProfileModule({ clientId }: ClientProfileModulePro
                       onFocus={() => setShowSuggestions(true)}
                       onBlur={() => setTimeout(() => setShowSuggestions(false), 250)}
                       placeholder="Buscar o escribir para crear cliente..."
-                      className="bg-zinc-950 border-zinc-800 text-white text-sm h-11"
+                      className="bg-white dark:bg-zinc-950 border-zinc-200 dark:border-zinc-800 text-zinc-800 dark:text-white text-sm h-11"
                     />
                     {showSuggestions && (
-                      <div className="absolute top-full left-0 right-0 bg-zinc-900 border border-zinc-800 rounded-xl mt-1 max-h-48 overflow-y-auto z-50 text-sm shadow-2xl divide-y divide-zinc-800/80">
+                      <div className="absolute top-full left-0 right-0 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl mt-1 max-h-48 overflow-y-auto z-50 text-sm shadow-2xl divide-y divide-zinc-800/80">
                         {searchResults.length > 0 ? (
                           searchResults.map((c) => (
                             <button
@@ -457,7 +457,7 @@ export default function ClientProfileModule({ clientId }: ClientProfileModulePro
                                 setClientSearchQuery('');
                                 setShowSuggestions(false);
                               }}
-                              className="w-full text-left px-4 py-3 hover:bg-zinc-800 text-zinc-300 hover:text-white transition-colors"
+                              className="w-full text-left px-4 py-3 hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 hover:text-white transition-colors"
                               style={{ minHeight: '40px' }}
                             >
                               {c.name}
@@ -488,7 +488,7 @@ export default function ClientProfileModule({ clientId }: ClientProfileModulePro
                               }
                             }}
                             disabled={creatingClientInline}
-                            className="w-full text-left px-4 py-3 bg-emerald-950/40 text-emerald-400 hover:bg-emerald-900/40 hover:text-emerald-300 font-bold text-xs transition-colors flex items-center justify-between border-t border-zinc-800"
+                            className="w-full text-left px-4 py-3 bg-emerald-950/40 text-emerald-400 hover:bg-emerald-900/40 hover:text-emerald-300 font-bold text-xs transition-colors flex items-center justify-between border-t border-zinc-200 dark:border-zinc-800"
                             style={{ minHeight: '48px' }}
                           >
                             <span>+ Crear "{clientSearchQuery}" en caliente</span>
@@ -501,52 +501,52 @@ export default function ClientProfileModule({ clientId }: ClientProfileModulePro
                 </div>
 
                 <div className="space-y-1">
-                  <Label className="text-zinc-400 text-xs">Nombre del Proyecto *</Label>
+                  <Label className="text-zinc-550 dark:text-zinc-400 text-xs">Nombre del Proyecto *</Label>
                   <Input
                     value={projName}
                     onChange={(e) => setProjName(e.target.value)}
                     placeholder="Planta Solar Copiapó 50MW"
-                    className="bg-zinc-950 border-zinc-800 text-white text-sm h-11"
+                    className="bg-white dark:bg-zinc-950 border-zinc-200 dark:border-zinc-800 text-zinc-800 dark:text-white text-sm h-11"
                   />
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1">
-                    <Label className="text-zinc-400 text-xs">Ubicación</Label>
+                    <Label className="text-zinc-550 dark:text-zinc-400 text-xs">Ubicación</Label>
                     <Input
                       value={projLocation}
                       onChange={(e) => setProjLocation(e.target.value)}
                       placeholder="Copiapó, Atacama"
-                      className="bg-zinc-950 border-zinc-800 text-white text-sm"
+                      className="bg-white dark:bg-zinc-950 border-zinc-200 dark:border-zinc-800 text-zinc-800 dark:text-white text-sm"
                     />
                   </div>
                   <div className="space-y-1">
-                    <Label className="text-zinc-400 text-xs">Capacidad (kWp/MWp)</Label>
+                    <Label className="text-zinc-550 dark:text-zinc-400 text-xs">Capacidad (kWp/MWp)</Label>
                     <Input
                       value={projCapacity}
                       onChange={(e) => setProjCapacity(e.target.value)}
                       placeholder="100 MWp"
-                      className="bg-zinc-950 border-zinc-800 text-white text-sm"
+                      className="bg-white dark:bg-zinc-950 border-zinc-200 dark:border-zinc-800 text-zinc-800 dark:text-white text-sm"
                     />
                   </div>
                 </div>
 
                 <div className="space-y-1">
-                  <Label className="text-zinc-400 text-xs">Coordenadas GPS de la Obra</Label>
+                  <Label className="text-zinc-550 dark:text-zinc-400 text-xs">Coordenadas GPS de la Obra</Label>
                   <Input
                     value={projGps}
                     onChange={(e) => setProjGps(e.target.value)}
                     placeholder="-27.3670,-70.3320"
-                    className="bg-zinc-950 border-zinc-800 text-white text-sm font-mono"
+                    className="bg-white dark:bg-zinc-950 border-zinc-200 dark:border-zinc-800 text-zinc-800 dark:text-white text-sm font-mono"
                   />
                 </div>
 
                 <div className="space-y-1">
-                  <Label className="text-zinc-400 text-xs">Fase Inicial</Label>
+                  <Label className="text-zinc-550 dark:text-zinc-400 text-xs">Fase Inicial</Label>
                   <select
                     value={projPhase}
                     onChange={(e) => setProjPhase(e.target.value as any)}
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded-lg text-sm p-2 text-white h-9 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+                    className="w-full bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-lg text-sm p-2 text-zinc-800 dark:text-white h-9 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
                   >
                     <option value="Diseno">Diseño</option>
                     <option value="Permisos">Permisos</option>
@@ -558,7 +558,7 @@ export default function ClientProfileModule({ clientId }: ClientProfileModulePro
                 <DialogFooter className="mt-6 flex gap-2">
                   <DialogClose
                     render={
-                      <Button type="button" variant="outline" className="bg-transparent border-zinc-800 text-zinc-400 hover:text-white hover:bg-zinc-850" />
+                      <Button type="button" variant="outline" className="bg-transparent border-zinc-200 dark:border-zinc-800 text-zinc-550 dark:text-zinc-400 hover:text-white hover:bg-zinc-850" />
                     }
                   >
                     Cancelar
@@ -582,18 +582,18 @@ export default function ClientProfileModule({ clientId }: ClientProfileModulePro
         </div>
 
         {profile.projects.length === 0 ? (
-          <div className="bg-zinc-900/40 border border-zinc-850 p-12 text-center rounded-xl">
+          <div className="bg-zinc-50/50 dark:bg-zinc-900/40 border border-zinc-200 dark:border-zinc-850 p-12 text-center rounded-xl">
             <LayoutGrid className="h-10 w-10 text-zinc-650 mx-auto mb-3" />
-            <h3 className="text-zinc-400 font-bold text-sm">Ningún proyecto contratado</h3>
+            <h3 className="text-zinc-550 dark:text-zinc-400 font-bold text-sm">Ningún proyecto contratado</h3>
             <p className="text-zinc-500 text-xs mt-1">Añade el primer proyecto solar para este cliente.</p>
           </div>
         ) : (
           <>
             {/* PC Desktop View: Projects Grid-Table */}
-            <div className="hidden md:block overflow-hidden bg-zinc-900 border border-zinc-850 rounded-xl">
+            <div className="hidden md:block overflow-hidden bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-850 rounded-xl">
               <table className="w-full text-left border-collapse">
                 <thead>
-                  <tr className="bg-zinc-950 border-b border-zinc-850 text-[10px] text-zinc-500 font-bold uppercase tracking-wider">
+                  <tr className="bg-white dark:bg-zinc-950 border-b border-zinc-200 dark:border-zinc-850 text-[10px] text-zinc-500 font-bold uppercase tracking-wider">
                     <th className="p-4">Proyecto</th>
                     <th className="p-4">Ubicación</th>
                     <th className="p-4">Capacidad</th>
@@ -602,12 +602,12 @@ export default function ClientProfileModule({ clientId }: ClientProfileModulePro
                     <th className="p-4">Estado</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-zinc-800/60 text-sm text-zinc-300">
+                <tbody className="divide-y divide-zinc-800/60 text-sm text-zinc-700 dark:text-zinc-300">
                   {profile.projects.map((proj) => (
-                    <tr key={proj.id} className="hover:bg-zinc-850/20 transition-colors">
-                      <td className="p-4 font-bold text-white">{proj.name}</td>
-                      <td className="p-4 text-xs text-zinc-400">{proj.location || 'N/D'}</td>
-                      <td className="p-4 text-xs font-mono text-zinc-300">{proj.capacity || 'N/D'}</td>
+                    <tr key={proj.id} className="hover:bg-zinc-100 dark:hover:bg-zinc-850/20 transition-colors">
+                      <td className="p-4 font-bold text-zinc-800 dark:text-white">{proj.name}</td>
+                      <td className="p-4 text-xs text-zinc-550 dark:text-zinc-400">{proj.location || 'N/D'}</td>
+                      <td className="p-4 text-xs font-mono text-zinc-700 dark:text-zinc-300">{proj.capacity || 'N/D'}</td>
                       <td className="p-4">
                         {proj.gps_coordinates ? (
                           <a
@@ -643,10 +643,10 @@ export default function ClientProfileModule({ clientId }: ClientProfileModulePro
             {/* Mobile View: Projects Cards */}
             <div className="grid grid-cols-1 gap-4 md:hidden">
               {profile.projects.map((proj) => (
-                <div key={proj.id} className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 space-y-4">
+                <div key={proj.id} className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-5 space-y-4">
                   <div className="flex justify-between items-start">
                     <div className="min-w-0 flex-1">
-                      <h4 className="font-bold text-white text-sm truncate">{proj.name}</h4>
+                      <h4 className="font-bold text-zinc-800 dark:text-white text-sm truncate">{proj.name}</h4>
                       <p className="text-[10px] text-emerald-400 mt-1 uppercase font-semibold">Fase: {proj.phase}</p>
                     </div>
                     <span className={`text-[9px] font-extrabold uppercase px-2 py-0.5 rounded-md border ${
@@ -658,14 +658,14 @@ export default function ClientProfileModule({ clientId }: ClientProfileModulePro
                     </span>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-2 text-xs pt-3 border-t border-zinc-850">
+                  <div className="grid grid-cols-2 gap-2 text-xs pt-3 border-t border-zinc-200 dark:border-zinc-850">
                     <div className="space-y-0.5">
                       <span className="block text-[9px] text-zinc-500 uppercase font-mono">Ubicación</span>
-                      <span className="block text-zinc-300 truncate">{proj.location || 'N/D'}</span>
+                      <span className="block text-zinc-700 dark:text-zinc-300 truncate">{proj.location || 'N/D'}</span>
                     </div>
                     <div className="space-y-0.5">
                       <span className="block text-[9px] text-zinc-500 uppercase font-mono">Capacidad</span>
-                      <span className="block text-zinc-300 font-mono truncate">{proj.capacity || 'N/D'}</span>
+                      <span className="block text-zinc-700 dark:text-zinc-300 font-mono truncate">{proj.capacity || 'N/D'}</span>
                     </div>
                   </div>
 
@@ -674,7 +674,7 @@ export default function ClientProfileModule({ clientId }: ClientProfileModulePro
                       href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(proj.gps_coordinates)}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="w-full flex items-center justify-center gap-2 py-3 bg-zinc-800 hover:bg-amber-600 hover:text-white text-zinc-300 text-xs font-bold rounded-xl transition-all duration-200 border border-zinc-750"
+                      className="w-full flex items-center justify-center gap-2 py-3 bg-zinc-100 dark:bg-zinc-800 hover:bg-amber-600 hover:text-white text-zinc-700 dark:text-zinc-300 text-xs font-bold rounded-xl transition-all duration-200 border border-zinc-200 dark:border-zinc-750"
                       style={{ minHeight: '48px' }}
                     >
                       <MapPin className="h-4 w-4 shrink-0" />

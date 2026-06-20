@@ -88,6 +88,16 @@ erDiagram
     companies ||--o{ role_permissions_templates : "define"
     projects ||--o{ project_messages : "tiene"
     profiles ||--o{ project_messages : "escribe"
+    companies ||--o{ inventory_categories : "pertenece a"
+    companies ||--o{ inventory_tags : "pertenece a"
+    companies ||--o{ inventory_items : "pertenece a"
+    companies ||--o{ inventory_transactions : "pertenece a"
+    companies ||--o{ project_materials : "pertenece a"
+    inventory_categories ||--o{ inventory_items : "clasifica"
+    inventory_items ||--o{ inventory_transactions : "audita"
+    profiles ||--o{ inventory_transactions : "creado por"
+    projects ||--o{ project_materials : "contiene"
+    inventory_items ||--o{ project_materials : "mapea"
 
     companies {
         uuid id PK
@@ -178,6 +188,64 @@ erDiagram
         uuid company_id FK
         text role_name
         text_array permission_actions
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    inventory_categories {
+        uuid id PK
+        uuid company_id FK
+        text name
+        timestamp created_at
+    }
+
+    inventory_tags {
+        uuid id PK
+        uuid company_id FK
+        text name
+        timestamp created_at
+    }
+
+    inventory_items {
+        uuid id PK
+        uuid company_id FK
+        uuid category_id FK
+        text name
+        text sku
+        text description
+        text image_url
+        text_array providers
+        text_array tags
+        numeric cost
+        text unit
+        text packaging
+        numeric length
+        numeric weight
+        integer stock
+        integer min_stock
+        integer usage_count
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    inventory_transactions {
+        uuid id PK
+        uuid company_id FK
+        uuid item_id FK
+        integer quantity
+        text transaction_type
+        text reason
+        uuid created_by FK
+        timestamp created_at
+    }
+
+    project_materials {
+        uuid id PK
+        uuid company_id FK
+        uuid project_id FK
+        uuid item_id FK
+        integer quantity
+        integer required_quantity
         timestamp created_at
         timestamp updated_at
     }

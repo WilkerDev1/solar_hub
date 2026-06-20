@@ -115,48 +115,81 @@ export type Database = {
         Row: {
           area: string | null
           assigned_to: string
+          assigned_to_ids: string[] | null
+          audit_comments: string | null
           audit_status: string | null
           company_id: string
           created_at: string
           created_by: string | null
+          delivery_date: string | null
           description: string | null
+          due_date: string | null
           evidence_urls: string[] | null
           id: string
           origin: string
+          priority: string | null
           project_id: string | null
+          requires_audit: boolean
           status: string
+          subtasks: Json | null
+          tags: string[] | null
+          task_activities: Json | null
+          task_comments: Json | null
+          task_materials: Json | null
           task_type: string
           title: string
         }
         Insert: {
           area?: string | null
           assigned_to: string
+          assigned_to_ids?: string[] | null
+          audit_comments?: string | null
           audit_status?: string | null
           company_id: string
           created_at?: string
           created_by?: string | null
+          delivery_date?: string | null
           description?: string | null
+          due_date?: string | null
           evidence_urls?: string[] | null
           id?: string
           origin: string
+          priority?: string | null
           project_id?: string | null
+          requires_audit?: boolean
           status?: string
+          subtasks?: Json | null
+          tags?: string[] | null
+          task_activities?: Json | null
+          task_comments?: Json | null
+          task_materials?: Json | null
           task_type?: string
           title: string
         }
         Update: {
           area?: string | null
           assigned_to?: string
+          assigned_to_ids?: string[] | null
+          audit_comments?: string | null
           audit_status?: string | null
           company_id?: string
           created_at?: string
           created_by?: string | null
+          delivery_date?: string | null
           description?: string | null
+          due_date?: string | null
           evidence_urls?: string[] | null
           id?: string
           origin?: string
+          priority?: string | null
           project_id?: string | null
+          requires_audit?: boolean
           status?: string
+          subtasks?: Json | null
+          tags?: string[] | null
+          task_activities?: Json | null
+          task_comments?: Json | null
+          task_materials?: Json | null
           task_type?: string
           title?: string
         }
@@ -180,6 +213,200 @@ export type Database = {
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      inventory_categories: {
+        Row: {
+          company_id: string
+          created_at: string
+          id: string
+          name: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          id?: string
+          name: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          id?: string
+          name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_categories_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      inventory_items: {
+        Row: {
+          category_id: string | null
+          company_id: string
+          cost: number
+          created_at: string
+          description: string | null
+          id: string
+          image_url: string | null
+          length: number | null
+          min_stock: number
+          name: string
+          packaging: string | null
+          providers: string[]
+          sku: string
+          stock: number
+          tags: string[]
+          unit: string
+          updated_at: string
+          usage_count: number
+          weight: number | null
+        }
+        Insert: {
+          category_id?: string | null
+          company_id: string
+          cost?: number
+          created_at?: string
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          length?: number | null
+          min_stock?: number
+          name: string
+          packaging?: string | null
+          providers?: string[]
+          sku: string
+          stock?: number
+          tags?: string[]
+          unit?: string
+          updated_at?: string
+          usage_count?: number
+          weight?: number | null
+        }
+        Update: {
+          category_id?: string | null
+          company_id?: string
+          cost?: number
+          created_at?: string
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          length?: number | null
+          min_stock?: number
+          name?: string
+          packaging?: string | null
+          providers?: string[]
+          sku?: string
+          stock?: number
+          tags?: string[]
+          unit?: string
+          updated_at?: string
+          usage_count?: number
+          weight?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_items_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_items_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      inventory_tags: {
+        Row: {
+          company_id: string
+          created_at: string
+          id: string
+          name: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          id?: string
+          name: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          id?: string
+          name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_tags_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      inventory_transactions: {
+        Row: {
+          company_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          item_id: string
+          quantity: number
+          reason: string
+          transaction_type: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          item_id: string
+          quantity: number
+          reason: string
+          transaction_type: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          item_id?: string
+          quantity?: number
+          reason?: string
+          transaction_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_transactions_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_transactions_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_transactions_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_items"
             referencedColumns: ["id"]
           },
         ]
@@ -249,6 +476,61 @@ export type Database = {
           },
         ]
       }
+      project_materials: {
+        Row: {
+          company_id: string
+          created_at: string
+          id: string
+          item_id: string
+          project_id: string
+          quantity: number
+          required_quantity: number
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          id?: string
+          item_id: string
+          project_id: string
+          quantity?: number
+          required_quantity?: number
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          id?: string
+          item_id?: string
+          project_id?: string
+          quantity?: number
+          required_quantity?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_materials_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_materials_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_materials_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       project_messages: {
         Row: {
           created_at: string
@@ -290,40 +572,49 @@ export type Database = {
       }
       projects: {
         Row: {
+          banner_url: string | null
           capacity: string | null
           client_id: string
           company_id: string
           created_at: string
           created_by: string | null
+          description: string | null
           gps_coordinates: string | null
           id: string
           location: string | null
+          member_ids: string[] | null
           name: string
           phase: string
           status: string
         }
         Insert: {
+          banner_url?: string | null
           capacity?: string | null
           client_id: string
           company_id: string
           created_at?: string
           created_by?: string | null
+          description?: string | null
           gps_coordinates?: string | null
           id?: string
           location?: string | null
+          member_ids?: string[] | null
           name: string
           phase?: string
           status?: string
         }
         Update: {
+          banner_url?: string | null
           capacity?: string | null
           client_id?: string
           company_id?: string
           created_at?: string
           created_by?: string | null
+          description?: string | null
           gps_coordinates?: string | null
           id?: string
           location?: string | null
+          member_ids?: string[] | null
           name?: string
           phase?: string
           status?: string
@@ -483,7 +774,15 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      dispatch_material_to_project: {
+        Args: { it_id: string; proj_id: string; qty: number; reason: string }
+        Returns: undefined
+      }
       get_user_active_company: { Args: never; Returns: string }
+      process_inventory_transactions: {
+        Args: { adjustments: Json }
+        Returns: undefined
+      }
       user_has_permission: {
         Args: { required_action: string }
         Returns: boolean

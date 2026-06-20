@@ -68,3 +68,23 @@ La geolocalización por coordenadas GPS estaba previamente asociada al perfil de
 ### Solución Implementada
 Se realizó una migración incremental que eliminó `gps_coordinates` de la tabla `clients` y la incorporó a la tabla `projects`. Además, se modificó `document_id` en la tabla `clients` para ser nullable. En la interfaz de usuario, el modal de creación de cliente se simplificó para solicitar únicamente el nombre del cliente, y se expandió la página `/clients/[id]` para permitir actualizar el expediente de forma detallada y registrar múltiples proyectos asociados con sus coordenadas GPS y dirección de obra específicas.
 
+---
+
+## 6. Prevención de Fugas de Recursos en API Bridge (PM2/Hermes)
+
+### Problema
+Al arrancar el bridge en Node.js/Express, se invocaban instancias secundarias de Hermes CLI en modo oneshot (`hermes -z`). Si una solicitud HTTP de cliente se cancelaba abruptamente (por ejemplo, si el usuario cerraba la pestaña del chat de Caleb o recargaba la página a mitad del procesamiento), el proceso hijo de Hermes continuaba ejecutándose en segundo plano en la máquina virtual remota `naski`. Esto provocó un escape de memoria y un consumo desmedido de CPU que saturó el sistema.
+
+### Solución Implementada
+Se implementó un manejador de ciclo de vida del proceso en `src/core/mcp/bridge/index.ts`. Se capturan los cierres de conexión del cliente HTTP mediante `res.on('close')`, validando si el proceso no ha terminado y no ha sido marcado previamente. En tal caso, se envía inmediatamente una señal `SIGTERM` / `SIGKILL` para eliminar la instancia huérfana de Hermes. Adicionalmente, se estableció un temporizador de seguridad de 45 segundos para forzar el apagado en caso de bloqueos por latencia de red o inactividad.
+
+---
+
+## 7. Operaciones CRUD de Tareas con Inferencia de Contexto RLS
+
+### Problema
+Para permitir al asistente Caleb gestionar tareas globales (`create_task`, `update_task`, `delete_task`) sin vulnerar las reglas de aislamiento Row Level Security (RLS) en Supabase, el servidor MCP requería instanciar clientes que heredasen el contexto de seguridad del usuario autenticado en vez de operar con privilegios ilimitados de súper-administrador (`service_role`). Sin embargo, llamar a `setSession()` de forma síncrona provocaba fallos de sincronía interna, impidiendo recuperar al usuario autenticado.
+
+### Solución Implementada
+Se transformó el generador de clientes `getSupabaseClient` de `src/core/mcp/server.ts` en una función asíncrona que realiza un `await` formal sobre `client.auth.setSession()`. Adicionalmente, todas las llamadas a `getUser()` se modificaron para inyectar explícitamente el token JWT (`getUser(userJwt)`), permitiendo una validación de firma infalible por parte de GoTrue. Para las modificaciones por Caleb, se introdujo una estructura comparativa que detecta qué campos de la tarea cambiaron y concatena un registro cronológico detallado en `task_activities` (guardando la acción bajo el nombre `"Caleb (IA)"` o `"Caleb (IA) a nombre de <Colaborador>"` según se indique en el parámetro opcional `completedOnBehalfOf`).
+

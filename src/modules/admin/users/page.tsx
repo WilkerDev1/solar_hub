@@ -306,7 +306,7 @@ export default function EmployeeManagementModule() {
     return (
       <div className="flex flex-wrap gap-1">
         {occ.map((o, i) => (
-          <span key={i} className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold bg-zinc-800 text-zinc-300 border border-zinc-700">
+          <span key={i} className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700">
             {o}
           </span>
         ))}
@@ -316,26 +316,26 @@ export default function EmployeeManagementModule() {
 
   return (
     <RequirePermission action="admin:*" fallback={
-      <div className="bg-zinc-900 border border-zinc-800 p-8 text-center rounded-2xl max-w-md mx-auto mt-12">
+      <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-8 text-center rounded-2xl max-w-md mx-auto mt-12">
         <AlertCircle className="h-10 w-10 text-rose-500 mx-auto mb-4" />
-        <h3 className="text-white font-bold text-lg">Acceso Denegado</h3>
-        <p className="text-zinc-400 text-sm mt-2">No tienes privilegios administrativos para gestionar roles y permisos.</p>
+        <h3 className="text-zinc-800 dark:text-white font-bold text-lg">Acceso Denegado</h3>
+        <p className="text-zinc-550 dark:text-zinc-400 text-sm mt-2">No tienes privilegios administrativos para gestionar roles y permisos.</p>
       </div>
     }>
       <div className="space-y-6">
         {/* Header */}
-        <div className="flex flex-wrap items-center justify-between gap-4 border-b border-zinc-800 pb-5">
+        <div className="flex flex-wrap items-center justify-between gap-4 border-b border-zinc-200 dark:border-zinc-800 pb-5">
           <div className="flex items-center gap-3">
             <button
               onClick={() => router.push('/?tab=admin')}
-              className="h-10 w-10 flex items-center justify-center rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors"
+              className="h-10 w-10 flex items-center justify-center rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-550 dark:text-zinc-400 hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
               style={{ minHeight: '40px', minWidth: '40px' }}
             >
               <ArrowLeft className="h-4 w-4" />
             </button>
             <div>
-              <h1 className="text-xl font-bold text-white tracking-wide">Gestión de Empleados</h1>
-              <p className="text-zinc-400 text-xs mt-1">Panel de recursos humanos — Alta, edición, roles y borrado lógico.</p>
+              <h1 className="text-xl font-bold text-zinc-800 dark:text-white tracking-wide">Gestión de Empleados</h1>
+              <p className="text-zinc-550 dark:text-zinc-400 text-xs mt-1">Panel de recursos humanos — Alta, edición, roles y borrado lógico.</p>
             </div>
           </div>
 
@@ -343,7 +343,7 @@ export default function EmployeeManagementModule() {
             {/* Toggle archived */}
             <button
               onClick={() => setShowArchived(!showArchived)}
-              className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold border transition-colors ${
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold border transition-colors${
                 showArchived
                   ? 'bg-amber-950/20 text-amber-400 border-amber-500/30'
                   : 'bg-zinc-900 text-zinc-400 border-zinc-800 hover:text-zinc-200'
@@ -366,13 +366,13 @@ export default function EmployeeManagementModule() {
                 <UserPlus className="h-4 w-4" />
                 Nuevo Empleado
               </DialogTrigger>
-              <DialogContent className="max-w-md bg-zinc-900 border border-zinc-800 text-white p-6 rounded-2xl">
+              <DialogContent className="max-w-md bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-800 dark:text-white p-6 rounded-2xl">
                 <DialogHeader>
-                  <DialogTitle className="text-lg font-bold text-white flex items-center gap-2">
+                  <DialogTitle className="text-lg font-bold text-zinc-800 dark:text-white flex items-center gap-2">
                     <UserPlus className="h-5 w-5 text-emerald-400" />
                     Alta de Empleado
                   </DialogTitle>
-                  <DialogDescription className="text-zinc-400 text-xs">
+                  <DialogDescription className="text-zinc-550 dark:text-zinc-400 text-xs">
                     Crea una cuenta nueva. El empleado recibirá automáticamente el rol de Administrador y podrás cambiarlo después.
                   </DialogDescription>
                 </DialogHeader>
@@ -386,18 +386,18 @@ export default function EmployeeManagementModule() {
 
                 <form onSubmit={handleCreateEmployee} className="space-y-4 pt-3">
                   <div className="space-y-1">
-                    <Label className="text-zinc-400 text-xs">Nombre Completo *</Label>
+                    <Label className="text-zinc-550 dark:text-zinc-400 text-xs">Nombre Completo *</Label>
                     <Input
                       value={newName}
                       onChange={(e) => setNewName(e.target.value)}
                       placeholder="María García López"
-                      className="bg-zinc-950 border-zinc-800 text-white text-sm h-11"
+                      className="bg-white dark:bg-zinc-950 border-zinc-200 dark:border-zinc-800 text-zinc-800 dark:text-white text-sm h-11"
                       autoFocus
                     />
                   </div>
 
                   <div className="space-y-1">
-                    <Label className="text-zinc-400 text-xs flex items-center gap-1">
+                    <Label className="text-zinc-550 dark:text-zinc-400 text-xs flex items-center gap-1">
                       <Mail className="h-3 w-3" /> Email Corporativo *
                     </Label>
                     <Input
@@ -405,19 +405,19 @@ export default function EmployeeManagementModule() {
                       onChange={(e) => setNewEmail(e.target.value)}
                       type="email"
                       placeholder="maria@solarhub.cl"
-                      className="bg-zinc-950 border-zinc-800 text-white text-sm h-11"
+                      className="bg-white dark:bg-zinc-950 border-zinc-200 dark:border-zinc-800 text-zinc-800 dark:text-white text-sm h-11"
                     />
                   </div>
 
                   <div className="space-y-1">
-                    <Label className="text-zinc-400 text-xs flex items-center gap-1">
+                    <Label className="text-zinc-550 dark:text-zinc-400 text-xs flex items-center gap-1">
                       <Briefcase className="h-3 w-3" /> Ocupación (separar por comas)
                     </Label>
                     <Input
                       value={newOccupation}
                       onChange={(e) => setNewOccupation(e.target.value)}
                       placeholder="Almacén, Administración"
-                      className="bg-zinc-950 border-zinc-800 text-white text-sm h-11"
+                      className="bg-white dark:bg-zinc-950 border-zinc-200 dark:border-zinc-800 text-zinc-800 dark:text-white text-sm h-11"
                       list="suggested-occupations-list"
                     />
                     <p className="text-zinc-600 text-[10px]">Opcional. Define las áreas de responsabilidad del colaborador.</p>
@@ -426,7 +426,7 @@ export default function EmployeeManagementModule() {
                   <DialogFooter className="mt-6 flex gap-2">
                     <DialogClose
                       render={
-                        <Button type="button" variant="outline" className="bg-transparent border-zinc-800 text-zinc-400 hover:text-white hover:bg-zinc-850" />
+                        <Button type="button" variant="outline" className="bg-transparent border-zinc-200 dark:border-zinc-800 text-zinc-550 dark:text-zinc-400 hover:text-white hover:bg-zinc-850" />
                       }
                     >
                       Cancelar
@@ -467,10 +467,10 @@ export default function EmployeeManagementModule() {
         ) : (
           <>
             {/* PC Table */}
-            <div className="hidden md:block overflow-hidden bg-zinc-900 border border-zinc-800 rounded-xl">
+            <div className="hidden md:block overflow-hidden bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl">
               <table className="w-full text-left border-collapse">
                 <thead>
-                  <tr className="bg-zinc-950 border-b border-zinc-800 text-[10px] text-zinc-400 font-bold uppercase tracking-wider">
+                  <tr className="bg-white dark:bg-zinc-950 border-b border-zinc-200 dark:border-zinc-800 text-[10px] text-zinc-550 dark:text-zinc-400 font-bold uppercase tracking-wider">
                     <th className="p-4">Colaborador</th>
                     <th className="p-4">Email</th>
                     <th className="p-4">Rol</th>
@@ -479,20 +479,20 @@ export default function EmployeeManagementModule() {
                     <th className="p-4 text-center">Acciones</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-zinc-800/60 text-sm text-zinc-300">
+                <tbody className="divide-y divide-zinc-800/60 text-sm text-zinc-700 dark:text-zinc-300">
                   {employees.map((emp) => (
-                    <tr key={emp.id} className={`transition-colors ${emp.is_active ? 'hover:bg-zinc-850/30' : 'opacity-50 bg-zinc-950/30'}`}>
+                    <tr key={emp.id} className={`transition-colors${emp.is_active ? 'hover:bg-zinc-850/30' : 'opacity-50 bg-zinc-950/30'}`}>
                       <td className="p-4">
                         <div className="flex items-center gap-3">
                           <div className="h-9 w-9 rounded-xl bg-emerald-700/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400 font-bold text-sm">
                             {emp.full_name?.charAt(0).toUpperCase() || emp.email.charAt(0).toUpperCase()}
                           </div>
-                          <span className="font-bold text-white">{emp.full_name || 'Sin Nombre'}</span>
+                          <span className="font-bold text-zinc-800 dark:text-white">{emp.full_name || 'Sin Nombre'}</span>
                         </div>
                       </td>
-                      <td className="p-4 text-zinc-400 font-mono text-xs">{emp.email}</td>
+                      <td className="p-4 text-zinc-550 dark:text-zinc-400 font-mono text-xs">{emp.email}</td>
                       <td className="p-4">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase ${
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase${
                           emp.roleName === 'Administrador' 
                             ? 'bg-purple-950/50 text-purple-400 border border-purple-500/20' 
                             : emp.roleName === 'Técnico de Campo'
@@ -516,14 +516,14 @@ export default function EmployeeManagementModule() {
                         <div className="flex items-center justify-center gap-1">
                           <Button
                             onClick={() => handleOpenEdit(emp)}
-                            className="bg-zinc-800 hover:bg-zinc-700 hover:text-white text-zinc-300 text-xs px-2.5 py-1 rounded-lg flex items-center gap-1"
+                            className="bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-700 hover:text-white text-zinc-700 dark:text-zinc-300 text-xs px-2.5 py-1 rounded-lg flex items-center gap-1"
                           >
                             <Pencil className="h-3 w-3" />
                             Editar
                           </Button>
                           <Button
                             onClick={() => handleArchiveToggle(emp)}
-                            className={`text-xs px-2.5 py-1 rounded-lg flex items-center gap-1 ${
+                            className={`text-xs px-2.5 py-1 rounded-lg flex items-center gap-1${
                               emp.is_active
                                 ? 'bg-zinc-800 hover:bg-rose-950/40 text-zinc-400 hover:text-rose-300'
                                 : 'bg-zinc-800 hover:bg-emerald-950/40 text-zinc-400 hover:text-emerald-300'
@@ -546,19 +546,19 @@ export default function EmployeeManagementModule() {
             {/* Mobile Cards View */}
             <div className="grid grid-cols-1 gap-4 md:hidden">
               {employees.map((emp) => (
-                <div key={emp.id} className={`bg-zinc-900 border-2 border-zinc-800 rounded-xl p-5 space-y-4 ${!emp.is_active ? 'opacity-60' : ''}`}>
+                <div key={emp.id} className={`bg-white dark:bg-zinc-900 border-2 border-zinc-200 dark:border-zinc-800 rounded-xl p-5 space-y-4${!emp.is_active ? 'opacity-60' : ''}`}>
                   <div className="flex justify-between items-center">
                     <div className="flex items-center gap-2.5">
                       <div className="h-10 w-10 rounded-xl bg-emerald-700/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400 font-bold text-sm">
                         {emp.full_name?.charAt(0).toUpperCase() || emp.email.charAt(0).toUpperCase()}
                       </div>
                       <div>
-                        <h4 className="font-bold text-white text-sm">{emp.full_name || 'Sin Nombre'}</h4>
+                        <h4 className="font-bold text-zinc-800 dark:text-white text-sm">{emp.full_name || 'Sin Nombre'}</h4>
                         <p className="text-[10px] text-zinc-500 font-mono">{emp.email}</p>
                       </div>
                     </div>
                     <div className="flex flex-col items-end gap-1">
-                      <span className="text-[9px] font-bold uppercase px-2 py-0.5 bg-zinc-850 text-zinc-400 rounded border border-zinc-750">
+                      <span className="text-[9px] font-bold uppercase px-2 py-0.5 bg-zinc-100 dark:bg-zinc-850 text-zinc-550 dark:text-zinc-400 rounded border border-zinc-200 dark:border-zinc-750">
                         {emp.roleName}
                       </span>
                       <span className={`text-[9px] font-bold uppercase px-2 py-0.5 rounded border ${
@@ -572,7 +572,7 @@ export default function EmployeeManagementModule() {
                   </div>
 
                   {(emp.occupation && emp.occupation.length > 0) && (
-                    <div className="pt-2 border-t border-zinc-850">
+                    <div className="pt-2 border-t border-zinc-200 dark:border-zinc-850">
                       <span className="text-[9px] text-zinc-500 uppercase font-mono block mb-1">Ocupación</span>
                       {occupationBadges(emp.occupation)}
                     </div>
@@ -581,7 +581,7 @@ export default function EmployeeManagementModule() {
                   <div className="grid grid-cols-2 gap-2 pt-2">
                     <button
                       onClick={() => handleOpenEdit(emp)}
-                      className="flex items-center justify-center gap-1.5 py-3 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-bold rounded-lg border border-zinc-700"
+                      className="flex items-center justify-center gap-1.5 py-3 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 text-xs font-bold rounded-lg border border-zinc-200 dark:border-zinc-700"
                       style={{ minHeight: '48px' }}
                     >
                       <Pencil className="h-4 w-4" />
@@ -589,7 +589,7 @@ export default function EmployeeManagementModule() {
                     </button>
                     <button
                       onClick={() => handleArchiveToggle(emp)}
-                      className={`flex items-center justify-center gap-1.5 py-3 text-xs font-bold rounded-lg border ${
+                      className={`flex items-center justify-center gap-1.5 py-3 text-xs font-bold rounded-lg border${
                         emp.is_active
                           ? 'bg-zinc-800 hover:bg-rose-950/40 text-rose-400 border-zinc-700'
                           : 'bg-zinc-800 hover:bg-emerald-950/40 text-emerald-400 border-zinc-700'
@@ -612,9 +612,9 @@ export default function EmployeeManagementModule() {
         {/* Edit Modal (Dialog) */}
         {selectedUser && (
           <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-            <DialogContent className="max-w-md bg-zinc-900 border border-zinc-800 text-white p-6 rounded-2xl">
+            <DialogContent className="max-w-md bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-800 dark:text-white p-6 rounded-2xl">
               <DialogHeader>
-                <DialogTitle className="text-lg font-bold text-white flex items-center gap-2">
+                <DialogTitle className="text-lg font-bold text-zinc-800 dark:text-white flex items-center gap-2">
                   <UserCog className="h-5 w-5 text-emerald-400" />
                   Editar: {selectedUser.full_name || selectedUser.email}
                 </DialogTitle>
@@ -629,34 +629,34 @@ export default function EmployeeManagementModule() {
 
               <form onSubmit={handleSaveConfigSubmit} className="space-y-4 pt-3">
                 <div className="space-y-1">
-                  <Label className="text-zinc-400 text-xs font-bold">Nombre</Label>
+                  <Label className="text-zinc-550 dark:text-zinc-400 text-xs font-bold">Nombre</Label>
                   <Input
                     value={editName}
                     onChange={(e) => setEditName(e.target.value)}
-                    className="bg-zinc-950 border-zinc-800 text-white text-sm h-10"
+                    className="bg-white dark:bg-zinc-950 border-zinc-200 dark:border-zinc-800 text-zinc-800 dark:text-white text-sm h-10"
                   />
                 </div>
 
                 <div className="space-y-1">
-                  <Label className="text-zinc-400 text-xs font-bold flex items-center gap-1">
+                  <Label className="text-zinc-550 dark:text-zinc-400 text-xs font-bold flex items-center gap-1">
                     <Briefcase className="h-3 w-3" /> Ocupación (separar por comas)
                   </Label>
                   <Input
                     value={editOccupation}
                     onChange={(e) => setEditOccupation(e.target.value)}
                     placeholder="Ingeniería, Ventas"
-                    className="bg-zinc-950 border-zinc-800 text-white text-sm h-10"
+                    className="bg-white dark:bg-zinc-950 border-zinc-200 dark:border-zinc-800 text-zinc-800 dark:text-white text-sm h-10"
                     list="suggested-occupations-list"
                   />
                 </div>
 
                 {/* Role dropdown */}
                 <div className="space-y-1">
-                  <Label className="text-zinc-400 text-xs font-bold">Rol del Sistema</Label>
+                  <Label className="text-zinc-550 dark:text-zinc-400 text-xs font-bold">Rol del Sistema</Label>
                   <select
                     value={selectedRoleId}
                     onChange={(e) => handleRoleSelectChange(e.target.value)}
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded-lg text-sm p-2 text-white h-9 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+                    className="w-full bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-lg text-sm p-2 text-zinc-800 dark:text-white h-9 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
                   >
                     <option value="">Ningún Rol (Sin acceso)</option>
                     {roles.map((r) => (
@@ -668,7 +668,7 @@ export default function EmployeeManagementModule() {
                 {/* Permissions checkboxes */}
                 {selectedRoleId && (
                   <div className="space-y-2">
-                    <Label className="text-zinc-400 text-xs font-bold block pb-1 border-b border-zinc-800/60">
+                    <Label className="text-zinc-550 dark:text-zinc-400 text-xs font-bold block pb-1 border-b border-zinc-200/60 dark:border-zinc-800/60">
                       Permisos del Rol
                     </Label>
                     
@@ -680,7 +680,7 @@ export default function EmployeeManagementModule() {
                             key={perm.id}
                             type="button"
                             onClick={() => handleTogglePermission(perm.id)}
-                            className="w-full flex items-start text-left gap-3 p-2 hover:bg-zinc-850/40 rounded-lg transition-colors border border-transparent hover:border-zinc-800"
+                            className="w-full flex items-start text-left gap-3 p-2 hover:bg-zinc-100/40 dark:hover:bg-zinc-850/40 rounded-lg transition-colors border border-transparent hover:border-zinc-200 dark:hover:border-zinc-800"
                           >
                             <span className="mt-0.5 shrink-0">
                               {isActive ? (
@@ -690,7 +690,7 @@ export default function EmployeeManagementModule() {
                               )}
                             </span>
                             <div>
-                              <span className="block text-xs font-bold text-white font-mono">{perm.action}</span>
+                              <span className="block text-xs font-bold text-zinc-800 dark:text-white font-mono">{perm.action}</span>
                               {perm.description && (
                                 <span className="block text-[10px] text-zinc-500 leading-tight mt-0.5">{perm.description}</span>
                               )}
@@ -703,15 +703,15 @@ export default function EmployeeManagementModule() {
                 )}
 
                 {/* Password Reset Section */}
-                <div className="space-y-2 pt-4 border-t border-zinc-800/80">
-                  <Label className="text-zinc-400 text-xs font-bold block">Restablecer Contraseña</Label>
+                <div className="space-y-2 pt-4 border-t border-zinc-200/80 dark:border-zinc-800/80">
+                  <Label className="text-zinc-550 dark:text-zinc-400 text-xs font-bold block">Restablecer Contraseña</Label>
                   <div className="flex gap-2">
                     <Input
                       type="password"
                       placeholder="Nueva contraseña temporal"
                       value={resetPasswordVal}
                       onChange={(e) => setResetPasswordVal(e.target.value)}
-                      className="bg-zinc-950 border-zinc-800 text-white text-sm h-10 flex-1"
+                      className="bg-white dark:bg-zinc-950 border-zinc-200 dark:border-zinc-800 text-zinc-800 dark:text-white text-sm h-10 flex-1"
                     />
                     <Button
                       type="button"
@@ -730,7 +730,7 @@ export default function EmployeeManagementModule() {
                           setResetPasswordSubmitting(false);
                         }
                       }}
-                      className="bg-zinc-800 hover:bg-zinc-700 text-white text-xs px-3 font-semibold h-10 rounded-lg"
+                      className="bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-700 text-zinc-800 dark:text-white text-xs px-3 font-semibold h-10 rounded-lg"
                     >
                       {resetPasswordSubmitting ? 'Procesando...' : resetPasswordSuccess ? '¡Listo!' : 'Cambiar'}
                     </Button>
@@ -741,7 +741,7 @@ export default function EmployeeManagementModule() {
                 <DialogFooter className="mt-6 flex gap-2">
                   <DialogClose
                     render={
-                      <Button type="button" variant="outline" className="bg-transparent border-zinc-800 text-zinc-400 hover:text-white hover:bg-zinc-850" />
+                      <Button type="button" variant="outline" className="bg-transparent border-zinc-200 dark:border-zinc-800 text-zinc-550 dark:text-zinc-400 hover:text-white hover:bg-zinc-850" />
                     }
                   >
                     Cancelar

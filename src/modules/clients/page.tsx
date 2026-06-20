@@ -147,13 +147,13 @@ export default function ClientsModule() {
   return (
     <div className="space-y-6">
       {/* Header section */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-zinc-800 pb-5">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-zinc-200 dark:border-zinc-800 pb-5">
         <div>
-          <h1 className="text-2xl font-bold text-white tracking-wide flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-zinc-800 dark:text-white tracking-wide flex items-center gap-2">
             <Briefcase className="h-6 w-6 text-emerald-400" />
             Clientes CRM
           </h1>
-          <p className="text-zinc-400 text-xs mt-1">
+          <p className="text-zinc-550 dark:text-zinc-400 text-xs mt-1">
             Gestión centralizada de cuentas industriales, contratos y auditoría local.
           </p>
         </div>
@@ -172,13 +172,13 @@ export default function ClientsModule() {
               <Plus className="h-4 w-4" />
               Registrar Cliente
             </DialogTrigger>
-            <DialogContent className="max-w-sm bg-zinc-900 border border-zinc-800 text-white p-6 rounded-2xl">
+            <DialogContent className="max-w-sm bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-800 dark:text-white p-6 rounded-2xl">
               <DialogHeader>
-                <DialogTitle className="text-lg font-bold text-white flex items-center gap-2">
+                <DialogTitle className="text-lg font-bold text-zinc-800 dark:text-white flex items-center gap-2">
                   <Sparkles className="h-5 w-5 text-amber-500" />
                   Registro Rápido
                 </DialogTitle>
-                <DialogDescription className="text-zinc-400 text-xs">
+                <DialogDescription className="text-zinc-550 dark:text-zinc-400 text-xs">
                   Ingresa el nombre del cliente o empresa. Los datos técnicos se completan después desde el expediente.
                 </DialogDescription>
               </DialogHeader>
@@ -192,13 +192,13 @@ export default function ClientsModule() {
 
               <form onSubmit={handleCreateClientSubmit} className="space-y-4 pt-3">
                 <div className="space-y-1">
-                  <Label htmlFor="name" className="text-zinc-400 text-xs">Nombre Completo / Razón Social</Label>
+                  <Label htmlFor="name" className="text-zinc-550 dark:text-zinc-400 text-xs">Nombre Completo / Razón Social</Label>
                   <Input 
                     id="name"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     placeholder="Distribuidora de Energía Solar S.A."
-                    className="bg-zinc-950 border-zinc-800 text-white text-sm h-11"
+                    className="bg-white dark:bg-zinc-950 border-zinc-200 dark:border-zinc-800 text-zinc-800 dark:text-white text-sm h-11"
                     autoFocus
                   />
                 </div>
@@ -206,7 +206,7 @@ export default function ClientsModule() {
                 <DialogFooter className="mt-6 flex gap-2">
                   <DialogClose
                     render={
-                      <Button type="button" variant="outline" className="bg-transparent border-zinc-800 text-zinc-400 hover:text-white hover:bg-zinc-850" />
+                      <Button type="button" variant="outline" className="bg-transparent border-zinc-200 dark:border-zinc-800 text-zinc-550 dark:text-zinc-400 hover:text-white hover:bg-zinc-850" />
                     }
                   >
                     Cancelar
@@ -231,7 +231,7 @@ export default function ClientsModule() {
       </div>
 
       {/* Toolbar / Filters */}
-      <div className="bg-zinc-900/60 border border-zinc-800 p-4 rounded-xl flex flex-col md:flex-row justify-between items-stretch md:items-center gap-4">
+      <div className="bg-zinc-50/60 dark:bg-zinc-900/60 border border-zinc-200 dark:border-zinc-800 p-4 rounded-xl flex flex-col md:flex-row justify-between items-stretch md:items-center gap-4">
         <form onSubmit={handleSearchSubmit} className="flex-1 flex gap-2">
           <div className="relative flex-1">
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500" />
@@ -239,10 +239,10 @@ export default function ClientsModule() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Buscar cliente por nombre o RNC/Cédula..."
-              className="pl-10 bg-zinc-950 border-zinc-800 text-white h-11 w-full"
+              className="pl-10 bg-white dark:bg-zinc-950 border-zinc-200 dark:border-zinc-800 text-zinc-800 dark:text-white h-11 w-full"
             />
           </div>
-          <Button type="submit" className="bg-zinc-800 hover:bg-zinc-700 text-white h-11 px-4 rounded-xl">
+          <Button type="submit" className="bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-700 text-zinc-800 dark:text-white h-11 px-4 rounded-xl">
             Buscar
           </Button>
         </form>
@@ -250,7 +250,7 @@ export default function ClientsModule() {
         <div className="flex gap-2">
           <Button
             onClick={() => setShowFiltersPanel(!showFiltersPanel)}
-            className={`flex items-center gap-2 h-11 px-4 rounded-xl border ${
+            className={`flex items-center gap-2 h-11 px-4 rounded-xl border${
               showFiltersPanel 
                 ? 'bg-emerald-950/20 text-emerald-400 border-emerald-500/30' 
                 : 'bg-zinc-850 text-zinc-300 border-zinc-800 hover:bg-zinc-800'
@@ -262,7 +262,7 @@ export default function ClientsModule() {
 
           <Button
             onClick={handleResetFilters}
-            className="bg-zinc-950 hover:bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white h-11 px-3 rounded-xl"
+            className="bg-white dark:bg-zinc-950 hover:bg-zinc-150 dark:hover:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-550 dark:text-zinc-400 hover:text-white h-11 px-3 rounded-xl"
             title="Limpiar filtros"
           >
             <RotateCcw className="h-4 w-4" />
@@ -272,9 +272,9 @@ export default function ClientsModule() {
 
       {/* Expandable filters panel */}
       {showFiltersPanel && (
-        <div className="bg-zinc-900 border border-zinc-800 p-4 rounded-xl grid grid-cols-1 sm:grid-cols-2 gap-4 animate-in fade-in slide-in-from-top-2 duration-200">
+        <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-4 rounded-xl grid grid-cols-1 sm:grid-cols-2 gap-4 animate-in fade-in slide-in-from-top-2 duration-200">
           <div>
-            <label className="block text-zinc-400 text-xs font-bold uppercase mb-1.5">Estado del Contrato</label>
+            <label className="block text-zinc-550 dark:text-zinc-400 text-xs font-bold uppercase mb-1.5">Estado del Contrato</label>
             <div className="flex flex-wrap gap-2">
               {[
                 { id: 'all', label: 'Todos' },
@@ -285,7 +285,7 @@ export default function ClientsModule() {
                 <button
                   key={filter.id}
                   onClick={() => setStatusFilter(filter.id)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all border ${
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all border${
                     statusFilter === filter.id
                       ? 'bg-emerald-600 border-emerald-500 text-white'
                       : 'bg-zinc-950 border-zinc-800 text-zinc-400 hover:text-zinc-200'
@@ -314,18 +314,18 @@ export default function ClientsModule() {
           <span className="text-zinc-500 text-xs font-medium">Buscando en base de datos...</span>
         </div>
       ) : clients.length === 0 ? (
-        <div className="bg-zinc-900/40 border border-zinc-850 p-12 text-center rounded-xl">
+        <div className="bg-zinc-50/50 dark:bg-zinc-900/40 border border-zinc-200 dark:border-zinc-850 p-12 text-center rounded-xl">
           <Building className="h-10 w-10 text-zinc-600 mx-auto mb-3" />
-          <h3 className="text-white font-bold text-base">No se encontraron clientes</h3>
+          <h3 className="text-zinc-800 dark:text-white font-bold text-base">No se encontraron clientes</h3>
           <p className="text-zinc-500 text-xs mt-1">Registra nuevos clientes o prueba cambiando los filtros de búsqueda.</p>
         </div>
       ) : (
         <>
           {/* PC Desktop View: Advanced Grid Table */}
-          <div className="hidden md:block overflow-hidden bg-zinc-900 border border-zinc-800 rounded-xl">
+          <div className="hidden md:block overflow-hidden bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="bg-zinc-950 border-b border-zinc-800 text-[10px] text-zinc-400 font-bold uppercase tracking-wider">
+                <tr className="bg-white dark:bg-zinc-950 border-b border-zinc-200 dark:border-zinc-800 text-[10px] text-zinc-550 dark:text-zinc-400 font-bold uppercase tracking-wider">
                   <th className="p-4">Cliente</th>
                   <th className="p-4">Identificación</th>
                   <th className="p-4">Contacto</th>
@@ -334,10 +334,10 @@ export default function ClientsModule() {
                   <th className="p-4 text-center">Acciones</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-zinc-800/60 text-sm text-zinc-300">
+              <tbody className="divide-y divide-zinc-800/60 text-sm text-zinc-700 dark:text-zinc-300">
                 {clients.map((client) => (
-                  <tr key={client.id} className="hover:bg-zinc-850/30 transition-colors group">
-                    <td className="p-4 font-bold text-white">
+                  <tr key={client.id} className="hover:bg-zinc-100 dark:hover:bg-zinc-850/30 transition-colors group">
+                    <td className="p-4 font-bold text-zinc-800 dark:text-white">
                       <button 
                         onClick={() => router.push(`/clients/${client.id}`)}
                         className="hover:text-emerald-400 hover:underline transition-colors text-left flex items-center gap-2"
@@ -348,7 +348,7 @@ export default function ClientsModule() {
                     </td>
                     <td className="p-4 font-mono text-xs">{client.document_id || <span className="text-zinc-600 italic">Sin ID</span>}</td>
                     <td className="p-4">
-                      <div className="flex items-center gap-1.5 text-zinc-400 text-xs">
+                      <div className="flex items-center gap-1.5 text-zinc-550 dark:text-zinc-400 text-xs">
                         <Phone className="h-3 w-3" />
                         <span>{client.phone || 'N/D'}</span>
                       </div>
@@ -360,7 +360,7 @@ export default function ClientsModule() {
                       </span>
                     </td>
                     <td className="p-4">
-                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase${
                         client.status === 'activo' ? 'bg-emerald-950/50 text-emerald-400 border border-emerald-500/20' :
                         client.status === 'prospecto' ? 'bg-amber-950/50 text-amber-400 border border-amber-500/20' :
                         'bg-zinc-800 text-zinc-400 border border-zinc-700'
@@ -372,12 +372,12 @@ export default function ClientsModule() {
                       <DropdownMenu>
                         <DropdownMenuTrigger
                           render={
-                            <Button variant="ghost" className="h-8 w-8 p-0 hover:bg-zinc-800" />
+                            <Button variant="ghost" className="h-8 w-8 p-0 hover:bg-zinc-100 dark:hover:bg-zinc-800" />
                           }
                         >
-                          <MoreVertical className="h-4 w-4 text-zinc-400" />
+                          <MoreVertical className="h-4 w-4 text-zinc-550 dark:text-zinc-400" />
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent className="bg-zinc-900 border border-zinc-800 text-zinc-300">
+                        <DropdownMenuContent className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300">
                           <DropdownMenuItem 
                             onClick={() => router.push(`/clients/${client.id}`)}
                             className="hover:bg-zinc-850 focus:bg-zinc-850 cursor-pointer"
@@ -416,11 +416,11 @@ export default function ClientsModule() {
             {clients.map((client) => (
               <div 
                 key={client.id} 
-                className="bg-zinc-900 border-2 border-zinc-800 rounded-xl p-5 shadow-lg space-y-4"
+                className="bg-white dark:bg-zinc-900 border-2 border-zinc-200 dark:border-zinc-800 rounded-xl p-5 shadow-lg space-y-4"
               >
                 <div className="flex justify-between items-start">
                   <div className="min-w-0 flex-1">
-                    <h3 className="font-extrabold text-white text-base leading-tight truncate">
+                    <h3 className="font-extrabold text-zinc-800 dark:text-white text-base leading-tight truncate">
                       <button
                         onClick={() => router.push(`/clients/${client.id}`)}
                         className="hover:text-emerald-400 hover:underline transition-colors text-left font-extrabold"
@@ -432,7 +432,7 @@ export default function ClientsModule() {
                       <span className={`text-[9px] font-bold uppercase px-2 py-0.5 rounded border ${categoryBadge(client.category)}`}>
                         {client.category || 'Sin cat.'}
                       </span>
-                      <span className={`text-[9px] font-extrabold uppercase px-2 py-0.5 rounded-md border ${
+                      <span className={`text-[9px] font-extrabold uppercase px-2 py-0.5 rounded-md border${
                         client.status === 'activo' ? 'bg-emerald-950/80 text-emerald-300 border-emerald-500/50' :
                         client.status === 'prospecto' ? 'bg-amber-950/80 text-amber-300 border-amber-500/50' :
                         'bg-zinc-800 text-zinc-400 border-zinc-600'
@@ -443,8 +443,8 @@ export default function ClientsModule() {
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2 text-sm text-zinc-300 pt-2 border-t border-zinc-850">
-                  <Phone className="h-4 w-4 text-zinc-400" />
+                <div className="flex items-center gap-2 text-sm text-zinc-700 dark:text-zinc-300 pt-2 border-t border-zinc-200 dark:border-zinc-850">
+                  <Phone className="h-4 w-4 text-zinc-550 dark:text-zinc-400" />
                   <span className="font-semibold">{client.phone || 'Sin teléfono'}</span>
                 </div>
 
@@ -461,7 +461,7 @@ export default function ClientsModule() {
                   {client.status !== 'activo' && (
                     <button
                       onClick={() => handleStatusChange(client.id, 'activo')}
-                      className="bg-zinc-800 hover:bg-zinc-700 text-emerald-400 font-bold text-xs py-3 rounded-lg border border-zinc-700 transition-colors flex items-center justify-center gap-1.5"
+                      className="bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-700 text-emerald-400 font-bold text-xs py-3 rounded-lg border border-zinc-200 dark:border-zinc-700 transition-colors flex items-center justify-center gap-1.5"
                       style={{ minHeight: '48px' }}
                     >
                       <CheckCircle className="h-4 w-4" />
@@ -471,7 +471,7 @@ export default function ClientsModule() {
                   {client.status !== 'inactivo' && (
                     <button
                       onClick={() => handleStatusChange(client.id, 'inactivo')}
-                      className="bg-zinc-800 hover:bg-zinc-700 text-rose-400 font-bold text-xs py-3 rounded-lg border border-zinc-700 transition-colors flex items-center justify-center gap-1.5"
+                      className="bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-700 text-rose-400 font-bold text-xs py-3 rounded-lg border border-zinc-200 dark:border-zinc-700 transition-colors flex items-center justify-center gap-1.5"
                       style={{ minHeight: '48px' }}
                     >
                       <AlertCircle className="h-4 w-4" />

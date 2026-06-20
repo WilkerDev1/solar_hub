@@ -58,8 +58,19 @@ export async function createTask(taskData: {
   origin: 'proyecto' | 'administracion' | 'consulta' | 'almacen';
   task_type: 'check' | 'entregable' | 'reporte' | 'evidencia';
   assigned_to: string;
+  assigned_to_ids?: string[] | null;
   project_id?: string | null;
   area?: 'legal' | 'almacen' | 'operaciones' | 'administracion' | 'general';
+  priority?: 'baja' | 'media' | 'alta';
+  due_date?: string | null;
+  tags?: string[] | null;
+  subtasks?: any[] | null;
+  task_materials?: any[] | null;
+  task_comments?: any[] | null;
+  task_activities?: any[] | null;
+  delivery_date?: string | null;
+  requires_audit?: boolean;
+  audit_comments?: string | null;
 }): Promise<TaskRow> {
   // Get active session user
   const { data: { user }, error: userError } = await supabase.auth.getUser();
@@ -70,13 +81,29 @@ export async function createTask(taskData: {
   // Fetch company ID of current user from profiles
   const { data: profile, error: profileErr } = await supabase
     .from('profiles')
-    .select('company_id')
+    .select('company_id, full_name, email')
     .eq('id', user.id)
     .single();
 
   if (profileErr || !profile || !profile.company_id) {
     throw new Error('User company not found');
   }
+
+  const assignedIds = taskData.assigned_to_ids && taskData.assigned_to_ids.length > 0 
+    ? taskData.assigned_to_ids 
+    : [taskData.assigned_to];
+
+  const creatorName = profile.full_name || profile.email || 'Usuario';
+  const creationActivity = {
+    id: Math.random().toString(36).substring(2),
+    profile_id: user.id,
+    user_name: creatorName,
+    action: 'Creación de Tarea',
+    details: `Creó la tarea "${taskData.title}"`,
+    created_at: new Date().toISOString()
+  };
+
+  const initialActivities = [creationActivity, ...(taskData.task_activities || [])];
 
   const newTask: TaskInsert = {
     company_id: profile.company_id,
@@ -85,12 +112,23 @@ export async function createTask(taskData: {
     description: taskData.description || null,
     origin: taskData.origin,
     task_type: taskData.task_type,
-    assigned_to: taskData.assigned_to,
+    assigned_to: assignedIds[0] || taskData.assigned_to,
+    assigned_to_ids: assignedIds,
     project_id: taskData.project_id || null,
     area: taskData.area || 'general',
     status: 'pendiente',
     audit_status: 'pendiente',
-  };
+    audit_comments: taskData.audit_comments || null,
+    requires_audit: taskData.requires_audit || false,
+    priority: taskData.priority || 'baja',
+    due_date: taskData.due_date || null,
+    tags: taskData.tags || [],
+    subtasks: taskData.subtasks || [],
+    task_materials: taskData.task_materials || [],
+    task_comments: taskData.task_comments || [],
+    task_activities: initialActivities,
+    delivery_date: taskData.delivery_date || null,
+  } as any;
 
   const { data, error } = await supabase
     .from('global_tasks')
@@ -113,9 +151,54 @@ export async function updateTaskStatus(
   taskId: string,
   status: 'pendiente' | 'en_progreso' | 'completada'
 ): Promise<TaskRow> {
+  const { data: { user } } = await supabase.auth.getUser();
+  
+  let userProfileName = 'Usuario';
+  let userId = 'unknown';
+  if (user) {
+    userId = user.id;
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('full_name, email')
+      .eq('id', user.id)
+      .single();
+    userProfileName = profile?.full_name || profile?.email || 'Usuario';
+  }
+
+  const { data: currentTask } = await supabase
+    .from('global_tasks')
+    .select('task_activities, status, title')
+    .eq('id', taskId)
+    .single();
+
+  let nextActivities: any[] = Array.isArray(currentTask?.task_activities) ? (currentTask.task_activities as any[]) : [];
+  const statusLabels: Record<string, string> = {
+    'pendiente': 'To Do (Pendiente)',
+    'en_progreso': 'In Progress (En Curso)',
+    'completada': 'Review / Done (Completada)'
+  };
+  
+  const oldLabel = currentTask ? (statusLabels[currentTask.status] || currentTask.status) : 'desconocido';
+  const newLabel = statusLabels[status] || status;
+
+  nextActivities = [
+    {
+      id: Math.random().toString(36).substring(2),
+      profile_id: userId,
+      user_name: userProfileName,
+      action: 'Cambio de Estado',
+      details: `Cambió el estado de "${oldLabel}" a "${newLabel}"`,
+      created_at: new Date().toISOString()
+    },
+    ...nextActivities
+  ];
+
   const { data, error } = await supabase
     .from('global_tasks')
-    .update({ status } as TaskUpdate)
+    .update({ 
+      status,
+      task_activities: nextActivities
+    } as TaskUpdate)
     .eq('id', taskId)
     .select()
     .single();
@@ -133,11 +216,74 @@ export async function updateTaskStatus(
  */
 export async function auditTaskStatus(
   taskId: string,
-  audit_status: 'pendiente' | 'aceptado' | 'denegado' | 'requiere_revision'
+  audit_status: 'pendiente' | 'aceptado' | 'denegado' | 'requiere_revision',
+  audit_comments?: string | null
 ): Promise<TaskRow> {
+  const { data: { user } } = await supabase.auth.getUser();
+  let userProfileName = 'Auditor';
+  let userId = 'unknown';
+  if (user) {
+    userId = user.id;
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('full_name, email')
+      .eq('id', user.id)
+      .single();
+    userProfileName = profile?.full_name || profile?.email || 'Auditor';
+  }
+
+  const { data: currentTask } = await supabase
+    .from('global_tasks')
+    .select('task_activities, title')
+    .eq('id', taskId)
+    .single();
+
+  let nextActivities: any[] = Array.isArray(currentTask?.task_activities) ? (currentTask.task_activities as any[]) : [];
+  
+  const auditStatusLabels: Record<string, string> = {
+    'pendiente': 'Pendiente de Auditoría',
+    'aceptado': 'Aceptado (Aprobado)',
+    'denegado': 'Rechazado',
+    'requiere_revision': 'Requiere Revisión'
+  };
+
+  const statusLabel = auditStatusLabels[audit_status] || audit_status;
+  const commentDetail = audit_comments ? ` - Detalle: "${audit_comments}"` : '';
+
+  nextActivities = [
+    {
+      id: Math.random().toString(36).substring(2),
+      profile_id: userId,
+      user_name: userProfileName,
+      action: 'Auditoría',
+      details: `Marcó auditoría como "${statusLabel}"${commentDetail}`,
+      created_at: new Date().toISOString()
+    },
+    ...nextActivities
+  ];
+
+  let nextStatus: string | undefined = undefined;
+  if (audit_status === 'requiere_revision') {
+    nextStatus = 'pendiente';
+  } else if (audit_status === 'denegado') {
+    nextStatus = 'pendiente';
+  } else if (audit_status === 'aceptado') {
+    nextStatus = 'completada';
+  }
+
+  const updates: TaskUpdate = {
+    audit_status,
+    audit_comments: audit_comments || null,
+    task_activities: nextActivities
+  };
+
+  if (nextStatus) {
+    updates.status = nextStatus;
+  }
+
   const { data, error } = await supabase
     .from('global_tasks')
-    .update({ audit_status } as TaskUpdate)
+    .update(updates)
     .eq('id', taskId)
     .select()
     .single();
@@ -148,6 +294,92 @@ export async function auditTaskStatus(
   }
 
   return data;
+}
+
+/**
+ * Update any allowed fields of an existing task.
+ */
+export async function updateTask(
+  taskId: string,
+  updates: Partial<Omit<TaskUpdate, 'id' | 'company_id' | 'created_at' | 'created_by'>>
+): Promise<TaskRow> {
+  if (updates.assigned_to_ids && Array.isArray(updates.assigned_to_ids) && updates.assigned_to_ids.length > 0) {
+    updates.assigned_to = updates.assigned_to_ids[0];
+  }
+
+  const { data: { user } } = await supabase.auth.getUser();
+  let userProfileName = 'Usuario';
+  let userId = 'unknown';
+  if (user) {
+    userId = user.id;
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('full_name, email')
+      .eq('id', user.id)
+      .single();
+    userProfileName = profile?.full_name || profile?.email || 'Usuario';
+  }
+
+  const { data: currentTask } = await supabase
+    .from('global_tasks')
+    .select('task_activities, status, title')
+    .eq('id', taskId)
+    .single();
+
+  let nextActivities: any[] = Array.isArray(updates.task_activities || currentTask?.task_activities)
+    ? (updates.task_activities || currentTask?.task_activities) as any[]
+    : [];
+
+  if (updates.status && currentTask && currentTask.status !== updates.status && !updates.task_activities) {
+    const statusLabels: Record<string, string> = {
+      'pendiente': 'To Do (Pendiente)',
+      'en_progreso': 'In Progress (En Curso)',
+      'completada': 'Review / Done (Completada)'
+    };
+    const oldLabel = statusLabels[currentTask.status] || currentTask.status;
+    const newLabel = statusLabels[updates.status] || updates.status;
+    nextActivities = [
+      {
+        id: Math.random().toString(36).substring(2),
+        profile_id: userId,
+        user_name: userProfileName,
+        action: 'Cambio de Estado',
+        details: `Cambió el estado de "${oldLabel}" a "${newLabel}"`,
+        created_at: new Date().toISOString()
+      },
+      ...nextActivities
+    ];
+    updates.task_activities = nextActivities;
+  }
+
+  const { data, error } = await supabase
+    .from('global_tasks')
+    .update(updates)
+    .eq('id', taskId)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error updating task:', error);
+    throw new Error(error.message);
+  }
+
+  return data;
+}
+
+/**
+ * Delete an existing task.
+ */
+export async function deleteTask(taskId: string): Promise<void> {
+  const { error } = await supabase
+    .from('global_tasks')
+    .delete()
+    .eq('id', taskId);
+
+  if (error) {
+    console.error('Error deleting task:', error);
+    throw new Error(error.message);
+  }
 }
 
 /**
