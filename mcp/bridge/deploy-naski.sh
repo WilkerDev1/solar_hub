@@ -30,10 +30,22 @@ rsync -avz "$LOCAL_LOCK" "$NASKI_HOST:$NASKI_PATH/"
 echo "🔑 [3/5] Creando .env en naski con las keys de Supabase..."
 # IMPORTANTE: Aquí van las keys de desarrollo/producción de Supabase.
 # Usamos el hostname archlinux para conectar con la máquina local desde naski vía Tailscale.
-ssh "$NASKI_HOST" "cat > $NASKI_PATH/.env << 'ENVEOF'
+# Leer credenciales desde .env.local local
+ENV_LOCAL_PATH="$(dirname "$0")/../../.env.local"
+if [ -f "$ENV_LOCAL_PATH" ]; then
+  ANON_KEY=$(grep '^NEXT_PUBLIC_SUPABASE_ANON_KEY=' "$ENV_LOCAL_PATH" | cut -d'=' -f2- | tr -d '\r')
+  SERVICE_ROLE_KEY=$(grep '^SUPABASE_SERVICE_ROLE_KEY=' "$ENV_LOCAL_PATH" | cut -d'=' -f2- | tr -d '\r')
+else
+  echo "⚠️  No se encontró .env.local en la raíz."
+fi
+
+ANON_KEY=${ANON_KEY:-"YOUR_SUPABASE_ANON_KEY_HERE"}
+SERVICE_ROLE_KEY=${SERVICE_ROLE_KEY:-"YOUR_SUPABASE_SERVICE_ROLE_KEY_HERE"}
+
+ssh "$NASKI_HOST" "cat > $NASKI_PATH/.env << ENVEOF
 NEXT_PUBLIC_SUPABASE_URL=http://archlinux:54321
-NEXT_PUBLIC_SUPABASE_ANON_KEY=YOUR_SUPABASE_ANON_KEY_HERE
-SUPABASE_SERVICE_ROLE_KEY=YOUR_SUPABASE_SERVICE_ROLE_KEY_HERE
+NEXT_PUBLIC_SUPABASE_ANON_KEY=${ANON_KEY}
+SUPABASE_SERVICE_ROLE_KEY=${SERVICE_ROLE_KEY}
 ENVEOF
 chmod 600 $NASKI_PATH/.env"
 

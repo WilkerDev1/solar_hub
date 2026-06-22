@@ -98,6 +98,13 @@ erDiagram
     profiles ||--o{ inventory_transactions : "creado por"
     projects ||--o{ project_materials : "contiene"
     inventory_items ||--o{ project_materials : "mapea"
+    companies ||--o{ folders : "pertenece a"
+    companies ||--o{ documents : "pertenece a"
+    projects ||--o{ folders : "vincula"
+    folders ||--o{ folders : "auto-referencial (parent_id)"
+    folders ||--o{ documents : "contiene"
+    profiles ||--o{ documents : "subido por"
+    global_tasks ||--o{ documents : "evidencia"
 
     companies {
         uuid id PK
@@ -247,7 +254,29 @@ erDiagram
         integer quantity
         integer required_quantity
         timestamp created_at
-        timestamp updated_at
+    }
+
+    folders {
+        uuid id PK
+        uuid company_id FK
+        uuid parent_id FK
+        uuid project_id FK
+        text department_id
+        text name
+        timestamp created_at
+    }
+
+    documents {
+        uuid id PK
+        uuid company_id FK
+        uuid folder_id FK
+        text name
+        text physical_path
+        bigint file_size
+        text mime_type
+        uuid uploaded_by FK
+        uuid task_id FK
+        timestamp created_at
     }
 ```
 
