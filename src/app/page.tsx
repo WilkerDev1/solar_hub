@@ -11,6 +11,7 @@ import ClientsModule from '@/modules/clients/page';
 import AdminModule from '@/modules/admin/page';
 import TasksModule from '@/modules/tasks/page';
 import CalebModule from '@/modules/caleb/page';
+import DocumentsModule from '@/modules/documents/page';
 import CalebFloatingWidget from '@/core/components/CalebFloatingWidget';
 
 import { 
@@ -27,26 +28,27 @@ import {
   X,
   LogOut,
   ClipboardList,
-  Bot
+  Bot,
+  FolderOpen
 } from 'lucide-react';
 
   interface DashboardShellProps {
   children?: React.ReactNode;
-  defaultTab?: 'dashboard' | 'chat' | 'projects' | 'inventory' | 'clients' | 'admin' | 'tasks' | 'caleb';
+  defaultTab?: 'dashboard' | 'chat' | 'projects' | 'inventory' | 'clients' | 'admin' | 'tasks' | 'caleb' | 'documents';
 }
 
 export function DashboardShell({ children, defaultTab = 'dashboard' }: DashboardShellProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user, roles, loading, signOut, hasPermission } = useAuth();
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'chat' | 'projects' | 'inventory' | 'clients' | 'admin' | 'tasks' | 'caleb'>(defaultTab);
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'chat' | 'projects' | 'inventory' | 'clients' | 'admin' | 'tasks' | 'caleb' | 'documents'>(defaultTab);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // Sync tab from query parameter on initial load or browser navigation
   useEffect(() => {
     if (searchParams) {
       const tabParam = searchParams.get('tab');
-      if (tabParam && ['dashboard', 'chat', 'projects', 'inventory', 'clients', 'admin', 'tasks', 'caleb'].includes(tabParam)) {
+      if (tabParam && ['dashboard', 'chat', 'projects', 'inventory', 'clients', 'admin', 'tasks', 'caleb', 'documents'].includes(tabParam)) {
         setActiveTab(tabParam as any);
       }
     }
@@ -86,12 +88,14 @@ export function DashboardShell({ children, defaultTab = 'dashboard' }: Dashboard
         return <TasksModule />;
       case 'caleb':
         return <CalebModule />;
+      case 'documents':
+        return <DocumentsModule />;
       default:
         return <DashboardModule />;
     }
   };
 
-  const handleTabClick = (tabId: 'dashboard' | 'chat' | 'projects' | 'inventory' | 'clients' | 'admin' | 'tasks' | 'caleb') => {
+  const handleTabClick = (tabId: 'dashboard' | 'chat' | 'projects' | 'inventory' | 'clients' | 'admin' | 'tasks' | 'caleb' | 'documents') => {
     if (children) {
       router.push(`/?tab=${tabId}`);
     } else {
@@ -107,6 +111,7 @@ export function DashboardShell({ children, defaultTab = 'dashboard' }: Dashboard
     { id: 'inventory', label: 'Inventario', icon: Package },
     { id: 'clients', label: 'Clientes CRM', icon: UsersRound },
     { id: 'tasks', label: 'Mis Tareas', icon: ClipboardList },
+    { id: 'documents', label: 'Documentos', icon: FolderOpen },
     { id: 'caleb', label: 'Asistente Caleb', icon: Bot },
   ] as const;
 

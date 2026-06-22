@@ -333,6 +333,74 @@ app.get('/api/storage/file/:document_id', authMiddleware, async (req: express.Re
   }
 });
 
+// DELETE /api/storage/file/:document_id - Delete physical file + Supabase record
+app.delete('/api/storage/file/:document_id', authMiddleware, async (req: express.Request, res: express.Response) => {
+  const { document_id } = req.params;
+  const userJwt = (req.headers['x-user-jwt'] as string);
+
+  if (!userJwt) {
+    res.status(400).json({ error: 'Se requiere el token JWT del usuario.' });
+    return;
+  }
+
+  try {
+    const userClient = getUserClient(userJwt);
+
+    const { data: { user }, error: userError } = await userClient.auth.getUser();
+    if (userError || !user) {
+      res.status(401).json({ error: 'Token de sesión inválido o expirado.' });
+      return;
+    }
+
+    const { data: profile } = await userClient
+      .from('profiles')
+      .select('company_id')
+      .eq('id', user.id)
+      .single();
+
+    // Fetch document and verify company ownership
+    const { data: doc, error: docError } = await userClient
+      .from('documents')
+      .select('*')
+      .eq('id', document_id)
+      .single();
+
+    if (docError || !doc) {
+      res.status(404).json({ error: 'Documento no encontrado.' });
+      return;
+    }
+
+    if (profile && doc.company_id !== profile.company_id) {
+      res.status(403).json({ error: 'Acceso denegado.' });
+      return;
+    }
+
+    // Remove physical file from disk (best effort)
+    if (doc.physical_path && fs.existsSync(doc.physical_path)) {
+      try {
+        fs.unlinkSync(doc.physical_path);
+      } catch (unlinkErr: any) {
+        console.warn(`Could not delete physical file ${doc.physical_path}:`, unlinkErr.message);
+      }
+    }
+
+    // Remove Supabase record
+    const { error: deleteError } = await userClient
+      .from('documents')
+      .delete()
+      .eq('id', document_id);
+
+    if (deleteError) {
+      res.status(500).json({ error: 'Error al eliminar el registro en Supabase: ' + deleteError.message });
+      return;
+    }
+
+    res.status(200).json({ success: true });
+  } catch (err: any) {
+    res.status(500).json({ error: 'Error al procesar la eliminación: ' + err.message });
+  }
+});
+
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Caleb API Bridge running on 0.0.0.0:${PORT}`);
 });
