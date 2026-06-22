@@ -775,6 +775,75 @@ export type Database = {
           },
         ]
       }
+      documents: {
+        Row: {
+          id: string
+          company_id: string
+          folder_id: string | null
+          name: string
+          physical_path: string
+          file_size: number
+          mime_type: string
+          uploaded_by: string | null
+          task_id: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          company_id: string
+          folder_id?: string | null
+          name: string
+          physical_path: string
+          file_size: number
+          mime_type: string
+          uploaded_by?: string | null
+          task_id?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          company_id?: string
+          folder_id?: string | null
+          name?: string
+          physical_path?: string
+          file_size?: number
+          mime_type?: string
+          uploaded_by?: string | null
+          task_id?: string | null
+          created_at?: string
+        }
+        Relationships: []
+      }
+      folders: {
+        Row: {
+          id: string
+          company_id: string
+          parent_id: string | null
+          project_id: string | null
+          department_id: string | null
+          name: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          company_id: string
+          parent_id?: string | null
+          project_id?: string | null
+          department_id?: string | null
+          name: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          company_id?: string
+          parent_id?: string | null
+          project_id?: string | null
+          department_id?: string | null
+          name?: string
+          created_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

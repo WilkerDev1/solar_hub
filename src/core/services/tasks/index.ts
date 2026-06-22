@@ -422,7 +422,7 @@ export async function uploadTaskEvidence(
 
   const resData = await response.json();
   const newDocument = resData.document;
-  const newUrl = `/api/storage/file/${newDocument.id}`;
+  const newUrl = `/api/storage/file/${newDocument.id}?name=${encodeURIComponent(newDocument.name)}`;
 
   const updatedUrls = [...currentUrls, newUrl];
 

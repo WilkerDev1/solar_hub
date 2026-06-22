@@ -34,6 +34,7 @@ export default function TasksModule() {
   const [tasks, setTasks] = useState<TaskRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [documentMap, setDocumentMap] = useState<Record<string, { name: string; mime_type: string }>>({});
   
   // Auxiliary lists
   const [employees, setEmployees] = useState<any[]>([]);
@@ -122,6 +123,23 @@ export default function TasksModule() {
       // Get all tasks (RLS filters company)
       const data = await getTasks();
       setTasks(data);
+
+      // Fetch metadata of documents for these tasks
+      const taskIds = data.map(t => t.id);
+      if (taskIds.length > 0) {
+        const { data: docs, error: docsErr } = await supabase
+          .from('documents')
+          .select('id, name, mime_type')
+          .in('task_id', taskIds);
+        
+        if (!docsErr && docs) {
+          const map: Record<string, { name: string; mime_type: string }> = {};
+          docs.forEach(d => {
+            map[d.id] = { name: d.name, mime_type: d.mime_type || '' };
+          });
+          setDocumentMap(map);
+        }
+      }
     } catch (err: any) {
       console.error('Error fetching tasks:', err);
       setError(err.message || 'Error al cargar las tareas.');
@@ -475,7 +493,7 @@ export default function TasksModule() {
                         className="flex-1 overflow-y-auto space-y-3 pb-4 min-h-[150px] scrollbar-thin scrollbar-thumb-zinc-900"
                       >
                         {getColumnTasks('pendiente').map((task, index) => (
-                          <KanbanCard key={task.id} task={task} index={index} onClick={() => handleOpenTask(task)} handleToggleCheck={handleToggleCheck} employees={employees} onUploadSuccess={loadTasks} />
+                          <KanbanCard key={task.id} task={task} index={index} onClick={() => handleOpenTask(task)} handleToggleCheck={handleToggleCheck} employees={employees} onUploadSuccess={loadTasks} documentMap={documentMap} />
                         ))}
                         {provided.placeholder}
                       </div>
@@ -500,7 +518,7 @@ export default function TasksModule() {
                         className="flex-1 overflow-y-auto space-y-3 pb-4 min-h-[150px] scrollbar-thin scrollbar-thumb-zinc-900"
                       >
                         {getColumnTasks('en_progreso').map((task, index) => (
-                          <KanbanCard key={task.id} task={task} index={index} onClick={() => handleOpenTask(task)} handleToggleCheck={handleToggleCheck} employees={employees} onUploadSuccess={loadTasks} />
+                          <KanbanCard key={task.id} task={task} index={index} onClick={() => handleOpenTask(task)} handleToggleCheck={handleToggleCheck} employees={employees} onUploadSuccess={loadTasks} documentMap={documentMap} />
                         ))}
                         {provided.placeholder}
                       </div>
@@ -525,7 +543,7 @@ export default function TasksModule() {
                         className="flex-1 overflow-y-auto space-y-3 pb-4 min-h-[150px] scrollbar-thin scrollbar-thumb-zinc-900"
                       >
                         {getColumnTasks('completada').map((task, index) => (
-                          <KanbanCard key={task.id} task={task} index={index} onClick={() => handleOpenTask(task)} handleToggleCheck={handleToggleCheck} employees={employees} onUploadSuccess={loadTasks} />
+                          <KanbanCard key={task.id} task={task} index={index} onClick={() => handleOpenTask(task)} handleToggleCheck={handleToggleCheck} employees={employees} onUploadSuccess={loadTasks} documentMap={documentMap} />
                         ))}
                         {provided.placeholder}
                       </div>
@@ -885,12 +903,20 @@ interface KanbanCardProps {
   handleToggleCheck: (e: React.MouseEvent, task: TaskRow) => void;
   employees: any[];
   onUploadSuccess?: () => void;
+  documentMap?: Record<string, { name: string; mime_type: string }>;
 }
 
-function KanbanCard({ task, index, onClick, handleToggleCheck, employees, onUploadSuccess }: KanbanCardProps) {
+function KanbanCard({ task, index, onClick, handleToggleCheck, employees, onUploadSuccess, documentMap = {} }: KanbanCardProps) {
   const isCompleted = task.status === 'completada';
   const isDeliverable = ['entregable', 'reporte', 'evidencia'].includes(task.task_type);
   const [uploading, setUploading] = useState(false);
+  const [token, setToken] = useState<string | null>(null);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setToken(session?.access_token || null);
+    });
+  }, []);
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -1003,7 +1029,7 @@ function KanbanCard({ task, index, onClick, handleToggleCheck, employees, onUplo
             )}
 
             {isDeliverable && (
-              <div className="pt-1 flex items-center">
+              <div className="pt-1 flex flex-col gap-2">
                 {uploading ? (
                   <span className="flex items-center gap-1.5 text-[9px] text-zinc-400 font-medium">
                     <Loader2 className="animate-spin text-emerald-500 h-3 w-3" />
@@ -1012,7 +1038,7 @@ function KanbanCard({ task, index, onClick, handleToggleCheck, employees, onUplo
                 ) : (
                   <label 
                     onClick={(e) => e.stopPropagation()} 
-                    className="inline-flex items-center gap-1 text-[9px] bg-zinc-900 hover:bg-zinc-850 text-zinc-300 font-bold border border-zinc-800 hover:border-zinc-700 px-2 py-1 rounded-md cursor-pointer transition-colors"
+                    className="inline-flex items-center gap-1 text-[9px] bg-zinc-900 hover:bg-zinc-850 text-zinc-300 font-bold border border-zinc-800 hover:border-zinc-700 px-2 py-1 rounded-md cursor-pointer transition-colors w-fit"
                   >
                     <Upload className="h-2.5 w-2.5 text-zinc-400" />
                     <span>Subir Entregable</span>
@@ -1023,6 +1049,60 @@ function KanbanCard({ task, index, onClick, handleToggleCheck, employees, onUplo
                     />
                   </label>
                 )}
+              </div>
+            )}
+
+            {task.evidence_urls && task.evidence_urls.length > 0 && (
+              <div className="mt-2.5 pt-2 border-t border-zinc-900/60 space-y-1.5 text-left">
+                <span className="text-[8px] font-mono font-bold text-zinc-500 uppercase tracking-wider block">Entregables:</span>
+                <div className="flex flex-wrap gap-2">
+                  {task.evidence_urls.map((url, idx) => {
+                    let filename = `Archivo_${idx + 1}`;
+                    let extension = '';
+                    let mimeType = '';
+                    
+                    const match = url.match(/\/api\/storage\/file\/([a-f0-9-]+)/i);
+                    const fileId = match ? match[1] : null;
+                    const docInfo = fileId ? documentMap[fileId] : null;
+                    
+                    if (docInfo) {
+                      filename = docInfo.name;
+                      mimeType = docInfo.mime_type;
+                    } else {
+                      try {
+                        if (url.startsWith('/api/storage/file/')) {
+                          const urlObj = new URL(url, typeof window !== 'undefined' ? window.location.origin : 'http://localhost');
+                          const nameParam = urlObj.searchParams.get('name');
+                          if (nameParam) filename = nameParam;
+                        } else {
+                          filename = url.split('/').pop() || filename;
+                        }
+                      } catch (e) {
+                        filename = url.split('/').pop() || filename;
+                      }
+                    }
+                    extension = filename.split('.').pop()?.toLowerCase() || '';
+                    const isImg = ['png', 'jpg', 'jpeg', 'webp', 'gif'].includes(extension) || mimeType.startsWith('image/');
+
+                    return (
+                      <div key={idx} className="flex flex-col gap-1 max-w-[120px] bg-zinc-900/30 border border-zinc-900/80 p-1.5 rounded-lg">
+                        <div className="flex items-center gap-1 text-[8px] text-zinc-400">
+                          <FileText className="h-2.5 w-2.5 text-zinc-550 shrink-0" />
+                          <span className="truncate" title={filename}>{filename}</span>
+                        </div>
+                        {isImg && (
+                          <div className="h-10 w-16 border border-zinc-900 rounded-md overflow-hidden bg-zinc-950">
+                            <img 
+                              src={url.startsWith('/api/storage/file/') ? `${url}${url.includes('?') ? '&' : '?'}token=${token || ''}` : url} 
+                              alt={filename} 
+                              className="w-full h-full object-cover" 
+                            />
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             )}
           </div>

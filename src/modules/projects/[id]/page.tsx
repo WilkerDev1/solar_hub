@@ -46,6 +46,7 @@ export default function ProjectDetailModule({ projectId }: { projectId: string }
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentUser, setCurrentUser] = useState<any>(null);
+  const [token, setToken] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [employees, setEmployees] = useState<any[]>([]);
   const [clients, setClients] = useState<any[]>([]);
@@ -53,6 +54,7 @@ export default function ProjectDetailModule({ projectId }: { projectId: string }
   // Tasks States
   const [tasks, setTasks] = useState<TaskRow[]>([]);
   const [loadingTasks, setLoadingTasks] = useState(false);
+  const [documentMap, setDocumentMap] = useState<Record<string, { name: string; mime_type: string }>>({});
   const [selectedTask, setSelectedTask] = useState<TaskRow | null>(null);
   const [isTaskDrawerOpen, setIsTaskDrawerOpen] = useState(false);
 
@@ -129,6 +131,17 @@ export default function ProjectDetailModule({ projectId }: { projectId: string }
 
   useEffect(() => {
     setIsMounted(true);
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setToken(session?.access_token || null);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setToken(session?.access_token || null);
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
   // Fetch Project & User Session Info
@@ -204,6 +217,23 @@ export default function ProjectDetailModule({ projectId }: { projectId: string }
     try {
       const projTasks = await getTasks({ projectId });
       setTasks(projTasks);
+
+      // Fetch metadata of documents for these tasks
+      const taskIds = projTasks.map(t => t.id);
+      if (taskIds.length > 0) {
+        const { data: docs, error: docsErr } = await supabase
+          .from('documents')
+          .select('id, name, mime_type')
+          .in('task_id', taskIds);
+        
+        if (!docsErr && docs) {
+          const map: Record<string, { name: string; mime_type: string }> = {};
+          docs.forEach(d => {
+            map[d.id] = { name: d.name, mime_type: d.mime_type || '' };
+          });
+          setDocumentMap(map);
+        }
+      }
     } catch (e) {
       console.error(e);
     } finally {
@@ -488,37 +518,64 @@ export default function ProjectDetailModule({ projectId }: { projectId: string }
     tasks.forEach(t => {
       if (t.evidence_urls && t.evidence_urls.length > 0) {
         t.evidence_urls.forEach((url, i) => {
-          const filename = url.split('/').pop() || `Archivo_${i + 1}`;
-          const extension = filename.split('.').pop()?.toLowerCase() || '';
+          let filename = `Archivo_${i + 1}`;
+          let extension = '';
+          let mimeType = '';
+          
+          const match = url.match(/\/api\/storage\/file\/([a-f0-9-]+)/i);
+          const fileId = match ? match[1] : null;
+          const docInfo = fileId ? documentMap[fileId] : null;
+          
+          if (docInfo) {
+            filename = docInfo.name;
+            mimeType = docInfo.mime_type;
+          } else {
+            try {
+              if (url.startsWith('/api/storage/file/')) {
+                const urlObj = new URL(url, typeof window !== 'undefined' ? window.location.origin : 'http://localhost');
+                const nameParam = urlObj.searchParams.get('name');
+                if (nameParam) filename = nameParam;
+              } else {
+                filename = url.split('/').pop() || filename;
+              }
+            } catch (e) {
+              filename = url.split('/').pop() || filename;
+            }
+          }
+          extension = filename.split('.').pop()?.toLowerCase() || '';
+          const isImage = ['png', 'jpg', 'jpeg', 'webp', 'gif'].includes(extension) || mimeType.startsWith('image/');
           
           files.push({
-            id: `${t.id}_file_${i}`,
+            id: fileId || `${t.id}_file_${i}`,
             taskId: t.id,
             taskTitle: t.title,
             taskArea: t.area || 'general',
             url,
             name: filename,
-            ext: extension
+            ext: extension,
+            isImage
           });
         });
       }
     });
 
-    return files.filter(f => {
-      if (fileFilterArea !== 'todos' && f.taskArea !== fileFilterArea) return false;
-      if (fileFilterExt !== 'todos') {
-        if (fileFilterExt === 'images') {
-          return ['png', 'jpg', 'jpeg', 'webp', 'gif'].includes(f.ext);
-        }
-        if (fileFilterExt === 'pdf') {
-          return f.ext === 'pdf';
-        }
-        if (fileFilterExt === 'others') {
-          return !['png', 'jpg', 'jpeg', 'webp', 'gif', 'pdf'].includes(f.ext);
-        }
-      }
-      return true;
-    });
+    let filtered = files;
+
+    // Apply area filter
+    if (fileFilterArea !== 'todos') {
+      filtered = filtered.filter(f => f.taskArea === fileFilterArea);
+    }
+
+    // Apply extension/type filter
+    if (fileFilterExt === 'images') {
+      filtered = filtered.filter(f => f.isImage);
+    } else if (fileFilterExt === 'pdf') {
+      filtered = filtered.filter(f => f.ext === 'pdf');
+    } else if (fileFilterExt === 'others') {
+      filtered = filtered.filter(f => !f.isImage && f.ext !== 'pdf');
+    }
+
+    return filtered;
   };
 
   // Compile project activities from task logs
@@ -858,7 +915,7 @@ export default function ProjectDetailModule({ projectId }: { projectId: string }
                           className="flex-1 overflow-y-auto space-y-3 pb-4 min-h-[150px] scrollbar-thin scrollbar-thumb-zinc-900"
                         >
                           {getColumnTasks('pendiente').map((task, index) => (
-                            <KanbanCard key={task.id} task={task} index={index} onClick={() => { setSelectedTask(task); setIsTaskDrawerOpen(true); }} handleToggleCheck={handleToggleCheck} employees={employees} onUploadSuccess={loadProjectTasks} />
+                            <KanbanCard key={task.id} task={task} index={index} onClick={() => { setSelectedTask(task); setIsTaskDrawerOpen(true); }} handleToggleCheck={handleToggleCheck} employees={employees} onUploadSuccess={loadProjectTasks} documentMap={documentMap} />
                           ))}
                           {provided.placeholder}
                         </div>
@@ -882,7 +939,7 @@ export default function ProjectDetailModule({ projectId }: { projectId: string }
                           className="flex-1 overflow-y-auto space-y-3 pb-4 min-h-[150px] scrollbar-thin scrollbar-thumb-zinc-900"
                         >
                           {getColumnTasks('en_progreso').map((task, index) => (
-                            <KanbanCard key={task.id} task={task} index={index} onClick={() => { setSelectedTask(task); setIsTaskDrawerOpen(true); }} handleToggleCheck={handleToggleCheck} employees={employees} onUploadSuccess={loadProjectTasks} />
+                            <KanbanCard key={task.id} task={task} index={index} onClick={() => { setSelectedTask(task); setIsTaskDrawerOpen(true); }} handleToggleCheck={handleToggleCheck} employees={employees} onUploadSuccess={loadProjectTasks} documentMap={documentMap} />
                           ))}
                           {provided.placeholder}
                         </div>
@@ -906,7 +963,7 @@ export default function ProjectDetailModule({ projectId }: { projectId: string }
                           className="flex-1 overflow-y-auto space-y-3 pb-4 min-h-[150px] scrollbar-thin scrollbar-thumb-zinc-900"
                         >
                           {getColumnTasks('completada').map((task, index) => (
-                            <KanbanCard key={task.id} task={task} index={index} onClick={() => { setSelectedTask(task); setIsTaskDrawerOpen(true); }} handleToggleCheck={handleToggleCheck} employees={employees} onUploadSuccess={loadProjectTasks} />
+                            <KanbanCard key={task.id} task={task} index={index} onClick={() => { setSelectedTask(task); setIsTaskDrawerOpen(true); }} handleToggleCheck={handleToggleCheck} employees={employees} onUploadSuccess={loadProjectTasks} documentMap={documentMap} />
                           ))}
                           {provided.placeholder}
                         </div>
@@ -1137,39 +1194,52 @@ export default function ProjectDetailModule({ projectId }: { projectId: string }
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                {getEvidenceFiles().map((file) => (
-                  <div key={file.id} className="bg-zinc-900/40 border border-zinc-900 p-4 rounded-2xl flex flex-col justify-between gap-3 hover:border-zinc-800 transition-colors text-left">
-                    <div className="flex items-start gap-2.5">
-                      <div className="h-10 w-10 bg-zinc-950 border border-zinc-800 rounded-xl flex items-center justify-center shrink-0">
-                        {['png', 'jpg', 'jpeg', 'webp'].includes(file.ext) ? (
-                          <img src={file.url} alt="Evidence thumbnail" className="w-full h-full object-cover rounded-xl" />
-                        ) : (
-                          <FileText className="h-5 w-5 text-emerald-400" />
-                        )}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <span className="text-xs font-bold text-white truncate block" title={file.name}>{file.name}</span>
-                        <span className="text-[10px] text-zinc-550 block mt-0.5 truncate" title={`Tarea: ${file.taskTitle}`}>
-                          Origen: {file.taskTitle}
-                        </span>
-                      </div>
-                    </div>
+                {getEvidenceFiles().map((file) => {
+                  const isImage = ['png', 'jpg', 'jpeg', 'webp', 'gif'].includes(file.ext);
+                  const signedUrl = file.url.startsWith('/api/storage/file/') 
+                    ? `${file.url}${file.url.includes('?') ? '&' : '?'}token=${token || ''}` 
+                    : file.url;
 
-                    <div className="flex items-center justify-between border-t border-zinc-950 pt-3">
-                      <span className="bg-zinc-950 border border-zinc-850 text-[8px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded text-zinc-500">
-                        {file.taskArea}
-                      </span>
-                      <a
-                        href={file.url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="bg-zinc-950 hover:bg-zinc-900 border border-zinc-800 text-[10px] font-bold text-zinc-350 hover:text-white px-2.5 py-1 rounded-lg flex items-center gap-1.5 transition-colors"
-                      >
-                        <Download className="h-3 w-3" /> Descargar
-                      </a>
+                  return (
+                    <div key={file.id} className="bg-zinc-900/40 border border-zinc-900 p-4 rounded-2xl flex flex-col justify-between gap-3 hover:border-zinc-800 transition-colors text-left">
+                      <div className="flex items-start gap-2.5">
+                        <div className="h-10 w-10 bg-zinc-950 border border-zinc-800 rounded-xl flex items-center justify-center shrink-0">
+                          {isImage ? (
+                            <img src={signedUrl} alt="Evidence thumbnail" className="w-full h-full object-cover rounded-xl" />
+                          ) : (
+                            <FileText className="h-5 w-5 text-emerald-400" />
+                          )}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <span className="text-xs font-bold text-white truncate block" title={file.name}>{file.name}</span>
+                          <span className="text-[10px] text-zinc-550 block mt-0.5 truncate" title={`Tarea: ${file.taskTitle}`}>
+                            Origen: {file.taskTitle}
+                          </span>
+                        </div>
+                      </div>
+
+                      {isImage && (
+                        <div className="border border-zinc-950 rounded-xl overflow-hidden bg-zinc-950 max-h-32 flex items-center justify-center">
+                          <img src={signedUrl} alt={file.name} className="w-full h-auto max-h-32 object-contain" />
+                        </div>
+                      )}
+
+                      <div className="flex items-center justify-between border-t border-zinc-955 pt-3">
+                        <span className="bg-zinc-950 border border-zinc-850 text-[8px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded text-zinc-500">
+                          {file.taskArea}
+                        </span>
+                        <a
+                          href={signedUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="bg-zinc-950 hover:bg-zinc-900 border border-zinc-800 text-[10px] font-bold text-zinc-350 hover:text-white px-2.5 py-1 rounded-lg flex items-center gap-1.5 transition-colors"
+                        >
+                          <Download className="h-3 w-3" /> Descargar
+                        </a>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
                 {getEvidenceFiles().length === 0 && (
                   <div className="col-span-full text-center py-10 italic text-zinc-500">
                     No se encontraron entregables de evidencia cargados para los filtros seleccionados.
@@ -1945,12 +2015,20 @@ interface KanbanCardProps {
   handleToggleCheck: (e: React.MouseEvent, task: TaskRow) => void;
   employees: any[];
   onUploadSuccess?: () => void;
+  documentMap?: Record<string, { name: string; mime_type: string }>;
 }
 
-function KanbanCard({ task, index, onClick, handleToggleCheck, employees, onUploadSuccess }: KanbanCardProps) {
+function KanbanCard({ task, index, onClick, handleToggleCheck, employees, onUploadSuccess, documentMap = {} }: KanbanCardProps) {
   const isCompleted = task.status === 'completada';
   const isDeliverable = ['entregable', 'reporte', 'evidencia'].includes(task.task_type);
   const [uploading, setUploading] = useState(false);
+  const [token, setToken] = useState<string | null>(null);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setToken(session?.access_token || null);
+    });
+  }, []);
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -2059,7 +2137,7 @@ function KanbanCard({ task, index, onClick, handleToggleCheck, employees, onUplo
             )}
 
             {isDeliverable && (
-              <div className="pt-1 flex items-center">
+              <div className="pt-1 flex flex-col gap-2">
                 {uploading ? (
                   <span className="flex items-center gap-1.5 text-[9px] text-zinc-400 font-medium">
                     <Loader2 className="animate-spin text-emerald-500 h-3 w-3" />
@@ -2068,7 +2146,7 @@ function KanbanCard({ task, index, onClick, handleToggleCheck, employees, onUplo
                 ) : (
                   <label 
                     onClick={(e) => e.stopPropagation()} 
-                    className="inline-flex items-center gap-1 text-[9px] bg-zinc-900 hover:bg-zinc-850 text-zinc-300 font-bold border border-zinc-800 hover:border-zinc-700 px-2 py-1 rounded-md cursor-pointer transition-colors"
+                    className="inline-flex items-center gap-1 text-[9px] bg-zinc-900 hover:bg-zinc-850 text-zinc-300 font-bold border border-zinc-800 hover:border-zinc-700 px-2 py-1 rounded-md cursor-pointer transition-colors w-fit"
                   >
                     <Upload className="h-2.5 w-2.5 text-zinc-400" />
                     <span>Subir Entregable</span>
@@ -2079,6 +2157,60 @@ function KanbanCard({ task, index, onClick, handleToggleCheck, employees, onUplo
                     />
                   </label>
                 )}
+              </div>
+            )}
+
+            {task.evidence_urls && task.evidence_urls.length > 0 && (
+              <div className="mt-2.5 pt-2 border-t border-zinc-900/60 space-y-1.5 text-left">
+                <span className="text-[8px] font-mono font-bold text-zinc-500 uppercase tracking-wider block">Entregables:</span>
+                <div className="flex flex-wrap gap-2">
+                  {task.evidence_urls.map((url, idx) => {
+                    let filename = `Archivo_${idx + 1}`;
+                    let extension = '';
+                    let mimeType = '';
+                    
+                    const match = url.match(/\/api\/storage\/file\/([a-f0-9-]+)/i);
+                    const fileId = match ? match[1] : null;
+                    const docInfo = fileId ? documentMap[fileId] : null;
+                    
+                    if (docInfo) {
+                      filename = docInfo.name;
+                      mimeType = docInfo.mime_type;
+                    } else {
+                      try {
+                        if (url.startsWith('/api/storage/file/')) {
+                          const urlObj = new URL(url, typeof window !== 'undefined' ? window.location.origin : 'http://localhost');
+                          const nameParam = urlObj.searchParams.get('name');
+                          if (nameParam) filename = nameParam;
+                        } else {
+                          filename = url.split('/').pop() || filename;
+                        }
+                      } catch (e) {
+                        filename = url.split('/').pop() || filename;
+                      }
+                    }
+                    extension = filename.split('.').pop()?.toLowerCase() || '';
+                    const isImg = ['png', 'jpg', 'jpeg', 'webp', 'gif'].includes(extension) || mimeType.startsWith('image/');
+
+                    return (
+                      <div key={idx} className="flex flex-col gap-1 max-w-[120px] bg-zinc-900/30 border border-zinc-900/80 p-1.5 rounded-lg">
+                        <div className="flex items-center gap-1 text-[8px] text-zinc-400">
+                          <FileText className="h-2.5 w-2.5 text-zinc-550 shrink-0" />
+                          <span className="truncate" title={filename}>{filename}</span>
+                        </div>
+                        {isImg && (
+                          <div className="h-10 w-16 border border-zinc-900 rounded-md overflow-hidden bg-zinc-950">
+                            <img 
+                              src={url.startsWith('/api/storage/file/') ? `${url}${url.includes('?') ? '&' : '?'}token=${token || ''}` : url} 
+                              alt={filename} 
+                              className="w-full h-full object-cover" 
+                            />
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             )}
           </div>

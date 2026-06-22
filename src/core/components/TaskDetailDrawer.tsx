@@ -57,6 +57,25 @@ export default function TaskDetailDrawer({
   const [submittingAudit, setSubmittingAudit] = useState(false);
   const [showChangesForm, setShowChangesForm] = useState(false);
   const [token, setToken] = useState<string | null>(null);
+  const [documentMap, setDocumentMap] = useState<Record<string, { name: string; mime_type: string }>>({});
+
+  useEffect(() => {
+    if (task && isOpen) {
+      supabase
+        .from('documents')
+        .select('id, name, mime_type')
+        .eq('task_id', task.id)
+        .then(({ data, error }) => {
+          if (!error && data) {
+            const map: Record<string, { name: string; mime_type: string }> = {};
+            data.forEach(d => {
+              map[d.id] = { name: d.name, mime_type: d.mime_type || '' };
+            });
+            setDocumentMap(map);
+          }
+        });
+    }
+  }, [task, isOpen]);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -1049,22 +1068,59 @@ export default function TaskDetailDrawer({
                       No se han subido archivos de evidencia para esta tarea.
                     </div>
                   ) : (
-                    (task.evidence_urls || []).map((url, i) => (
-                      <div key={i} className="flex justify-between items-center bg-zinc-900/20 border border-zinc-200 dark:border-zinc-900 p-3 rounded-xl">
-                        <a 
-                          href={getDownloadUrl(url)} 
-                          target="_blank" 
-                          rel="noopener noreferrer" 
-                          className="flex items-center gap-2 hover:text-emerald-400 transition-colors text-left"
-                        >
-                          <FileText className="h-4 w-4 text-zinc-500 shrink-0" />
-                          <span className="font-bold text-xs text-zinc-650 dark:text-zinc-350 truncate max-w-sm">Evidencia de Entrega {i + 1}</span>
-                        </a>
-                        <span className="text-[9px] font-mono text-zinc-550">
-                          {url.split('.').pop()?.toUpperCase()}
-                        </span>
-                      </div>
-                    ))
+                    (task.evidence_urls || []).map((url, i) => {
+                      let filename = `Archivo_${i + 1}`;
+                      let extension = '';
+                      let mimeType = '';
+                      
+                      const match = url.match(/\/api\/storage\/file\/([a-f0-9-]+)/i);
+                      const fileId = match ? match[1] : null;
+                      const docInfo = fileId ? documentMap[fileId] : null;
+                      
+                      if (docInfo) {
+                        filename = docInfo.name;
+                        mimeType = docInfo.mime_type;
+                      } else {
+                        try {
+                          if (url.startsWith('/api/storage/file/')) {
+                            const urlObj = new URL(url, typeof window !== 'undefined' ? window.location.origin : 'http://localhost');
+                            const nameParam = urlObj.searchParams.get('name');
+                            if (nameParam) filename = nameParam;
+                          } else {
+                            filename = url.split('/').pop() || filename;
+                          }
+                        } catch (e) {
+                          filename = url.split('/').pop() || filename;
+                        }
+                      }
+                      
+                      extension = filename.split('.').pop()?.toLowerCase() || '';
+                      const isImage = ['png', 'jpg', 'jpeg', 'webp', 'gif'].includes(extension) || mimeType.startsWith('image/');
+
+                      return (
+                        <div key={i} className="flex flex-col gap-2 bg-zinc-900/20 border border-zinc-900 p-3 rounded-xl">
+                          <div className="flex justify-between items-center">
+                            <a 
+                              href={getDownloadUrl(url)} 
+                              target="_blank" 
+                              rel="noopener noreferrer" 
+                              className="flex items-center gap-2 hover:text-emerald-400 transition-colors text-left"
+                            >
+                              <FileText className="h-4 w-4 text-zinc-550 shrink-0" />
+                              <span className="font-bold text-xs text-zinc-650 dark:text-zinc-350 truncate max-w-sm">{filename}</span>
+                            </a>
+                            <span className="text-[9px] font-mono text-zinc-550 uppercase">
+                              {extension || 'DOC'}
+                            </span>
+                          </div>
+                          {isImage && (
+                            <div className="mt-1 border border-zinc-200 dark:border-zinc-900 rounded-lg overflow-hidden max-w-xs bg-zinc-950/40">
+                              <img src={getDownloadUrl(url)} alt={filename} className="w-full h-auto max-h-40 object-contain" />
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })
                   )}
                 </div>
               </div>
