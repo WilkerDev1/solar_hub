@@ -255,6 +255,7 @@ export type Database = {
           description: string | null
           id: string
           image_url: string | null
+          image_urls: string[]
           length: number | null
           min_stock: number
           name: string
@@ -276,6 +277,7 @@ export type Database = {
           description?: string | null
           id?: string
           image_url?: string | null
+          image_urls?: string[]
           length?: number | null
           min_stock?: number
           name: string
@@ -297,6 +299,7 @@ export type Database = {
           description?: string | null
           id?: string
           image_url?: string | null
+          image_urls?: string[]
           length?: number | null
           min_stock?: number
           name?: string
@@ -363,6 +366,7 @@ export type Database = {
           created_by: string | null
           id: string
           item_id: string
+          project_id: string | null
           quantity: number
           reason: string
           transaction_type: string
@@ -373,6 +377,7 @@ export type Database = {
           created_by?: string | null
           id?: string
           item_id: string
+          project_id?: string | null
           quantity: number
           reason: string
           transaction_type: string
@@ -383,6 +388,7 @@ export type Database = {
           created_by?: string | null
           id?: string
           item_id?: string
+          project_id?: string | null
           quantity?: number
           reason?: string
           transaction_type?: string

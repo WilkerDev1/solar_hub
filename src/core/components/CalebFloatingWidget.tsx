@@ -166,7 +166,7 @@ export default function CalebFloatingWidget() {
       {/* Floating Action Button (FAB) */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className={`fixed bottom-6 right-6 h-14 w-14 rounded-full flex items-center justify-center text-zinc-800 dark:text-white shadow-2xl border cursor-pointer transition-all duration-300 transform hover:scale-110 z-50${
+        className={`fixed bottom-6 right-6 h-14 w-14 rounded-full flex items-center justify-center text-zinc-800 dark:text-white shadow-2xl border cursor-pointer transition-all duration-300 transform hover:scale-110 z-[60] ${
           isOpen
             ? 'bg-zinc-100 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-700'
             : 'bg-gradient-to-tr from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 border-emerald-400/20 shadow-emerald-500/10'

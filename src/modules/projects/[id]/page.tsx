@@ -21,7 +21,9 @@ import {
   dispatchMaterialToProject, 
   getInventoryItems, 
   ProjectMaterialWithItem, 
-  InventoryItemRow 
+  InventoryItemRow,
+  getProjectDispatchHistory,
+  ProjectDispatchTransaction
 } from '@/core/services/inventory';
 import { updateProject } from '@/core/services/projects';
 import TaskDetailDrawer from '@/core/components/TaskDetailDrawer';
@@ -75,6 +77,30 @@ export default function ProjectDetailModule({ projectId }: { projectId: string }
     actionType: 'dispatch' as 'dispatch' | 'requirement',
     reason: ''
   });
+
+  // Task Creation States
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [createForm, setCreateForm] = useState({
+    title: '',
+    description: '',
+    origin: 'proyecto' as any,
+    task_type: 'check' as any,
+    assigned_to: '',
+    project_id: projectId,
+    area: 'general' as any,
+    priority: 'media' as any,
+    due_date: '',
+    requires_audit: false
+  });
+
+  // Materials dispatch history state
+  const [dispatchHistory, setDispatchHistory] = useState<ProjectDispatchTransaction[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+
+  // Task filter states for project
+  const [filterArea, setFilterArea] = useState('todos');
+  const [filterPriority, setFilterPriority] = useState('todos');
+  const [filterAssignee, setFilterAssignee] = useState('todos');
 
   // Settings Edit Modal State
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -206,9 +232,63 @@ export default function ProjectDetailModule({ projectId }: { projectId: string }
     }
   };
 
+  // Load project dispatch history
+  const loadProjectDispatchHistory = async () => {
+    if (!projectId) return;
+    setLoadingHistory(true);
+    try {
+      const history = await getProjectDispatchHistory(projectId);
+      setDispatchHistory(history);
+    } catch (e) {
+      console.error('Error loading dispatch history:', e);
+    } finally {
+      setLoadingHistory(false);
+    }
+  };
+
+  // Create Task Submission
+  const handleCreateSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!createForm.title.trim()) return;
+
+    try {
+      const assigned = createForm.assigned_to || currentUser?.id || '';
+      await createTask({
+        title: createForm.title.trim(),
+        description: createForm.description.trim() || null,
+        origin: createForm.origin,
+        task_type: createForm.task_type,
+        assigned_to: assigned,
+        project_id: projectId,
+        area: createForm.area,
+        priority: createForm.priority,
+        due_date: createForm.due_date || null,
+        requires_audit: createForm.requires_audit
+      });
+
+      setIsCreateOpen(false);
+      setCreateForm({
+        title: '',
+        description: '',
+        origin: 'proyecto',
+        task_type: 'check',
+        assigned_to: '',
+        project_id: projectId,
+        area: 'general',
+        priority: 'media',
+        due_date: '',
+        requires_audit: false
+      });
+      loadProjectTasks();
+    } catch (err: any) {
+      alert('Error creando tarea: ' + err.message);
+    }
+  };
+
   useEffect(() => {
     if (activeTab === 'materials') {
       loadProjectMaterials();
+      loadProjectDispatchHistory();
     }
   }, [projectId, activeTab]);
 
@@ -302,8 +382,19 @@ export default function ProjectDetailModule({ projectId }: { projectId: string }
     }
   };
 
+  // Computed client-side filtered tasks
+  const filteredTasks = tasks.filter(task => {
+    if (filterArea !== 'todos' && task.area !== filterArea) return false;
+    if (filterPriority !== 'todos' && (task as any).priority !== filterPriority) return false;
+    if (filterAssignee !== 'todos') {
+      const assignedIds = (task as any).assigned_to_ids || (task.assigned_to ? [task.assigned_to] : []);
+      if (!assignedIds.includes(filterAssignee)) return false;
+    }
+    return true;
+  });
+
   const getColumnTasks = (status: 'pendiente' | 'en_progreso' | 'completada') => {
-    return tasks.filter(t => t.status === status);
+    return filteredTasks.filter(t => t.status === status);
   };
 
   // Save Settings Modal
@@ -359,6 +450,7 @@ export default function ProjectDetailModule({ projectId }: { projectId: string }
         reason: ''
       });
       loadProjectMaterials();
+      loadProjectDispatchHistory();
     } catch (err: any) {
       alert('Fallo en operación: ' + err.message);
     } finally {
@@ -685,89 +777,214 @@ export default function ProjectDetailModule({ projectId }: { projectId: string }
 
           {/* TAB: KANBAN BOARD */}
           {activeTab === 'kanban' && isMounted && (
-            <DragDropContext onDragEnd={onDragEnd}>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 h-[550px] items-stretch min-h-0">
-                
-                {/* Column: To Do */}
-                <div className="bg-zinc-900/10 border border-zinc-900 rounded-2xl flex flex-col min-h-0 h-full p-4">
-                  <div className="flex justify-between items-center mb-3 shrink-0 px-1">
-                    <span className="text-[10px] font-bold text-zinc-550 uppercase tracking-widest font-mono">Por Hacer</span>
-                    <span className="bg-zinc-900 text-zinc-400 px-2 py-0.5 rounded text-[10px] font-bold font-mono">
-                      {getColumnTasks('pendiente').length}
-                    </span>
-                  </div>
-                  <Droppable droppableId="pendiente">
-                    {(provided) => (
-                      <div
-                        ref={provided.innerRef}
-                        {...provided.droppableProps}
-                        className="flex-1 overflow-y-auto space-y-3 pb-4 min-h-[150px] scrollbar-thin scrollbar-thumb-zinc-900"
-                      >
-                        {getColumnTasks('pendiente').map((task, index) => (
-                          <KanbanCard key={task.id} task={task} index={index} onClick={() => { setSelectedTask(task); setIsTaskDrawerOpen(true); }} handleToggleCheck={handleToggleCheck} employees={employees} />
-                        ))}
-                        {provided.placeholder}
-                      </div>
-                    )}
-                  </Droppable>
+            <div className="space-y-4">
+              <div className="flex justify-between items-center bg-zinc-900/10 border border-zinc-900 p-4 rounded-xl">
+                <div>
+                  <h4 className="text-sm font-bold text-white">Tablero de Tareas de la Obra</h4>
+                  <p className="text-[10px] text-zinc-500 mt-0.5 font-mono">Gestión visual del avance físico del proyecto.</p>
                 </div>
-
-                {/* Column: In Progress */}
-                <div className="bg-zinc-900/10 border border-zinc-900 rounded-2xl flex flex-col min-h-0 h-full p-4">
-                  <div className="flex justify-between items-center mb-3 shrink-0 px-1">
-                    <span className="text-[10px] font-bold text-zinc-555 uppercase tracking-widest font-mono">En Progreso</span>
-                    <span className="bg-zinc-900 text-zinc-400 px-2 py-0.5 rounded text-[10px] font-bold font-mono">
-                      {getColumnTasks('en_progreso').length}
-                    </span>
-                  </div>
-                  <Droppable droppableId="en_progreso">
-                    {(provided) => (
-                      <div
-                        ref={provided.innerRef}
-                        {...provided.droppableProps}
-                        className="flex-1 overflow-y-auto space-y-3 pb-4 min-h-[150px] scrollbar-thin scrollbar-thumb-zinc-900"
-                      >
-                        {getColumnTasks('en_progreso').map((task, index) => (
-                          <KanbanCard key={task.id} task={task} index={index} onClick={() => { setSelectedTask(task); setIsTaskDrawerOpen(true); }} handleToggleCheck={handleToggleCheck} employees={employees} />
-                        ))}
-                        {provided.placeholder}
-                      </div>
-                    )}
-                  </Droppable>
-                </div>
-
-                {/* Column: Completed */}
-                <div className="bg-zinc-900/10 border border-zinc-900 rounded-2xl flex flex-col min-h-0 h-full p-4">
-                  <div className="flex justify-between items-center mb-3 shrink-0 px-1">
-                    <span className="text-[10px] font-bold text-zinc-555 uppercase tracking-widest font-mono">Finalizadas</span>
-                    <span className="bg-zinc-900 text-zinc-400 px-2 py-0.5 rounded text-[10px] font-bold font-mono">
-                      {getColumnTasks('completada').length}
-                    </span>
-                  </div>
-                  <Droppable droppableId="completada">
-                    {(provided) => (
-                      <div
-                        ref={provided.innerRef}
-                        {...provided.droppableProps}
-                        className="flex-1 overflow-y-auto space-y-3 pb-4 min-h-[150px] scrollbar-thin scrollbar-thumb-zinc-900"
-                      >
-                        {getColumnTasks('completada').map((task, index) => (
-                          <KanbanCard key={task.id} task={task} index={index} onClick={() => { setSelectedTask(task); setIsTaskDrawerOpen(true); }} handleToggleCheck={handleToggleCheck} employees={employees} />
-                        ))}
-                        {provided.placeholder}
-                      </div>
-                    )}
-                  </Droppable>
-                </div>
-
+                <Button onClick={() => setIsCreateOpen(true)} className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs h-9 px-3 rounded-lg flex items-center gap-1 cursor-pointer">
+                  <Plus className="h-4 w-4" /> Nueva Tarea
+                </Button>
               </div>
-            </DragDropContext>
+
+              <div className="bg-zinc-900/30 border border-zinc-900 p-4 rounded-xl flex flex-wrap items-center gap-3">
+                <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider font-mono">Filtrar Tareas:</span>
+                <select
+                  value={filterArea}
+                  onChange={e => setFilterArea(e.target.value)}
+                  className="bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-1.5 text-xs text-zinc-300 focus:outline-none"
+                >
+                  <option value="todos">Área: Todas</option>
+                  <option value="general">General</option>
+                  <option value="legal">Legal</option>
+                  <option value="almacen">Almacén</option>
+                  <option value="operaciones">Operaciones</option>
+                  <option value="administracion">Administración</option>
+                </select>
+
+                <select
+                  value={filterPriority}
+                  onChange={e => setFilterPriority(e.target.value)}
+                  className="bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-1.5 text-xs text-zinc-300 focus:outline-none font-semibold"
+                >
+                  <option value="todos">Prioridad: Todas</option>
+                  <option value="baja">Prioridad: Baja</option>
+                  <option value="media">Prioridad: Media</option>
+                  <option value="alta">Prioridad: Alta</option>
+                </select>
+
+                <select
+                  value={filterAssignee}
+                  onChange={e => setFilterAssignee(e.target.value)}
+                  className="bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-1.5 text-xs text-zinc-300 focus:outline-none"
+                >
+                  <option value="todos">Asignado a: Todos</option>
+                  {employees.map(emp => (
+                    <option key={emp.id} value={emp.id}>{emp.full_name}</option>
+                  ))}
+                </select>
+
+                {(filterArea !== 'todos' || filterPriority !== 'todos' || filterAssignee !== 'todos') && (
+                  <button
+                    onClick={() => {
+                      setFilterArea('todos');
+                      setFilterPriority('todos');
+                      setFilterAssignee('todos');
+                    }}
+                    className="text-[10px] text-rose-455 hover:text-rose-400 font-bold uppercase tracking-wider font-mono transition-colors ml-auto cursor-pointer"
+                  >
+                    Limpiar Filtros
+                  </button>
+                )}
+              </div>
+
+              <DragDropContext onDragEnd={onDragEnd}>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 h-[550px] items-stretch min-h-0">
+                  
+                  {/* Column: To Do */}
+                  <div className="bg-zinc-900/10 border border-zinc-900 rounded-2xl flex flex-col min-h-0 h-full p-4">
+                    <div className="flex justify-between items-center mb-3 shrink-0 px-1">
+                      <span className="text-[10px] font-bold text-zinc-550 uppercase tracking-widest font-mono">Por Hacer</span>
+                      <span className="bg-zinc-900 text-zinc-400 px-2 py-0.5 rounded text-[10px] font-bold font-mono">
+                        {getColumnTasks('pendiente').length}
+                      </span>
+                    </div>
+                    <Droppable droppableId="pendiente">
+                      {(provided) => (
+                        <div
+                          ref={provided.innerRef}
+                          {...provided.droppableProps}
+                          className="flex-1 overflow-y-auto space-y-3 pb-4 min-h-[150px] scrollbar-thin scrollbar-thumb-zinc-900"
+                        >
+                          {getColumnTasks('pendiente').map((task, index) => (
+                            <KanbanCard key={task.id} task={task} index={index} onClick={() => { setSelectedTask(task); setIsTaskDrawerOpen(true); }} handleToggleCheck={handleToggleCheck} employees={employees} />
+                          ))}
+                          {provided.placeholder}
+                        </div>
+                      )}
+                    </Droppable>
+                  </div>
+
+                  {/* Column: In Progress */}
+                  <div className="bg-zinc-900/10 border border-zinc-900 rounded-2xl flex flex-col min-h-0 h-full p-4">
+                    <div className="flex justify-between items-center mb-3 shrink-0 px-1">
+                      <span className="text-[10px] font-bold text-zinc-555 uppercase tracking-widest font-mono">En Progreso</span>
+                      <span className="bg-zinc-900 text-zinc-400 px-2 py-0.5 rounded text-[10px] font-bold font-mono">
+                        {getColumnTasks('en_progreso').length}
+                      </span>
+                    </div>
+                    <Droppable droppableId="en_progreso">
+                      {(provided) => (
+                        <div
+                          ref={provided.innerRef}
+                          {...provided.droppableProps}
+                          className="flex-1 overflow-y-auto space-y-3 pb-4 min-h-[150px] scrollbar-thin scrollbar-thumb-zinc-900"
+                        >
+                          {getColumnTasks('en_progreso').map((task, index) => (
+                            <KanbanCard key={task.id} task={task} index={index} onClick={() => { setSelectedTask(task); setIsTaskDrawerOpen(true); }} handleToggleCheck={handleToggleCheck} employees={employees} />
+                          ))}
+                          {provided.placeholder}
+                        </div>
+                      )}
+                    </Droppable>
+                  </div>
+
+                  {/* Column: Completed */}
+                  <div className="bg-zinc-900/10 border border-zinc-900 rounded-2xl flex flex-col min-h-0 h-full p-4">
+                    <div className="flex justify-between items-center mb-3 shrink-0 px-1">
+                      <span className="text-[10px] font-bold text-zinc-555 uppercase tracking-widest font-mono">Finalizadas</span>
+                      <span className="bg-zinc-900 text-zinc-400 px-2 py-0.5 rounded text-[10px] font-bold font-mono">
+                        {getColumnTasks('completada').length}
+                      </span>
+                    </div>
+                    <Droppable droppableId="completada">
+                      {(provided) => (
+                        <div
+                          ref={provided.innerRef}
+                          {...provided.droppableProps}
+                          className="flex-1 overflow-y-auto space-y-3 pb-4 min-h-[150px] scrollbar-thin scrollbar-thumb-zinc-900"
+                        >
+                          {getColumnTasks('completada').map((task, index) => (
+                            <KanbanCard key={task.id} task={task} index={index} onClick={() => { setSelectedTask(task); setIsTaskDrawerOpen(true); }} handleToggleCheck={handleToggleCheck} employees={employees} />
+                          ))}
+                          {provided.placeholder}
+                        </div>
+                      )}
+                    </Droppable>
+                  </div>
+
+                </div>
+              </DragDropContext>
+            </div>
           )}
 
           {/* TAB: LIST */}
           {activeTab === 'list' && (
-            <div className="bg-zinc-900/10 border border-zinc-900 rounded-xl overflow-hidden">
-              <table className="w-full text-left border-collapse text-xs">
+            <div className="space-y-4">
+              <div className="flex justify-between items-center bg-zinc-900/10 border border-zinc-900 p-4 rounded-xl">
+                <div>
+                  <h4 className="text-sm font-bold text-white">Listado de Tareas de la Obra</h4>
+                  <p className="text-[10px] text-zinc-500 mt-0.5 font-mono">Vista tabular y filtros detallados por área y prioridad.</p>
+                </div>
+                <Button onClick={() => setIsCreateOpen(true)} className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs h-9 px-3 rounded-lg flex items-center gap-1 cursor-pointer">
+                  <Plus className="h-4 w-4" /> Nueva Tarea
+                </Button>
+              </div>
+
+              <div className="bg-zinc-900/30 border border-zinc-900 p-4 rounded-xl flex flex-wrap items-center gap-3">
+                <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider font-mono">Filtrar Tareas:</span>
+                <select
+                  value={filterArea}
+                  onChange={e => setFilterArea(e.target.value)}
+                  className="bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-1.5 text-xs text-zinc-300 focus:outline-none"
+                >
+                  <option value="todos">Área: Todas</option>
+                  <option value="general">General</option>
+                  <option value="legal">Legal</option>
+                  <option value="almacen">Almacén</option>
+                  <option value="operaciones">Operaciones</option>
+                  <option value="administracion">Administración</option>
+                </select>
+
+                <select
+                  value={filterPriority}
+                  onChange={e => setFilterPriority(e.target.value)}
+                  className="bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-1.5 text-xs text-zinc-300 focus:outline-none font-semibold"
+                >
+                  <option value="todos">Prioridad: Todas</option>
+                  <option value="baja">Prioridad: Baja</option>
+                  <option value="media">Prioridad: Media</option>
+                  <option value="alta">Prioridad: Alta</option>
+                </select>
+
+                <select
+                  value={filterAssignee}
+                  onChange={e => setFilterAssignee(e.target.value)}
+                  className="bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-1.5 text-xs text-zinc-300 focus:outline-none"
+                >
+                  <option value="todos">Asignado a: Todos</option>
+                  {employees.map(emp => (
+                    <option key={emp.id} value={emp.id}>{emp.full_name}</option>
+                  ))}
+                </select>
+
+                {(filterArea !== 'todos' || filterPriority !== 'todos' || filterAssignee !== 'todos') && (
+                  <button
+                    onClick={() => {
+                      setFilterArea('todos');
+                      setFilterPriority('todos');
+                      setFilterAssignee('todos');
+                    }}
+                    className="text-[10px] text-rose-455 hover:text-rose-400 font-bold uppercase tracking-wider font-mono transition-colors ml-auto cursor-pointer"
+                  >
+                    Limpiar Filtros
+                  </button>
+                )}
+              </div>
+
+              <div className="bg-zinc-900/10 border border-zinc-900 rounded-xl overflow-hidden">
+                <table className="w-full text-left border-collapse text-xs">
                 <thead>
                   <tr className="bg-zinc-900/50 border-b border-zinc-850 text-[10px] font-bold uppercase tracking-wider text-zinc-500">
                     <th className="px-6 py-4 w-12"></th>
@@ -779,7 +996,7 @@ export default function ProjectDetailModule({ projectId }: { projectId: string }
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-zinc-850">
-                  {tasks.map(task => {
+                  {filteredTasks.map(task => {
                     const isCompleted = task.status === 'completada';
                     const isDeliverable = ['entregable', 'reporte', 'evidencia'].includes(task.task_type);
                     return (
@@ -790,7 +1007,7 @@ export default function ProjectDetailModule({ projectId }: { projectId: string }
                       >
                         <td className="px-6 py-4" onClick={e => e.stopPropagation()}>
                           {!isDeliverable ? (
-                            <button onClick={e => handleToggleCheck(e, task)} className="text-zinc-550 hover:text-emerald-400 transition-colors">
+                            <button onClick={e => handleToggleCheck(e, task)} className="text-zinc-555 hover:text-emerald-400 transition-colors">
                               {isCompleted ? <CheckSquare className="h-4.5 w-4.5 text-emerald-450" /> : <Square className="h-4.5 w-4.5" />}
                             </button>
                           ) : (
@@ -812,19 +1029,20 @@ export default function ProjectDetailModule({ projectId }: { projectId: string }
                             (task as any).priority === 'alta' ? 'bg-rose-500/10 text-rose-455 border border-rose-500/20' :
                             (task as any).priority === 'media' ? 'bg-amber-500/10 text-amber-455 border border-amber-500/20' :
                             'bg-zinc-800 text-zinc-400'
-                          }`}>{(task as any).priority || 'baja'}</span>
+                          }`}>{ (task as any).priority || 'baja'}</span>
                         </td>
                         <td className="px-6 py-4 uppercase font-semibold text-zinc-350">{task.status.replace('_', ' ')}</td>
                       </tr>
                     );
                   })}
-                  {tasks.length === 0 && (
+                  {filteredTasks.length === 0 && (
                     <tr>
-                      <td colSpan={6} className="text-center py-10 italic text-zinc-550">No hay tareas creadas para este proyecto.</td>
+                      <td colSpan={6} className="text-center py-10 italic text-zinc-550">No hay tareas en esta vista.</td>
                     </tr>
                   )}
                 </tbody>
               </table>
+            </div>
             </div>
           )}
 
@@ -963,19 +1181,77 @@ export default function ProjectDetailModule({ projectId }: { projectId: string }
 
           {/* TAB: MATERIALS (BOM) */}
           {activeTab === 'materials' && (
-            <div className="space-y-4">
-              <div className="flex justify-between items-center bg-zinc-900/10 border border-zinc-900 p-4 rounded-xl">
+            <div className="space-y-6">
+              
+              {/* Summary Cards */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="bg-zinc-900/30 border border-zinc-900 p-4 rounded-xl flex items-center justify-between">
+                  <div>
+                    <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-wider font-mono">Total Insumos BOM</span>
+                    <p className="text-lg font-bold text-white mt-0.5">{materials.length}</p>
+                  </div>
+                  <Package className="h-5 w-5 text-zinc-500" />
+                </div>
+
+                <div className="bg-zinc-900/30 border border-zinc-900 p-4 rounded-xl flex items-center justify-between">
+                  <div>
+                    <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-wider font-mono">Abastecimiento Completo</span>
+                    <p className="text-lg font-bold text-emerald-400 mt-0.5">
+                      {materials.filter(m => m.quantity >= m.required_quantity).length}
+                    </p>
+                  </div>
+                  <CheckCircle className="h-5 w-5 text-emerald-400" />
+                </div>
+
+                <div className="bg-zinc-900/30 border border-zinc-900 p-4 rounded-xl flex items-center justify-between">
+                  <div>
+                    <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-wider font-mono">Cant. Despachada</span>
+                    <p className="text-lg font-bold text-blue-400 mt-0.5">
+                      {materials.reduce((acc, m) => acc + m.quantity, 0)}
+                    </p>
+                  </div>
+                  <ArrowRight className="h-5 w-5 text-blue-400" />
+                </div>
+
+                <div className="bg-zinc-900/30 border border-zinc-900 p-4 rounded-xl flex items-center justify-between">
+                  <div>
+                    <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-wider font-mono">Presupuesto Ejecutado</span>
+                    <p className="text-lg font-bold text-amber-500 mt-0.5">
+                      ${materials.reduce((acc, m) => acc + (m.quantity * (m.inventory_items?.cost || 0)), 0).toLocaleString([], { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD
+                    </p>
+                  </div>
+                  <FileText className="h-5 w-5 text-amber-500" />
+                </div>
+              </div>
+
+              {/* Action Header */}
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-zinc-900/10 border border-zinc-900 p-4 rounded-xl">
                 <div>
                   <h4 className="text-sm font-bold text-white">Lista de Materiales de Obra (BOM)</h4>
                   <p className="text-[10px] text-zinc-500 mt-0.5">Control comparativo de insumos Requeridos vs En Sitio en almacén físico.</p>
                 </div>
-                <div className="flex gap-2">
-                  <Button onClick={handleExportCSV} className="bg-zinc-900 border border-zinc-800 text-zinc-300 font-bold text-xs h-9 px-3 rounded-lg flex items-center gap-1">
+                <div className="flex flex-wrap gap-2">
+                  <Button onClick={handleExportCSV} className="bg-zinc-900 border border-zinc-800 text-zinc-300 font-bold text-xs h-9 px-3 rounded-lg flex items-center gap-1 cursor-pointer">
                     <FileSpreadsheet className="h-4 w-4" /> Exportar CSV
                   </Button>
                   <RequirePermission action="inventory:use_material">
-                    <Button onClick={() => setIsDispatchModalOpen(true)} className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs h-9 px-3 rounded-lg flex items-center gap-1">
-                      <Plus className="h-4 w-4" /> Despachar / Asignar
+                    <Button 
+                      onClick={() => {
+                        setDispatchForm({ itemId: '', quantity: 1, requiredQuantity: 1, actionType: 'requirement', reason: '' });
+                        setIsDispatchModalOpen(true);
+                      }} 
+                      className="bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-white font-bold text-xs h-9 px-3 rounded-lg flex items-center gap-1 cursor-pointer"
+                    >
+                      <Plus className="h-4 w-4" /> Añadir Material BOM
+                    </Button>
+                    <Button 
+                      onClick={() => {
+                        setDispatchForm({ itemId: '', quantity: 1, requiredQuantity: 1, actionType: 'dispatch', reason: '' });
+                        setIsDispatchModalOpen(true);
+                      }} 
+                      className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs h-9 px-3 rounded-lg flex items-center gap-1 cursor-pointer"
+                    >
+                      <ArrowRight className="h-4 w-4" /> Despachar Lote
                     </Button>
                   </RequirePermission>
                 </div>
@@ -992,11 +1268,14 @@ export default function ProjectDetailModule({ projectId }: { projectId: string }
                   <table className="w-full text-left border-collapse text-xs">
                     <thead>
                       <tr className="bg-zinc-900/50 border-b border-zinc-850 text-[10px] font-bold uppercase tracking-wider text-zinc-500">
+                        <th className="px-6 py-4 w-16">Miniatura</th>
                         <th className="px-6 py-4">Insumo / SKU</th>
+                        <th className="px-6 py-4 text-center">Progreso Abastecimiento</th>
                         <th className="px-6 py-4 text-center">Requerido</th>
                         <th className="px-6 py-4 text-center">En Sitio (Obra)</th>
                         <th className="px-6 py-4">Medida</th>
-                        <th className="px-6 py-4">Estado Stock</th>
+                        <th className="px-6 py-4">Costo Total</th>
+                        <th className="px-6 py-4 text-right">Acciones</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-zinc-850">
@@ -1007,28 +1286,76 @@ export default function ProjectDetailModule({ projectId }: { projectId: string }
                         const isComplete = m.quantity >= m.required_quantity;
                         const isPartial = m.quantity < m.required_quantity && m.quantity > 0;
                         const isMissing = m.quantity === 0;
+                        const pct = m.required_quantity > 0 ? Math.min(100, Math.round((m.quantity / m.required_quantity) * 100)) : 100;
 
                         return (
                           <tr key={m.id} className="hover:bg-zinc-900/20">
-                            <td className="px-6 py-3.5">
-                              <span className="font-bold text-white block">{item.name}</span>
-                              <span className="text-[10px] font-mono text-zinc-500">{item.sku}</span>
+                            <td className="px-6 py-3">
+                              {item.image_url ? (
+                                <img src={item.image_url} alt={item.name} className="h-10 w-10 object-cover rounded-lg border border-zinc-800" />
+                              ) : (
+                                <div className="h-10 w-10 bg-zinc-950 border border-zinc-850 rounded-lg flex items-center justify-center text-zinc-650">
+                                  <Package className="h-4 w-4" />
+                                </div>
+                              )}
                             </td>
-                            <td className="px-6 py-3.5 text-center font-semibold font-mono text-zinc-300">
+                            <td className="px-6 py-3 text-left">
+                              <span className="font-bold text-white block">{item.name}</span>
+                              <span className="text-[10px] font-mono text-zinc-550">{item.sku}</span>
+                            </td>
+                            <td className="px-6 py-3">
+                              <div className="flex flex-col space-y-1 max-w-[120px] mx-auto">
+                                <div className="flex justify-between text-[10px] font-mono font-bold text-zinc-400">
+                                  <span>{pct}%</span>
+                                  <span className={isComplete ? "text-emerald-450" : isPartial ? "text-amber-450" : "text-rose-450"}>
+                                    {isComplete ? "OK" : isPartial ? "PARCIAL" : "PTE"}
+                                  </span>
+                                </div>
+                                <div className="h-1.5 w-full bg-zinc-900 rounded-full overflow-hidden">
+                                  <div 
+                                    className={`h-full rounded-full transition-all duration-500 ${
+                                      isComplete ? 'bg-emerald-500' : isPartial ? 'bg-amber-500' : 'bg-rose-500'
+                                    }`} 
+                                    style={{ width: `${pct}%` }} 
+                                  />
+                                </div>
+                              </div>
+                            </td>
+                            <td className="px-6 py-3 text-center font-semibold font-mono text-zinc-300">
                               {m.required_quantity}
                             </td>
-                            <td className="px-6 py-3.5 text-center font-semibold font-mono text-white">
+                            <td className="px-6 py-3 text-center font-semibold font-mono text-white">
                               {m.quantity}
                             </td>
-                            <td className="px-6 py-3.5 text-zinc-400 capitalize">{item.unit}</td>
-                            <td className="px-6 py-3.5">
-                              {isComplete ? (
-                                <span className="bg-emerald-500/10 text-emerald-450 border border-emerald-500/20 px-2 py-0.5 rounded text-[9px] font-bold">COMPLETO</span>
-                              ) : isPartial ? (
-                                <span className="bg-amber-500/10 text-amber-455 border border-amber-500/20 px-2 py-0.5 rounded text-[9px] font-bold">PARCIAL</span>
-                              ) : (
-                                <span className="bg-rose-500/10 text-rose-455 border border-rose-500/20 px-2 py-0.5 rounded text-[9px] font-bold">FALTANTE</span>
-                              )}
+                            <td className="px-6 py-3 text-zinc-400 capitalize">{item.unit}</td>
+                            <td className="px-6 py-3 font-mono font-bold text-zinc-300">
+                              ${(item.cost * m.quantity).toLocaleString([], { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD
+                            </td>
+                            <td className="px-6 py-3 text-right">
+                              <RequirePermission action="inventory:use_material">
+                                <div className="flex justify-end gap-1.5">
+                                  <button
+                                    onClick={() => {
+                                      setDispatchForm({ itemId: m.item_id, quantity: 1, requiredQuantity: 1, actionType: 'dispatch', reason: '' });
+                                      setIsDispatchModalOpen(true);
+                                    }}
+                                    className="px-2 py-1 rounded bg-emerald-600/10 hover:bg-emerald-600 text-emerald-450 hover:text-white border border-emerald-500/15 hover:border-emerald-500 text-[10px] font-bold transition-all cursor-pointer"
+                                    title="Despachar unidades a obra"
+                                  >
+                                    Despachar
+                                  </button>
+                                  <button
+                                    onClick={() => {
+                                      setDispatchForm({ itemId: m.item_id, quantity: 1, requiredQuantity: 1, actionType: 'requirement', reason: '' });
+                                      setIsDispatchModalOpen(true);
+                                    }}
+                                    className="px-2 py-1 rounded bg-zinc-900 hover:bg-zinc-800 text-zinc-350 hover:text-white border border-zinc-850 text-[10px] font-bold transition-all cursor-pointer"
+                                    title="Modificar requerimiento BOM"
+                                  >
+                                    Requisito
+                                  </button>
+                                </div>
+                              </RequirePermission>
                             </td>
                           </tr>
                         );
@@ -1037,6 +1364,48 @@ export default function ProjectDetailModule({ projectId }: { projectId: string }
                   </table>
                 </div>
               )}
+
+              {/* Dispatch Logs History */}
+              <div className="bg-zinc-900/10 border border-zinc-900 rounded-xl p-5 space-y-4 text-left">
+                <h4 className="text-xs font-bold text-zinc-550 uppercase tracking-widest font-mono flex items-center gap-1.5 pb-2 border-b border-zinc-900">
+                  📋 Historial Reciente de Despacho de Materiales
+                </h4>
+
+                {loadingHistory ? (
+                  <div className="py-4 flex justify-center"><Loader2 className="animate-spin text-zinc-500 h-5 w-5" /></div>
+                ) : dispatchHistory.length === 0 ? (
+                  <p className="text-xs italic text-zinc-500">No se registran movimientos de stock para esta obra aún.</p>
+                ) : (
+                  <div className="space-y-3.5 max-h-60 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-zinc-900">
+                    {dispatchHistory.map((log) => (
+                      <div key={log.id} className="bg-zinc-950 border border-zinc-900 p-3 rounded-lg flex items-center justify-between text-xs hover:border-zinc-850 transition-colors">
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-white">{log.inventory_items?.name}</span>
+                            <span className="bg-zinc-900 text-zinc-400 font-mono text-[9px] px-1.5 py-0.5 rounded border border-zinc-800">{log.inventory_items?.sku}</span>
+                            <span className="text-[10px] text-zinc-550 font-mono">
+                              {new Date(log.created_at).toLocaleDateString([], { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                          </div>
+                          <p className="text-zinc-400 text-[11px] leading-relaxed">
+                            Detalle: <strong className="text-zinc-300 font-bold">{log.reason}</strong>
+                          </p>
+                        </div>
+                        <div className="text-right shrink-0 flex items-center gap-3">
+                          <div>
+                            <span className="text-[9px] font-bold text-zinc-550 uppercase font-mono block">Responsable</span>
+                            <span className="font-semibold text-zinc-350">{log.profiles?.full_name || 'Desconocido'}</span>
+                          </div>
+                          <div className="bg-rose-500/10 text-rose-400 font-bold border border-rose-500/25 px-2.5 py-1 rounded-lg text-center font-mono">
+                            {log.quantity} {log.inventory_items?.unit}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+              
             </div>
           )}
 
@@ -1403,6 +1772,150 @@ export default function ProjectDetailModule({ projectId }: { projectId: string }
                 </Button>
                 <Button type="submit" disabled={actionLoading} className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-5">
                   {actionLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null} Ejecutar Cambios
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* CREATE TASK DIALOG MODAL */}
+      {isCreateOpen && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+          <div className="bg-zinc-950 border border-zinc-850 rounded-2xl w-full max-w-xl max-h-[90vh] flex flex-col shadow-2xl">
+            <div className="p-5 border-b border-zinc-850 flex items-center justify-between shrink-0">
+              <div className="flex items-center gap-2 text-emerald-400">
+                <Plus className="h-5 w-5" />
+                <h3 className="font-bold text-sm uppercase tracking-wide">Crear Nueva Tarea en Obra</h3>
+              </div>
+              <button onClick={() => setIsCreateOpen(false)} className="text-zinc-500 hover:text-white transition-colors">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            
+            <form onSubmit={handleCreateSubmit} className="p-6 overflow-y-auto space-y-4 text-left">
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-zinc-500 uppercase font-mono">Título de la Tarea *</label>
+                <input
+                  required
+                  type="text"
+                  value={createForm.title}
+                  onChange={e => setCreateForm({...createForm, title: e.target.value})}
+                  className="w-full bg-zinc-900 border border-zinc-800 rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-emerald-500"
+                  placeholder="Ej. Realizar tendido de cable de cobre solar"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-zinc-500 uppercase font-mono">Descripción</label>
+                <textarea
+                  value={createForm.description}
+                  onChange={e => setCreateForm({...createForm, description: e.target.value})}
+                  className="w-full bg-zinc-900 border border-zinc-800 rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-emerald-500 h-20 resize-none"
+                  placeholder="Instrucciones adicionales para la ejecución..."
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-zinc-500 uppercase font-mono">Origen / Módulo</label>
+                  <select
+                    value={createForm.origin}
+                    onChange={e => setCreateForm({...createForm, origin: e.target.value as any})}
+                    className="w-full bg-zinc-900 border border-zinc-800 rounded-xl p-2.5 text-xs text-white focus:outline-none"
+                  >
+                    <option value="proyecto">Proyecto Solar (Core)</option>
+                    <option value="almacen">Almacén / Logística</option>
+                    <option value="administracion">Administrativo / Oficina</option>
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-zinc-500 uppercase font-mono">Tipo Tarea</label>
+                  <select
+                    value={createForm.task_type}
+                    onChange={e => setCreateForm({...createForm, task_type: e.target.value as any})}
+                    className="w-full bg-zinc-900 border border-zinc-800 rounded-xl p-2.5 text-xs text-white focus:outline-none"
+                  >
+                    <option value="check">Check (Acción Rápida)</option>
+                    <option value="entregable">Entregable (Firma/Doc)</option>
+                    <option value="reporte">Reporte de Campo</option>
+                    <option value="evidencia">Evidencia Fotográfica</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-zinc-500 uppercase font-mono">Asignar a Colaborador *</label>
+                <select
+                  required
+                  value={createForm.assigned_to}
+                  onChange={e => setCreateForm({...createForm, assigned_to: e.target.value})}
+                  className="w-full bg-zinc-900 border border-zinc-800 rounded-xl p-2.5 text-xs text-white focus:outline-none"
+                >
+                  <option value="">Selecciona un colaborador</option>
+                  {employees.map(emp => (
+                    <option key={emp.id} value={emp.id}>{emp.full_name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="grid grid-cols-3 gap-4">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-zinc-500 uppercase font-mono">Área</label>
+                  <select
+                    value={createForm.area}
+                    onChange={e => setCreateForm({...createForm, area: e.target.value as any})}
+                    className="w-full bg-zinc-900 border border-zinc-800 rounded-xl p-2.5 text-xs text-white focus:outline-none font-semibold"
+                  >
+                    <option value="general">General</option>
+                    <option value="legal">Legal</option>
+                    <option value="almacen">Almacén</option>
+                    <option value="operaciones">Operaciones</option>
+                    <option value="administracion">Administración</option>
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-zinc-500 uppercase font-mono">Prioridad</label>
+                  <select
+                    value={createForm.priority}
+                    onChange={e => setCreateForm({...createForm, priority: e.target.value as any})}
+                    className="w-full bg-zinc-900 border border-zinc-800 rounded-xl p-2.5 text-xs text-white focus:outline-none font-semibold"
+                  >
+                    <option value="baja">Baja</option>
+                    <option value="media">Media</option>
+                    <option value="alta">Alta</option>
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-zinc-500 uppercase font-mono">Vencimiento</label>
+                  <input
+                    type="date"
+                    value={createForm.due_date}
+                    onChange={e => setCreateForm({...createForm, due_date: e.target.value})}
+                    className="w-full bg-zinc-900 border border-zinc-800 rounded-xl p-2.5 text-xs text-white focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2.5 py-2">
+                <input
+                  type="checkbox"
+                  id="create-requires-audit-project"
+                  checked={createForm.requires_audit}
+                  onChange={e => setCreateForm({...createForm, requires_audit: e.target.checked})}
+                  className="rounded border-zinc-800 bg-zinc-900 text-emerald-600 focus:ring-emerald-500/20 h-4 w-4 cursor-pointer"
+                />
+                <label htmlFor="create-requires-audit-project" className="text-xs font-bold text-zinc-400 cursor-pointer select-none">
+                  Exigir Auditoría de Líder antes de finalizar la tarea.
+                </label>
+              </div>
+
+              <div className="pt-4 border-t border-zinc-850 flex justify-end gap-2 shrink-0">
+                <Button type="button" variant="ghost" onClick={() => setIsCreateOpen(false)} className="text-zinc-400">
+                  Cancelar
+                </Button>
+                <Button type="submit" className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-5">
+                  Crear Tarea
                 </Button>
               </div>
             </form>

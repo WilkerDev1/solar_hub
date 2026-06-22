@@ -103,6 +103,7 @@ export async function createInventoryItem(itemData: {
   sku: string;
   description?: string | null;
   image_url?: string | null;
+  image_urls?: string[];
   providers: string[];
   tags: string[];
   cost: number;
@@ -114,6 +115,7 @@ export async function createInventoryItem(itemData: {
   min_stock?: number;
 }): Promise<InventoryItemRow> {
   const companyId = await getUserCompanyId();
+  const firstImage = itemData.image_urls?.[0] || itemData.image_url || null;
   const { data, error } = await supabase
     .from('inventory_items')
     .insert({
@@ -122,7 +124,8 @@ export async function createInventoryItem(itemData: {
       name: itemData.name,
       sku: itemData.sku,
       description: itemData.description || null,
-      image_url: itemData.image_url || null,
+      image_url: firstImage,
+      image_urls: itemData.image_urls || [],
       providers: itemData.providers || [],
       tags: itemData.tags || [],
       cost: itemData.cost || 0,
@@ -165,6 +168,9 @@ export async function updateInventoryItem(
   id: string,
   updates: Partial<Omit<InventoryItemRow, 'id' | 'company_id' | 'created_at' | 'usage_count'>>
 ): Promise<InventoryItemRow> {
+  if (updates.image_urls !== undefined) {
+    updates.image_url = updates.image_urls?.[0] || null;
+  }
   // 1. If stock is being updated, fetch the current item to calculate the delta and log a transaction
   let stockDelta = 0;
   let originalItem: InventoryItemRow | null = null;
@@ -603,4 +609,49 @@ export async function removeProviderGlobally(providerName: string): Promise<void
       }
     }
   }
+}
+
+export interface ProjectDispatchTransaction extends InventoryTransactionRow {
+  inventory_items: {
+    name: string;
+    sku: string;
+    unit: string;
+    image_url: string | null;
+  } | null;
+  profiles: {
+    full_name: string | null;
+  } | null;
+}
+
+/**
+ * Retrieve transactions audit log for a specific project.
+ */
+export async function getProjectDispatchHistory(projectId: string): Promise<ProjectDispatchTransaction[]> {
+  const { data, error } = await supabase
+    .from('inventory_transactions')
+    .select(`
+      *,
+      inventory_items (
+        name,
+        sku,
+        unit,
+        image_url
+      ),
+      profiles:created_by (
+        full_name
+      )
+    `)
+    .eq('project_id', projectId)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error('Error fetching project dispatch history:', error);
+    throw new Error(error.message);
+  }
+
+  return (data as any[] || []).map(row => ({
+    ...row,
+    inventory_items: row.inventory_items || null,
+    profiles: row.profiles || null
+  }));
 }

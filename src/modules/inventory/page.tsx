@@ -86,6 +86,30 @@ export default function InventoryModule() {
   // Bulk Adjustment grid state
   const [bulkList, setBulkList] = useState<any[]>([]);
 
+  // Multi-image upload states
+  const [uploadedImages, setUploadedImages] = useState<string[]>([]);
+  const [uploadingImage, setUploadingImage] = useState(false);
+
+  // Edit Ficha state
+  const [isEditing, setIsEditing] = useState(false);
+  const [activeImgUrl, setActiveImgUrl] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState({
+    name: '',
+    sku: '',
+    category_id: '',
+    description: '',
+    cost: 0,
+    unit: 'unidades',
+    packaging: '',
+    length: '',
+    weight: '',
+    stock: 0,
+    min_stock: 0,
+    providers: '',
+    selectedTags: [] as string[],
+    image_urls: [] as string[]
+  });
+
   // Load everything
   const loadData = async () => {
     setLoading(true);
@@ -128,6 +152,8 @@ export default function InventoryModule() {
   // Open Detail Drawer
   const handleOpenDetail = async (item: InventoryItemRow) => {
     setSelectedItem(item);
+    setActiveImgUrl(item.image_urls?.[0] || item.image_url || null);
+    setIsEditing(false);
     setIsDetailDrawerOpen(true);
     setLoadingTransactions(true);
     try {
@@ -137,6 +163,25 @@ export default function InventoryModule() {
       console.error(err);
     } finally {
       setLoadingTransactions(false);
+    }
+  };
+
+  // Image upload handler for creation
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || e.target.files.length === 0) return;
+    setUploadingImage(true);
+    try {
+      const urls: string[] = [];
+      for (let i = 0; i < e.target.files.length; i++) {
+        const file = e.target.files[i];
+        const url = await uploadInventoryItemImage(file);
+        urls.push(url);
+      }
+      setUploadedImages(prev => [...prev, ...urls]);
+    } catch (err: any) {
+      alert('Error al subir imágenes: ' + err.message);
+    } finally {
+      setUploadingImage(false);
     }
   };
 
@@ -163,10 +208,12 @@ export default function InventoryModule() {
         stock: Number(addForm.stock),
         min_stock: Number(addForm.min_stock),
         providers: formattedProviders,
-        tags: addForm.selectedTags
+        tags: addForm.selectedTags,
+        image_urls: uploadedImages
       });
 
       setIsAddModalOpen(false);
+      setUploadedImages([]);
       setAddForm({
         name: '',
         sku: '',
@@ -185,6 +232,122 @@ export default function InventoryModule() {
       loadData();
     } catch (err: any) {
       alert('Error al crear item: ' + err.message);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // Open Edit Mode directly from table row
+  const handleOpenEdit = async (item: InventoryItemRow) => {
+    setSelectedItem(item);
+    setActiveImgUrl(item.image_urls?.[0] || item.image_url || null);
+    setEditForm({
+      name: item.name,
+      sku: item.sku,
+      category_id: item.category_id || '',
+      description: item.description || '',
+      cost: item.cost,
+      unit: item.unit,
+      packaging: item.packaging || '',
+      length: item.length ? String(item.length) : '',
+      weight: item.weight ? String(item.weight) : '',
+      stock: item.stock,
+      min_stock: item.min_stock,
+      providers: (item.providers || []).join(', '),
+      selectedTags: item.tags || [],
+      image_urls: item.image_urls || (item.image_url ? [item.image_url] : [])
+    });
+    setIsEditing(true);
+    setIsDetailDrawerOpen(true);
+    setLoadingTransactions(true);
+    try {
+      const txs = await getInventoryTransactions(item.id);
+      setItemTransactions(txs);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoadingTransactions(false);
+    }
+  };
+
+  // Start Edit mode
+  const handleStartEdit = () => {
+    if (!selectedItem) return;
+    setEditForm({
+      name: selectedItem.name,
+      sku: selectedItem.sku,
+      category_id: selectedItem.category_id || '',
+      description: selectedItem.description || '',
+      cost: selectedItem.cost,
+      unit: selectedItem.unit,
+      packaging: selectedItem.packaging || '',
+      length: selectedItem.length ? String(selectedItem.length) : '',
+      weight: selectedItem.weight ? String(selectedItem.weight) : '',
+      stock: selectedItem.stock,
+      min_stock: selectedItem.min_stock,
+      providers: (selectedItem.providers || []).join(', '),
+      selectedTags: selectedItem.tags || [],
+      image_urls: selectedItem.image_urls || (selectedItem.image_url ? [selectedItem.image_url] : [])
+    });
+    setIsEditing(true);
+  };
+
+  // Image upload handler for edit form
+  const handleEditImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || e.target.files.length === 0) return;
+    setUploadingImage(true);
+    try {
+      const urls: string[] = [];
+      for (let i = 0; i < e.target.files.length; i++) {
+        const file = e.target.files[i];
+        const url = await uploadInventoryItemImage(file);
+        urls.push(url);
+      }
+      setEditForm(prev => ({
+        ...prev,
+        image_urls: [...prev.image_urls, ...urls]
+      }));
+    } catch (err: any) {
+      alert('Error al subir imágenes: ' + err.message);
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
+  // Save changes from Edit form
+  const handleSaveEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedItem) return;
+    setActionLoading(true);
+    try {
+      const formattedProviders = editForm.providers
+        .split(',')
+        .map(p => p.trim())
+        .filter(p => p.length > 0);
+
+      const updated = await updateInventoryItem(selectedItem.id, {
+        name: editForm.name,
+        sku: editForm.sku,
+        category_id: editForm.category_id || null,
+        description: editForm.description || null,
+        cost: Number(editForm.cost),
+        unit: editForm.unit,
+        packaging: editForm.packaging || null,
+        length: editForm.length ? Number(editForm.length) : null,
+        weight: editForm.weight ? Number(editForm.weight) : null,
+        stock: Number(editForm.stock),
+        min_stock: Number(editForm.min_stock),
+        providers: formattedProviders,
+        tags: editForm.selectedTags,
+        image_urls: editForm.image_urls
+      });
+
+      setSelectedItem(updated);
+      setActiveImgUrl(updated.image_urls?.[0] || updated.image_url || null);
+      setIsEditing(false);
+      loadData();
+    } catch (err: any) {
+      alert('Error al guardar cambios: ' + err.message);
     } finally {
       setActionLoading(false);
     }
@@ -457,8 +620,19 @@ export default function InventoryModule() {
                 return (
                   <tr key={item.id} className="hover:bg-zinc-900/30 transition-colors">
                     <td className="px-6 py-4">
-                      <div className="font-semibold text-white text-sm">{item.name}</div>
-                      <div className="text-[10px] text-zinc-500 font-mono mt-0.5">{item.sku}</div>
+                      <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 rounded-lg bg-zinc-950 border border-zinc-850 overflow-hidden shrink-0 flex items-center justify-center">
+                          {item.image_urls?.[0] || item.image_url ? (
+                            <img src={item.image_urls?.[0] || item.image_url || undefined} alt={item.name} className="h-full w-full object-cover" />
+                          ) : (
+                            <PackageCheck className="h-5 w-5 text-zinc-650" />
+                          )}
+                        </div>
+                        <div>
+                          <div className="font-semibold text-white text-sm">{item.name}</div>
+                          <div className="text-[10px] text-zinc-500 font-mono mt-0.5">{item.sku}</div>
+                        </div>
+                      </div>
                     </td>
                     <td className="px-6 py-4 text-zinc-400">
                       {category ? category.name : 'Sin categoría'}
@@ -474,7 +648,7 @@ export default function InventoryModule() {
                           }`}>
                             {latestTx.transaction_type === 'entrada' ? '+' : ''}{latestTx.quantity}
                           </span>
-                          <div className="text-[9px] text-zinc-500 font-medium truncate max-w-[120px]" title={latestTx.reason}>
+                          <div className="text-[9px] text-zinc-550 font-medium truncate max-w-[120px]" title={latestTx.reason}>
                             {latestTx.reason}
                           </div>
                         </div>
@@ -486,9 +660,25 @@ export default function InventoryModule() {
                       {getStatusBadge(item.stock, item.min_stock)}
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <Button onClick={() => handleOpenDetail(item)} size="sm" className="bg-zinc-900 border border-zinc-800 hover:text-white text-zinc-450 hover:bg-zinc-800 text-[10px] px-3.5 h-8 rounded-lg font-bold">
-                        Ficha & Kardex
-                      </Button>
+                      <div className="flex items-center justify-end gap-2">
+                        <RequirePermission action="inventory:write">
+                          <Button
+                            onClick={() => handleOpenEdit(item)}
+                            size="sm"
+                            className="bg-zinc-900 border border-zinc-800 hover:text-white text-zinc-450 hover:bg-zinc-800 text-[10px] p-2 h-8 w-8 rounded-lg cursor-pointer"
+                            title="Editar Ficha"
+                          >
+                            <Edit2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </RequirePermission>
+                        <Button
+                          onClick={() => handleOpenDetail(item)}
+                          size="sm"
+                          className="bg-zinc-900 border border-zinc-800 hover:text-white text-zinc-450 hover:bg-zinc-800 text-[10px] px-3.5 h-8 rounded-lg font-bold cursor-pointer"
+                        >
+                          Ficha & Kardex
+                        </Button>
+                      </div>
                     </td>
                   </tr>
                 );
@@ -650,6 +840,44 @@ export default function InventoryModule() {
                   onChange={e => setAddForm({...addForm, description: e.target.value})}
                   className="w-full bg-zinc-900 border border-zinc-800 rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-emerald-500 h-16 resize-none"
                 />
+              </div>
+
+              {/* Previsualización de imágenes subidas */}
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-zinc-500 uppercase font-mono">Imágenes del Item</label>
+                <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-3 flex flex-wrap gap-2 items-center">
+                  {uploadedImages.map((url, idx) => (
+                    <div key={idx} className="relative h-16 w-16 bg-zinc-950 border border-zinc-850 rounded-lg group overflow-hidden">
+                      <img src={url} alt={`Preview ${idx}`} className="h-full w-full object-cover" />
+                      <button
+                        type="button"
+                        onClick={() => setUploadedImages(prev => prev.filter((_, i) => i !== idx))}
+                        className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-rose-500 hover:text-rose-455 cursor-pointer"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  ))}
+                  
+                  <label className="h-16 w-16 border border-dashed border-zinc-800 hover:border-emerald-500/50 rounded-lg flex flex-col items-center justify-center text-zinc-500 hover:text-emerald-400 transition-all cursor-pointer">
+                    <input
+                      type="file"
+                      multiple
+                      accept="image/*"
+                      onChange={handleImageUpload}
+                      className="hidden"
+                      disabled={uploadingImage}
+                    />
+                    {uploadingImage ? (
+                      <Loader2 className="h-4 w-4 animate-spin text-emerald-500" />
+                    ) : (
+                      <>
+                        <Plus className="h-4 w-4" />
+                        <span className="text-[8px] font-bold uppercase mt-1">Subir</span>
+                      </>
+                    )}
+                  </label>
+                </div>
               </div>
 
               {/* Tags checkboxes */}
@@ -902,132 +1130,413 @@ export default function InventoryModule() {
             <div className="p-4 border-b border-zinc-900 flex justify-between items-center bg-zinc-900/20 shrink-0">
               <div className="flex items-center gap-2">
                 <Info className="h-5 w-5 text-emerald-400" />
-                <span className="text-xs font-mono font-bold uppercase tracking-wider text-zinc-550">Ficha Técnica & Kardex</span>
+                <span className="text-xs font-mono font-bold uppercase tracking-wider text-zinc-550">
+                  {isEditing ? 'Editar Ficha de Material' : 'Ficha Técnica & Kardex'}
+                </span>
               </div>
-              <button onClick={() => setIsDetailDrawerOpen(false)} className="p-1.5 hover:bg-zinc-900 rounded-lg text-zinc-500 hover:text-white transition-colors">
-                <X className="h-5 w-5" />
-              </button>
+              <div className="flex items-center gap-2.5">
+                <RequirePermission action="inventory:write">
+                  <Button
+                    onClick={() => {
+                      if (isEditing) {
+                        setIsEditing(false);
+                      } else {
+                        handleStartEdit();
+                      }
+                    }}
+                    size="sm"
+                    className="bg-zinc-900 border border-zinc-800 text-[10px] h-8 font-bold text-zinc-350 hover:text-white hover:bg-zinc-850 rounded-lg cursor-pointer"
+                  >
+                    {isEditing ? 'Cancelar Edición' : 'Editar Ficha'}
+                  </Button>
+                </RequirePermission>
+                <button onClick={() => setIsDetailDrawerOpen(false)} className="p-1.5 hover:bg-zinc-900 rounded-lg text-zinc-500 hover:text-white transition-colors cursor-pointer">
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-6 space-y-6 scrollbar-thin scrollbar-thumb-zinc-900 text-left">
-              {/* Technical Specifications */}
-              <div className="space-y-4">
-                <div>
-                  <h2 className="text-lg font-bold text-white tracking-wide">{selectedItem.name}</h2>
-                  <p className="text-zinc-500 font-mono text-[10px] mt-0.5">SKU: {selectedItem.sku}</p>
-                </div>
-
-                {selectedItem.description && (
-                  <p className="text-zinc-400 text-xs bg-zinc-900/40 p-3 rounded-xl border border-zinc-900/60 leading-relaxed">
-                    {selectedItem.description}
-                  </p>
-                )}
-
-                <div className="grid grid-cols-2 gap-4 bg-zinc-900/20 border border-zinc-900 p-4 rounded-xl">
-                  <div className="flex justify-between py-1.5 border-b border-zinc-900 text-xs">
-                    <span className="text-zinc-500">Costo Unitario</span>
-                    <span className="font-bold text-zinc-300 font-mono">${selectedItem.cost.toFixed(2)}</span>
-                  </div>
-                  <div className="flex justify-between py-1.5 border-b border-zinc-900 text-xs">
-                    <span className="text-zinc-500">Stock Actual</span>
-                    <span className="font-bold text-emerald-400 font-mono">{selectedItem.stock} {selectedItem.unit}</span>
-                  </div>
-                  <div className="flex justify-between py-1.5 border-b border-zinc-900 text-xs">
-                    <span className="text-zinc-500">Embalaje</span>
-                    <span className="font-bold text-zinc-350">{selectedItem.packaging || 'N/D'}</span>
-                  </div>
-                  <div className="flex justify-between py-1.5 border-b border-zinc-900 text-xs">
-                    <span className="text-zinc-500">Min. Requerido</span>
-                    <span className="font-bold text-zinc-355 font-mono">{selectedItem.min_stock} {selectedItem.unit}</span>
-                  </div>
-                  <div className="flex justify-between py-1.5 text-xs col-span-2">
-                    <span className="text-zinc-500">Dimensiones Físicas</span>
-                    <span className="font-bold text-zinc-355 font-mono">
-                      {selectedItem.length ? `${selectedItem.length}m` : 'N/D'} / {selectedItem.weight ? `${selectedItem.weight}kg` : 'N/D'}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Tags & Providers */}
+            {isEditing ? (
+              <form onSubmit={handleSaveEdit} className="flex-1 overflow-y-auto p-6 space-y-5 scrollbar-thin scrollbar-thumb-zinc-900 text-left">
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider font-mono">Etiquetas</span>
-                    <div className="flex flex-wrap gap-1.5">
-                      {selectedItem.tags && selectedItem.tags.length > 0 ? (
-                        selectedItem.tags.map((t, i) => (
-                          <span key={i} className="bg-zinc-900 border border-zinc-800 text-zinc-400 px-2 py-0.5 rounded text-[10px] font-semibold">
-                            {t}
-                          </span>
-                        ))
-                      ) : (
-                        <span className="text-zinc-650 italic text-[10px]">Sin etiquetas</span>
-                      )}
-                    </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-zinc-500 uppercase font-mono">Nombre del Item *</label>
+                    <input
+                      required
+                      type="text"
+                      value={editForm.name}
+                      onChange={e => setEditForm({...editForm, name: e.target.value})}
+                      className="w-full bg-zinc-900 border border-zinc-800 rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-emerald-500"
+                    />
                   </div>
-
-                  <div className="space-y-1.5">
-                    <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider font-mono">Proveedores</span>
-                    <div className="flex flex-wrap gap-1.5">
-                      {selectedItem.providers && selectedItem.providers.length > 0 ? (
-                        selectedItem.providers.map((p, i) => (
-                          <span key={i} className="bg-zinc-900 border border-zinc-800 text-zinc-400 px-2 py-0.5 rounded text-[10px] font-semibold">
-                            {p}
-                          </span>
-                        ))
-                      ) : (
-                        <span className="text-zinc-650 italic text-[10px]">Sin proveedores</span>
-                      )}
-                    </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-zinc-500 uppercase font-mono">Código SKU *</label>
+                    <input
+                      required
+                      type="text"
+                      value={editForm.sku}
+                      onChange={e => setEditForm({...editForm, sku: e.target.value})}
+                      className="w-full bg-zinc-900 border border-zinc-800 rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-emerald-500"
+                    />
                   </div>
                 </div>
-              </div>
 
-              {/* Kardex Transactions List */}
-              <div className="space-y-3.5 pt-6 border-t border-zinc-900">
-                <div className="flex items-center gap-1.5">
-                  <History className="h-4 w-4 text-emerald-400" />
-                  <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider font-mono">Registro de Kardex e Historial</span>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-zinc-500 uppercase font-mono">Categoría</label>
+                    <select
+                      value={editForm.category_id}
+                      onChange={e => setEditForm({...editForm, category_id: e.target.value})}
+                      className="w-full bg-zinc-900 border border-zinc-800 rounded-xl p-2.5 text-xs text-white focus:outline-none"
+                    >
+                      <option value="">Selecciona una categoría</option>
+                      {categories.map(c => (
+                        <option key={c.id} value={c.id}>{c.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-zinc-500 uppercase font-mono">Unidad de Medida</label>
+                    <select
+                      value={editForm.unit}
+                      onChange={e => setEditForm({...editForm, unit: e.target.value})}
+                      className="w-full bg-zinc-900 border border-zinc-800 rounded-xl p-2.5 text-xs text-white focus:outline-none"
+                    >
+                      <option value="unidades">Unidades (pcs)</option>
+                      <option value="metros">Metros (m)</option>
+                      <option value="rollos">Rollos</option>
+                      <option value="cajas">Cajas</option>
+                      <option value="kilogramos">Kilogramos (kg)</option>
+                    </select>
+                  </div>
                 </div>
 
-                {loadingTransactions ? (
-                  <div className="py-10 flex justify-center"><Loader2 className="animate-spin text-zinc-500 h-6 w-6" /></div>
-                ) : itemTransactions.length === 0 ? (
-                  <p className="text-xs text-zinc-650 italic py-4 text-center">No hay registros de movimientos en Kardex para este material.</p>
-                ) : (
-                  <div className="space-y-2.5">
-                    {itemTransactions.map((tx) => (
-                      <div key={tx.id} className="bg-zinc-900/30 border border-zinc-900/60 p-3.5 rounded-xl flex items-center justify-between gap-4">
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-2">
-                            <span className={`text-[10px] font-bold uppercase ${
-                              tx.transaction_type === 'entrada' ? 'text-emerald-400' : 'text-rose-400'
-                            }`}>
-                              {tx.transaction_type === 'entrada' ? 'ENTRADA' : 'SALIDA'}
-                            </span>
-                            <span className="text-[10px] text-zinc-600 font-mono">
-                              {new Date(tx.created_at).toLocaleDateString([], { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
-                            </span>
-                          </div>
-                          <p className="text-xs text-zinc-400">{tx.reason}</p>
-                          <div className="text-[9px] text-zinc-550 flex items-center gap-1">
-                            <User className="h-3 w-3 shrink-0" />
-                            <span>Auditado por: {tx.profiles?.full_name || 'Sistema / IA'}</span>
-                          </div>
-                        </div>
-                        <div className={`text-sm font-bold font-mono ${
-                          tx.transaction_type === 'entrada' ? 'text-emerald-400' : 'text-rose-400'
-                        }`}>
-                          {tx.transaction_type === 'entrada' ? '+' : ''}{tx.quantity}
-                        </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-zinc-500 uppercase font-mono">Costo Unitario ($) *</label>
+                    <input
+                      required
+                      type="number"
+                      step="0.01"
+                      value={editForm.cost}
+                      onChange={e => setEditForm({...editForm, cost: Number(e.target.value)})}
+                      className="w-full bg-zinc-900 border border-zinc-800 rounded-xl p-2.5 text-xs text-white focus:outline-none"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-zinc-500 uppercase font-mono">Stock Mínimo</label>
+                    <input
+                      type="number"
+                      value={editForm.min_stock}
+                      onChange={e => setEditForm({...editForm, min_stock: Number(e.target.value)})}
+                      className="w-full bg-zinc-900 border border-zinc-800 rounded-xl p-2.5 text-xs text-white focus:outline-none"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-zinc-500 uppercase font-mono">Embalaje</label>
+                    <input
+                      type="text"
+                      value={editForm.packaging}
+                      onChange={e => setEditForm({...editForm, packaging: e.target.value})}
+                      className="w-full bg-zinc-900 border border-zinc-800 rounded-xl p-2.5 text-xs text-white focus:outline-none"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-zinc-500 uppercase font-mono">Longitud (m)</label>
+                    <input
+                      type="number"
+                      step="0.1"
+                      value={editForm.length}
+                      onChange={e => setEditForm({...editForm, length: e.target.value})}
+                      className="w-full bg-zinc-900 border border-zinc-800 rounded-xl p-2.5 text-xs text-white focus:outline-none"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-zinc-500 uppercase font-mono">Peso (kg)</label>
+                    <input
+                      type="number"
+                      step="0.1"
+                      value={editForm.weight}
+                      onChange={e => setEditForm({...editForm, weight: e.target.value})}
+                      className="w-full bg-zinc-900 border border-zinc-800 rounded-xl p-2.5 text-xs text-white focus:outline-none"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-zinc-500 uppercase font-mono">Proveedores (Separados por coma)</label>
+                  <input
+                    type="text"
+                    value={editForm.providers}
+                    onChange={e => setEditForm({...editForm, providers: e.target.value})}
+                    className="w-full bg-zinc-900 border border-zinc-800 rounded-xl p-2.5 text-xs text-white focus:outline-none"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-zinc-500 uppercase font-mono">Descripción Técnica</label>
+                  <textarea
+                    value={editForm.description}
+                    onChange={e => setEditForm({...editForm, description: e.target.value})}
+                    className="w-full bg-zinc-900 border border-zinc-800 rounded-xl p-2.5 text-xs text-white focus:outline-none h-16 resize-none"
+                  />
+                </div>
+
+                {/* Previsualización de imágenes subidas en edición */}
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-zinc-500 uppercase font-mono">Imágenes del Item</label>
+                  <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-3 flex flex-wrap gap-2 items-center">
+                    {(editForm.image_urls || []).map((url, idx) => (
+                      <div key={idx} className="relative h-16 w-16 bg-zinc-950 border border-zinc-850 rounded-lg group overflow-hidden">
+                        <img src={url} alt={`Preview ${idx}`} className="h-full w-full object-cover" />
+                        <button
+                          type="button"
+                          onClick={() => setEditForm(prev => ({
+                            ...prev,
+                            image_urls: prev.image_urls.filter((_, i) => i !== idx)
+                          }))}
+                          className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-rose-500 hover:text-rose-455 cursor-pointer"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
                       </div>
                     ))}
+                    
+                    <label className="h-16 w-16 border border-dashed border-zinc-800 hover:border-emerald-500/50 rounded-lg flex flex-col items-center justify-center text-zinc-500 hover:text-emerald-400 transition-all cursor-pointer">
+                      <input
+                        type="file"
+                        multiple
+                        accept="image/*"
+                        onChange={handleEditImageUpload}
+                        className="hidden"
+                        disabled={uploadingImage}
+                      />
+                      {uploadingImage ? (
+                        <Loader2 className="h-4 w-4 animate-spin text-emerald-500" />
+                      ) : (
+                        <>
+                          <Plus className="h-4 w-4" />
+                          <span className="text-[8px] font-bold uppercase mt-1">Subir</span>
+                        </>
+                      )}
+                    </label>
+                  </div>
+                </div>
+
+                {/* Tags checkboxes */}
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-zinc-500 uppercase font-mono">Etiquetas del Item</label>
+                  <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-3 flex flex-wrap gap-2.5 max-h-24 overflow-y-auto">
+                    {tags.map(t => {
+                      const isChecked = editForm.selectedTags.includes(t.name);
+                      return (
+                        <label key={t.id} className="flex items-center gap-2 text-xs font-semibold text-zinc-300 cursor-pointer select-none">
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={() => {
+                              if (isChecked) {
+                                setEditForm({
+                                  ...editForm,
+                                  selectedTags: editForm.selectedTags.filter(x => x !== t.name)
+                                });
+                              } else {
+                                setEditForm({
+                                  ...editForm,
+                                  selectedTags: [...editForm.selectedTags, t.name]
+                                });
+                              }
+                            }}
+                            className="rounded border-zinc-800 bg-zinc-950 text-emerald-600 focus:ring-emerald-500/20 h-4 w-4"
+                          />
+                          <span>{t.name}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className="pt-4 border-t border-zinc-900 flex justify-end gap-2 shrink-0">
+                  <Button type="button" variant="ghost" onClick={() => setIsEditing(false)} className="text-zinc-400">
+                    Cancelar
+                  </Button>
+                  <Button type="submit" disabled={actionLoading} className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-5">
+                    {actionLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null} Guardar Cambios
+                  </Button>
+                </div>
+              </form>
+            ) : (
+              <div className="flex-1 overflow-y-auto p-6 space-y-6 scrollbar-thin scrollbar-thumb-zinc-900 text-left">
+                {/* Image Gallery */}
+                {activeImgUrl ? (
+                  <div className="space-y-2">
+                    <div className="relative h-64 w-full bg-zinc-950 border border-zinc-900 rounded-2xl overflow-hidden shadow-inner">
+                      <img src={activeImgUrl} alt={selectedItem.name} className="h-full w-full object-contain" />
+                    </div>
+                    {/* Thumbnails */}
+                    {(selectedItem.image_urls || []).length > 1 && (
+                      <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-thin">
+                        {(selectedItem.image_urls || []).map((url, index) => (
+                          <button
+                            key={index}
+                            onClick={() => setActiveImgUrl(url)}
+                            className={`h-12 w-12 rounded-lg overflow-hidden border shrink-0 transition-all cursor-pointer ${
+                              activeImgUrl === url ? 'border-emerald-500 scale-95' : 'border-zinc-800 opacity-60 hover:opacity-100'
+                            }`}
+                          >
+                            <img src={url} alt={`Thumbnail ${index}`} className="h-full w-full object-cover" />
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="h-44 w-full bg-zinc-900/20 border border-zinc-900 rounded-2xl flex flex-col items-center justify-center text-zinc-650">
+                    <Archive className="h-10 w-10 mb-2" />
+                    <span className="text-xs font-semibold uppercase tracking-wider font-mono">Sin imágenes asociadas</span>
                   </div>
                 )}
-              </div>
-            </div>
 
-            <div className="p-4 border-t border-zinc-900 shrink-0 flex justify-end">
-              <Button onClick={() => setIsDetailDrawerOpen(false)} className="bg-zinc-900 border border-zinc-800 text-zinc-400">
+                {/* Technical Specifications */}
+                <div className="space-y-4">
+                  <div>
+                    <h2 className="text-lg font-bold text-white tracking-wide">{selectedItem.name}</h2>
+                    <p className="text-zinc-500 font-mono text-[10px] mt-0.5">SKU: {selectedItem.sku}</p>
+                  </div>
+
+                  {selectedItem.description && (
+                    <p className="text-zinc-400 text-xs bg-zinc-900/40 p-3 rounded-xl border border-zinc-900/60 leading-relaxed">
+                      {selectedItem.description}
+                    </p>
+                  )}
+
+                  <div className="grid grid-cols-2 gap-4 bg-zinc-900/20 border border-zinc-900 p-4 rounded-xl">
+                    <div className="flex justify-between py-1.5 border-b border-zinc-900 text-xs">
+                      <span className="text-zinc-500">Costo Unitario</span>
+                      <span className="font-bold text-zinc-300 font-mono">${selectedItem.cost.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between py-1.5 border-b border-zinc-900 text-xs">
+                      <span className="text-zinc-500">Stock Actual</span>
+                      <span className="font-bold text-emerald-400 font-mono">{selectedItem.stock} {selectedItem.unit}</span>
+                    </div>
+                    <div className="flex justify-between py-1.5 border-b border-zinc-900 text-xs">
+                      <span className="text-zinc-500">Embalaje</span>
+                      <span className="font-bold text-zinc-355">{selectedItem.packaging || 'N/D'}</span>
+                    </div>
+                    <div className="flex justify-between py-1.5 border-b border-zinc-900 text-xs">
+                      <span className="text-zinc-500">Min. Requerido</span>
+                      <span className="font-bold text-zinc-355 font-mono">{selectedItem.min_stock} {selectedItem.unit}</span>
+                    </div>
+                    <div className="flex justify-between py-1.5 text-xs col-span-2">
+                      <span className="text-zinc-500">Dimensiones Físicas</span>
+                      <span className="font-bold text-zinc-355 font-mono">
+                        {selectedItem.length ? `${selectedItem.length}m` : 'N/D'} / {selectedItem.weight ? `${selectedItem.weight}kg` : 'N/D'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Tags & Providers */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider font-mono">Etiquetas</span>
+                      <div className="flex flex-wrap gap-1.5">
+                        {selectedItem.tags && selectedItem.tags.length > 0 ? (
+                          selectedItem.tags.map((t, i) => (
+                            <span key={i} className="bg-zinc-900 border border-zinc-800 text-zinc-400 px-2 py-0.5 rounded text-[10px] font-semibold">
+                              {t}
+                            </span>
+                          ))
+                        ) : (
+                          <span className="text-zinc-650 italic text-[10px]">Sin etiquetas</span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider font-mono">Proveedores</span>
+                      <div className="flex flex-wrap gap-1.5">
+                        {selectedItem.providers && selectedItem.providers.length > 0 ? (
+                          selectedItem.providers.map((p, i) => (
+                            <span key={i} className="bg-zinc-900 border border-zinc-800 text-zinc-400 px-2 py-0.5 rounded text-[10px] font-semibold">
+                              {p}
+                            </span>
+                          ))
+                        ) : (
+                          <span className="text-zinc-650 italic text-[10px]">Sin proveedores</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Kardex Transactions List */}
+                <div className="space-y-3.5 pt-6 border-t border-zinc-900">
+                  <div className="flex items-center gap-1.5">
+                    <History className="h-4 w-4 text-emerald-400" />
+                    <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider font-mono">Registro de Kardex e Historial</span>
+                  </div>
+
+                  {loadingTransactions ? (
+                    <div className="py-10 flex justify-center"><Loader2 className="animate-spin text-zinc-500 h-6 w-6" /></div>
+                  ) : itemTransactions.length === 0 ? (
+                    <p className="text-xs text-zinc-650 italic py-4 text-center">No hay registros de movimientos en Kardex para este material.</p>
+                  ) : (
+                    <div className="space-y-2.5">
+                      {itemTransactions.map((tx) => (
+                        <div key={tx.id} className="bg-zinc-900/30 border border-zinc-900/60 p-3.5 rounded-xl flex items-center justify-between gap-4">
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2">
+                              <span className={`text-[10px] font-bold uppercase ${
+                                tx.transaction_type === 'entrada' ? 'text-emerald-400' : 'text-rose-400'
+                              }`}>
+                                {tx.transaction_type === 'entrada' ? 'ENTRADA' : 'SALIDA'}
+                              </span>
+                              <span className="text-[10px] text-zinc-600 font-mono">
+                                {new Date(tx.created_at).toLocaleDateString([], { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                              </span>
+                            </div>
+                            <p className="text-xs text-zinc-400">{tx.reason}</p>
+                            <div className="text-[9px] text-zinc-550 flex items-center gap-1">
+                              <User className="h-3 w-3 shrink-0" />
+                              <span>Auditado por: {tx.profiles?.full_name || 'Sistema / IA'}</span>
+                            </div>
+                          </div>
+                          <div className={`text-sm font-bold font-mono ${
+                            tx.transaction_type === 'entrada' ? 'text-emerald-400' : 'text-rose-400'
+                          }`}>
+                            {tx.transaction_type === 'entrada' ? '+' : ''}{tx.quantity}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            <div className="p-4 border-t border-zinc-900 shrink-0 flex justify-between items-center">
+              <RequirePermission action="inventory:write">
+                {!isEditing ? (
+                  <Button
+                    onClick={handleStartEdit}
+                    className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold h-9 px-4 rounded-xl cursor-pointer"
+                  >
+                    <Edit2 className="h-4 w-4 mr-1.5" /> Editar Ficha
+                  </Button>
+                ) : (
+                  <Button
+                    onClick={handleSaveEdit}
+                    disabled={actionLoading}
+                    className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold h-9 px-4 rounded-xl cursor-pointer"
+                  >
+                    {actionLoading ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : null} Guardar Cambios
+                  </Button>
+                )}
+              </RequirePermission>
+              <Button onClick={() => setIsDetailDrawerOpen(false)} className="bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white rounded-xl h-9">
                 Cerrar Ficha
               </Button>
             </div>
