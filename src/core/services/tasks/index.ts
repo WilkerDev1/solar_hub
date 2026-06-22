@@ -383,37 +383,53 @@ export async function deleteTask(taskId: string): Promise<void> {
 }
 
 /**
- * Upload task evidence to Supabase Storage and append to task.
+ * Upload task evidence to Naski storage and append to task.
  */
 export async function uploadTaskEvidence(
   taskId: string,
   file: File,
-  currentUrls: string[] = []
+  currentUrls: string[] = [],
+  projectId?: string,
+  department?: string
 ): Promise<TaskRow> {
-  // 1. Upload to storage bucket "task_evidence"
-  const fileExt = file.name.split('.').pop();
-  const fileName = `${taskId}_${Math.random().toString(36).substring(2)}.${fileExt}`;
-  const filePath = `${taskId}/${fileName}`;
-
-  const { error: uploadError } = await supabase.storage
-    .from('task_evidence')
-    .upload(filePath, file);
-
-  if (uploadError) {
-    console.error('Error uploading evidence to bucket:', uploadError);
-    throw new Error('No se pudo subir la evidencia. Asegúrate de que el Bucket "task_evidence" existe en Supabase.');
+  // Get active session token
+  const { data: { session } } = await supabase.auth.getSession();
+  const token = session?.access_token;
+  if (!token) {
+    throw new Error('No hay sesión de usuario activa.');
   }
 
-  const { data: publicUrlData } = supabase.storage
-    .from('task_evidence')
-    .getPublicUrl(filePath);
+  // Create form data
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('taskId', taskId);
+  if (projectId) formData.append('projectId', projectId);
+  if (department) formData.append('department', department || 'general');
 
-  const newUrls = [...currentUrls, publicUrlData.publicUrl];
+  // Call Next.js storage proxy API route
+  const response = await fetch('/api/storage/upload', {
+    method: 'POST',
+    headers: {
+      'x-user-jwt': token
+    },
+    body: formData
+  });
 
-  // 2. Update task record
+  if (!response.ok) {
+    const errData = await response.json().catch(() => ({ error: 'Error desconocido al subir archivo' }));
+    throw new Error(errData.error || `Error ${response.status}`);
+  }
+
+  const resData = await response.json();
+  const newDocument = resData.document;
+  const newUrl = `/api/storage/file/${newDocument.id}`;
+
+  const updatedUrls = [...currentUrls, newUrl];
+
+  // Update task record
   const { data, error } = await supabase
     .from('global_tasks')
-    .update({ evidence_urls: newUrls } as TaskUpdate)
+    .update({ evidence_urls: updatedUrls } as any)
     .eq('id', taskId)
     .select()
     .single();

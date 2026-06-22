@@ -56,6 +56,28 @@ export default function TaskDetailDrawer({
   const [localAuditComments, setLocalAuditComments] = useState('');
   const [submittingAudit, setSubmittingAudit] = useState(false);
   const [showChangesForm, setShowChangesForm] = useState(false);
+  const [token, setToken] = useState<string | null>(null);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setToken(session?.access_token || null);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setToken(session?.access_token || null);
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  const getDownloadUrl = (url: string) => {
+    if (url.startsWith('/api/storage/file/')) {
+      return token ? `${url}?token=${token}` : url;
+    }
+    return url;
+  };
 
   // Action Inputs
   const [newSubtask, setNewSubtask] = useState('');
@@ -293,31 +315,23 @@ export default function TaskDetailDrawer({
 
   // Deliverables Evidence upload
   const handleUploadDeliverable = async (files: FileList | null) => {
-    if (!files || files.length === 0) return;
+    if (!files || files.length === 0 || !task) return;
     setUploadingFile(true);
     try {
       const file = files[0];
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${task.id}_deliverable_${Math.random().toString(36).substring(2)}.${fileExt}`;
-      const filePath = `${task.id}/${fileName}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from('task_evidence')
-        .upload(filePath, file);
-
-      if (uploadError) throw uploadError;
-
-      const { data: publicUrlData } = supabase.storage
-        .from('task_evidence')
-        .getPublicUrl(filePath);
-
       const currentUrls = task.evidence_urls || [];
-      const updatedUrls = [...currentUrls, publicUrlData.publicUrl];
 
-      // Update task database fields
+      await uploadTaskEvidence(
+        task.id,
+        file,
+        currentUrls,
+        task.project_id || undefined,
+        task.area || undefined
+      );
+
+      // Log activity
       const logList = logActivity('Archivo Subido', `Entregó archivo: ${file.name}`);
       await updateTask(task.id, {
-        evidence_urls: updatedUrls,
         task_activities: logList
       });
 
@@ -1038,7 +1052,7 @@ export default function TaskDetailDrawer({
                     (task.evidence_urls || []).map((url, i) => (
                       <div key={i} className="flex justify-between items-center bg-zinc-900/20 border border-zinc-200 dark:border-zinc-900 p-3 rounded-xl">
                         <a 
-                          href={url} 
+                          href={getDownloadUrl(url)} 
                           target="_blank" 
                           rel="noopener noreferrer" 
                           className="flex items-center gap-2 hover:text-emerald-400 transition-colors text-left"

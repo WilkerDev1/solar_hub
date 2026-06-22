@@ -8,13 +8,14 @@ import {
   createTask, 
   updateTaskStatus, 
   updateTask,
+  uploadTaskEvidence,
   TaskRow 
 } from '@/core/services/tasks';
 import { 
   ClipboardList, CheckSquare, Square, ExternalLink, Loader2, AlertCircle,
   FolderKanban, Building, Package, Database, Calendar, Plus, List, LayoutGrid,
   Filter, SlidersHorizontal, ChevronLeft, ChevronRight, User, Tag, Clock, ArrowRight, X,
-  FileText
+  FileText, Upload
 } from 'lucide-react';
 import { Button } from '@/core/components/ui/button';
 import { supabase } from '@/core/database/supabase';
@@ -474,7 +475,7 @@ export default function TasksModule() {
                         className="flex-1 overflow-y-auto space-y-3 pb-4 min-h-[150px] scrollbar-thin scrollbar-thumb-zinc-900"
                       >
                         {getColumnTasks('pendiente').map((task, index) => (
-                          <KanbanCard key={task.id} task={task} index={index} onClick={() => handleOpenTask(task)} handleToggleCheck={handleToggleCheck} employees={employees} />
+                          <KanbanCard key={task.id} task={task} index={index} onClick={() => handleOpenTask(task)} handleToggleCheck={handleToggleCheck} employees={employees} onUploadSuccess={loadTasks} />
                         ))}
                         {provided.placeholder}
                       </div>
@@ -499,7 +500,7 @@ export default function TasksModule() {
                         className="flex-1 overflow-y-auto space-y-3 pb-4 min-h-[150px] scrollbar-thin scrollbar-thumb-zinc-900"
                       >
                         {getColumnTasks('en_progreso').map((task, index) => (
-                          <KanbanCard key={task.id} task={task} index={index} onClick={() => handleOpenTask(task)} handleToggleCheck={handleToggleCheck} employees={employees} />
+                          <KanbanCard key={task.id} task={task} index={index} onClick={() => handleOpenTask(task)} handleToggleCheck={handleToggleCheck} employees={employees} onUploadSuccess={loadTasks} />
                         ))}
                         {provided.placeholder}
                       </div>
@@ -524,7 +525,7 @@ export default function TasksModule() {
                         className="flex-1 overflow-y-auto space-y-3 pb-4 min-h-[150px] scrollbar-thin scrollbar-thumb-zinc-900"
                       >
                         {getColumnTasks('completada').map((task, index) => (
-                          <KanbanCard key={task.id} task={task} index={index} onClick={() => handleOpenTask(task)} handleToggleCheck={handleToggleCheck} employees={employees} />
+                          <KanbanCard key={task.id} task={task} index={index} onClick={() => handleOpenTask(task)} handleToggleCheck={handleToggleCheck} employees={employees} onUploadSuccess={loadTasks} />
                         ))}
                         {provided.placeholder}
                       </div>
@@ -883,11 +884,38 @@ interface KanbanCardProps {
   onClick: () => void;
   handleToggleCheck: (e: React.MouseEvent, task: TaskRow) => void;
   employees: any[];
+  onUploadSuccess?: () => void;
 }
 
-function KanbanCard({ task, index, onClick, handleToggleCheck, employees }: KanbanCardProps) {
+function KanbanCard({ task, index, onClick, handleToggleCheck, employees, onUploadSuccess }: KanbanCardProps) {
   const isCompleted = task.status === 'completada';
   const isDeliverable = ['entregable', 'reporte', 'evidencia'].includes(task.task_type);
+  const [uploading, setUploading] = useState(false);
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    setUploading(true);
+    try {
+      const file = files[0];
+      const currentUrls = task.evidence_urls || [];
+      await uploadTaskEvidence(
+        task.id,
+        file,
+        currentUrls,
+        task.project_id || undefined,
+        task.area || undefined
+      );
+      alert('Archivo subido con éxito a la tarea.');
+      if (onUploadSuccess) {
+        onUploadSuccess();
+      }
+    } catch (err: any) {
+      alert('Error al subir entregable: ' + err.message);
+    } finally {
+      setUploading(false);
+    }
+  };
 
   // Subtask progress
   const getSubtaskProgress = (subtasks: any) => {
@@ -972,6 +1000,30 @@ function KanbanCard({ task, index, onClick, handleToggleCheck, employees }: Kanb
               <p className="text-[10px] text-zinc-500 line-clamp-2 text-left leading-relaxed">
                 {task.description}
               </p>
+            )}
+
+            {isDeliverable && (
+              <div className="pt-1 flex items-center">
+                {uploading ? (
+                  <span className="flex items-center gap-1.5 text-[9px] text-zinc-400 font-medium">
+                    <Loader2 className="animate-spin text-emerald-500 h-3 w-3" />
+                    Subiendo entregable...
+                  </span>
+                ) : (
+                  <label 
+                    onClick={(e) => e.stopPropagation()} 
+                    className="inline-flex items-center gap-1 text-[9px] bg-zinc-900 hover:bg-zinc-850 text-zinc-300 font-bold border border-zinc-800 hover:border-zinc-700 px-2 py-1 rounded-md cursor-pointer transition-colors"
+                  >
+                    <Upload className="h-2.5 w-2.5 text-zinc-400" />
+                    <span>Subir Entregable</span>
+                    <input
+                      type="file"
+                      className="hidden"
+                      onChange={(e) => handleFileSelect(e)}
+                    />
+                  </label>
+                )}
+              </div>
             )}
           </div>
 
