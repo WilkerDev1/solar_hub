@@ -132,6 +132,46 @@ REGLA DE SEGURIDAD CRÍTICA: Queda estrictamente PROHIBIDO escribir o ejecutar s
 // SECURE HYBRID STORAGE ROUTER
 // -------------------------------------------------------------
 
+// Sanitizes folder/file names to make them safe as directory names on Unix/Windows
+function sanitizePathSegment(name: string): string {
+  return name.replace(/[\\\/\?\*\:\|\"<>]/g, '_').trim();
+}
+
+// Formats department names nicely for the Supabase folders UI
+function formatDeptName(dept?: string): string {
+  if (!dept) return 'General';
+  const trimmed = dept.trim();
+  return trimmed.charAt(0).toUpperCase() + trimmed.slice(1).toLowerCase();
+}
+
+// Traverses up from folderId using parent_id to build the physical path segments
+async function getPhysicalPathForFolder(
+  client: any,
+  folderId: string,
+  companyId: string
+): Promise<string[]> {
+  const segments: string[] = [];
+  let currentId: string | null = folderId;
+
+  while (currentId) {
+    const res = await client
+      .from('folders')
+      .select('name, parent_id')
+      .eq('id', currentId)
+      .eq('company_id', companyId)
+      .limit(1)
+      .maybeSingle();
+
+    if (res.error || !res.data) break;
+
+    const folderData = res.data as { name: string; parent_id: string | null };
+    segments.unshift(folderData.name);
+    currentId = folderData.parent_id;
+  }
+
+  return segments;
+}
+
 // POST /api/storage/upload - Upload binary files to Naski local directory
 app.post('/api/storage/upload', authMiddleware, upload.single('file'), async (req: express.Request, res: express.Response) => {
   const userJwt = (req.headers['x-user-jwt'] as string) || (req.body.userJwt as string);
@@ -170,15 +210,171 @@ app.post('/api/storage/upload', authMiddleware, upload.single('file'), async (re
 
     const companyId = profile.company_id;
 
+    // Manage folders table indexation
+    let resolvedFolderId: string | null = null;
+    if (folderId) {
+      resolvedFolderId = folderId;
+    } else if (projectId) {
+      // 1. Find or create master folder "proyectos" (parent_id = null, project_id = null)
+      const { data: existingProyectosFolder } = await userClient
+        .from('folders')
+        .select('id')
+        .eq('company_id', companyId)
+        .eq('name', 'proyectos')
+        .is('parent_id', null)
+        .is('project_id', null)
+        .limit(1)
+        .maybeSingle();
+
+      let proyectosFolderId: string;
+      if (existingProyectosFolder) {
+        proyectosFolderId = existingProyectosFolder.id;
+      } else {
+        const { data: newProyectosFolder, error: createProyectosErr } = await userClient
+          .from('folders')
+          .insert({
+            company_id: companyId,
+            name: 'proyectos',
+            parent_id: null,
+            project_id: null,
+            department_id: null
+          })
+          .select('id')
+          .single();
+
+        if (createProyectosErr || !newProyectosFolder) {
+          throw new Error('Error al crear la carpeta maestra proyectos: ' + (createProyectosErr?.message || 'Unknown error'));
+        }
+        proyectosFolderId = newProyectosFolder.id;
+      }
+
+      // 2. Resolve project name
+      let projectFolderName = projectId; // Fallback
+      try {
+        const { data: projectData, error: projectErr } = await userClient
+          .from('projects')
+          .select('name')
+          .eq('id', projectId)
+          .limit(1)
+          .maybeSingle();
+
+        if (!projectErr && projectData?.name) {
+          projectFolderName = projectData.name.trim();
+        }
+      } catch (err) {
+        console.error('Error fetching project name, using UUID instead:', err);
+      }
+
+      // 3. Find or create project folder under "proyectos"
+      const { data: existingProjectFolder } = await userClient
+        .from('folders')
+        .select('id')
+        .eq('company_id', companyId)
+        .eq('parent_id', proyectosFolderId)
+        .eq('project_id', projectId)
+        .limit(1)
+        .maybeSingle();
+
+      let projectFolderId: string;
+      if (existingProjectFolder) {
+        projectFolderId = existingProjectFolder.id;
+      } else {
+        const { data: newProjectFolder, error: createProjectErr } = await userClient
+          .from('folders')
+          .insert({
+            company_id: companyId,
+            name: projectFolderName,
+            parent_id: proyectosFolderId,
+            project_id: projectId,
+            department_id: null
+          })
+          .select('id')
+          .single();
+
+        if (createProjectErr || !newProjectFolder) {
+          throw new Error('Error al crear la carpeta del proyecto: ' + (createProjectErr?.message || 'Unknown error'));
+        }
+        projectFolderId = newProjectFolder.id;
+      }
+
+      // 4. Find or create department folder under the project folder
+      const deptFolderName = formatDeptName(department);
+      const { data: existingDeptFolder } = await userClient
+        .from('folders')
+        .select('id')
+        .eq('company_id', companyId)
+        .eq('parent_id', projectFolderId)
+        .eq('project_id', projectId)
+        .eq('name', deptFolderName)
+        .limit(1)
+        .maybeSingle();
+
+      if (existingDeptFolder) {
+        resolvedFolderId = existingDeptFolder.id;
+      } else {
+        const { data: newDeptFolder, error: createDeptErr } = await userClient
+          .from('folders')
+          .insert({
+            company_id: companyId,
+            name: deptFolderName,
+            parent_id: projectFolderId,
+            project_id: projectId,
+            department_id: department || null
+          })
+          .select('id')
+          .single();
+
+        if (createDeptErr || !newDeptFolder) {
+          throw new Error('Error al crear la carpeta del departamento: ' + (createDeptErr?.message || 'Unknown error'));
+        }
+        resolvedFolderId = newDeptFolder.id;
+      }
+
+    } else {
+      // Find or create default folder node (inventory or general)
+      const folderName = inventoryItemId 
+        ? `Inventario - ${inventoryItemId}` 
+        : (department ? formatDeptName(department) : 'General');
+
+      const { data: existingFolder } = await userClient
+        .from('folders')
+        .select('id')
+        .eq('company_id', companyId)
+        .eq('name', folderName)
+        .is('project_id', null)
+        .is('parent_id', null)
+        .limit(1)
+        .maybeSingle();
+
+      if (existingFolder) {
+        resolvedFolderId = existingFolder.id;
+      } else {
+        const { data: newFolder, error: folderCreateErr } = await userClient
+          .from('folders')
+          .insert({
+            company_id: companyId,
+            name: folderName,
+            project_id: null,
+            parent_id: null,
+            department_id: department || null
+          })
+          .select('id')
+          .single();
+
+        if (!folderCreateErr && newFolder) {
+          resolvedFolderId = newFolder.id;
+        } else if (folderCreateErr) {
+          throw new Error('Error al crear carpeta raíz por defecto: ' + folderCreateErr.message);
+        }
+      }
+    }
+
     // Build physical file structure
     let targetDir = `/var/lib/solar-hub-storage/tenants/${companyId}`;
-    if (projectId) {
-      const deptFolder = department ? department.trim().toLowerCase() : 'general';
-      targetDir = path.join(targetDir, 'projects', projectId, deptFolder);
-    } else if (inventoryItemId) {
-      targetDir = path.join(targetDir, 'inventory', inventoryItemId);
-    } else if (department) {
-      targetDir = path.join(targetDir, department.trim().toLowerCase());
+    if (resolvedFolderId) {
+      const segments = await getPhysicalPathForFolder(userClient, resolvedFolderId, companyId);
+      const sanitizedSegments = segments.map(sanitizePathSegment);
+      targetDir = path.join(targetDir, ...sanitizedSegments);
     } else {
       targetDir = path.join(targetDir, 'general');
     }
@@ -195,45 +391,6 @@ app.post('/api/storage/upload', authMiddleware, upload.single('file'), async (re
 
     // Write file binary buffer to disk
     fs.writeFileSync(physicalPath, req.file.buffer);
-
-    // Manage folders table indexation
-    let resolvedFolderId: string | null = null;
-    if (folderId) {
-      resolvedFolderId = folderId;
-    } else {
-      // Find or create default folder node
-      const folderName = inventoryItemId 
-        ? `Inventario - ${inventoryItemId}` 
-        : (department || 'General');
-
-      const { data: existingFolder } = await userClient
-        .from('folders')
-        .select('id')
-        .eq('company_id', companyId)
-        .eq('name', folderName)
-        .eq('project_id', projectId || null)
-        .limit(1)
-        .maybeSingle();
-
-      if (existingFolder) {
-        resolvedFolderId = existingFolder.id;
-      } else {
-        const { data: newFolder, error: folderCreateErr } = await userClient
-          .from('folders')
-          .insert({
-            company_id: companyId,
-            name: folderName,
-            project_id: projectId || null,
-            department_id: department || null
-          })
-          .select('id')
-          .single();
-
-        if (!folderCreateErr && newFolder) {
-          resolvedFolderId = newFolder.id;
-        }
-      }
-    }
 
     // Insert metadata record in Supabase
     const { data: newDoc, error: docError } = await userClient
