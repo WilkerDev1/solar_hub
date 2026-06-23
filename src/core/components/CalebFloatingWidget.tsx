@@ -1,13 +1,15 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Bot, X, Send, Terminal, RefreshCw, Plus, MessageSquare } from 'lucide-react';
+import { Bot, X, Send, Terminal, RefreshCw, Plus, MessageSquare, Paperclip, FileText, Download } from 'lucide-react';
 import { supabase } from '@/core/database/supabase';
+import { uploadDocument } from '@/core/services/documents';
 
 interface Message {
   role: 'user' | 'caleb';
   text: string;
   timestamp: Date;
+  attachment?: { id: string; name: string } | null;
 }
 
 export default function CalebFloatingWidget() {
@@ -15,7 +17,50 @@ export default function CalebFloatingWidget() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [uploadingFile, setUploadingFile] = useState(false);
+  const [attachedFile, setAttachedFile] = useState<{ id: string; name: string } | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  interface FileLink {
+    id: string;
+    name: string;
+    url: string;
+  }
+
+  const extractStorageFiles = (text: string): FileLink[] => {
+    if (!text) return [];
+    const regex = /\/api\/storage\/file\/([a-f0-9\-]+)(?:\?[^)]*name=([^&\s\)]+)|(?:\?[^)\s]*))?/gi;
+    const files: FileLink[] = [];
+    let match;
+    while ((match = regex.exec(text)) !== null) {
+      const id = match[1];
+      let name = match[2] ? decodeURIComponent(match[2]) : 'archivo';
+      name = name.replace(/['"()]/g, '');
+      files.push({
+        id,
+        name,
+        url: match[0]
+      });
+    }
+    return files;
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadingFile(true);
+    try {
+      const doc = await uploadDocument(file, null, null, 'Caleb');
+      setAttachedFile({ id: doc.id, name: doc.name });
+    } catch (err: any) {
+      alert(`Error al subir archivo: ${err.message}`);
+    } finally {
+      setUploadingFile(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
 
   // Scroll to bottom helper
   const scrollToBottom = () => {
@@ -85,13 +130,15 @@ export default function CalebFloatingWidget() {
 
   const handleSend = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    if (!input.trim() || loading) return;
+    if ((!input.trim() && !attachedFile) || loading || uploadingFile) return;
 
     const userMessage = input.trim();
+    const sentAttachment = attachedFile;
     setInput('');
+    setAttachedFile(null);
     setLoading(true);
 
-    const newMessages = [...messages, { role: 'user', text: userMessage, timestamp: new Date() }] as Message[];
+    const newMessages = [...messages, { role: 'user', text: userMessage || `[Archivo enviado: ${sentAttachment?.name}]`, timestamp: new Date(), attachment: sentAttachment }] as Message[];
     saveMessages(newMessages);
 
     // Get current Supabase session JWT
@@ -102,14 +149,23 @@ export default function CalebFloatingWidget() {
     const placeholderMsg: Message[] = [...newMessages, { role: 'caleb', text: '', timestamp: new Date() }];
     saveMessages(placeholderMsg);
 
+    const promptText = sentAttachment
+      ? `[Archivo Adjunto: "${sentAttachment.name}" (ID: ${sentAttachment.id})] ${userMessage}`
+      : userMessage;
+
     try {
       const response = await fetch('/api/caleb', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          prompt: userMessage,
+          prompt: promptText,
           userJwt,
-          history: messages.slice(-10).map(m => ({ role: m.role, content: m.text }))
+          history: messages.slice(-10).map(m => {
+            const content = m.attachment 
+              ? `[Archivo Adjunto: "${m.attachment.name}" (ID: ${m.attachment.id})] ${m.text}` 
+              : m.text;
+            return { role: m.role, content };
+          })
         })
       });
 
@@ -230,6 +286,7 @@ export default function CalebFloatingWidget() {
                   </div>
                 );
               }
+              const files = extractStorageFiles(msg.text);
               return (
                 <div key={idx} className={`flex space-x-2 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                   {msg.role === 'caleb' && (
@@ -237,12 +294,58 @@ export default function CalebFloatingWidget() {
                       C
                     </div>
                   )}
-                  <div className={`max-w-[80%] p-3 rounded-lg text-xs leading-relaxed border${
+                  <div className={`max-w-[80%] p-3 rounded-lg text-xs leading-relaxed border ${
                     msg.role === 'user'
                       ? 'bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-850 text-zinc-800 dark:text-white'
                       : 'bg-zinc-50 dark:bg-zinc-950/40 border-zinc-200 dark:border-zinc-800 text-emerald-300'
                   }`}>
                     <div className="whitespace-pre-wrap">{msg.text}</div>
+
+                    {/* Visual file cards for documents parsed from message text */}
+                    {files.map((file, fIdx) => (
+                      <div 
+                        key={fIdx} 
+                        className="mt-2.5 flex items-center justify-between p-2 rounded bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-800 dark:text-zinc-200 shadow-sm"
+                      >
+                        <div className="flex items-center space-x-2 overflow-hidden">
+                          <FileText className="h-5 w-5 text-emerald-500 shrink-0" />
+                          <div className="text-left overflow-hidden">
+                            <div className="text-[10px] font-bold truncate">{file.name}</div>
+                          </div>
+                        </div>
+                        <a
+                          href={file.url}
+                          download={file.name}
+                          className="ml-3 shrink-0 flex items-center justify-center p-1.5 rounded bg-emerald-600 hover:bg-emerald-700 text-white transition-colors cursor-pointer"
+                          title="Descargar archivo"
+                        >
+                          <Download className="h-3 w-3" />
+                        </a>
+                      </div>
+                    ))}
+
+                    {/* User's uploaded file attachment pill */}
+                    {msg.role === 'user' && msg.attachment && (
+                      <div 
+                        className="mt-2.5 flex items-center justify-between p-2 rounded bg-zinc-50 dark:bg-zinc-950/40 border border-zinc-200 dark:border-zinc-850 text-zinc-700 dark:text-zinc-300 shadow-sm"
+                      >
+                        <div className="flex items-center space-x-2 overflow-hidden">
+                          <FileText className="h-5 w-5 text-zinc-400 shrink-0" />
+                          <div className="text-left overflow-hidden">
+                            <div className="text-[10px] font-semibold truncate">{msg.attachment.name}</div>
+                          </div>
+                        </div>
+                        <a
+                          href={`/api/storage/file/${msg.attachment.id}?name=${encodeURIComponent(msg.attachment.name)}`}
+                          download={msg.attachment.name}
+                          className="ml-3 shrink-0 flex items-center justify-center p-1.5 rounded bg-zinc-200 hover:bg-zinc-300 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-255 transition-colors cursor-pointer"
+                          title="Descargar archivo"
+                        >
+                          <Download className="h-3 w-3" />
+                        </a>
+                      </div>
+                    )}
+
                     <div className="text-[8px] text-zinc-500 mt-1.5 text-right">
                       {msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
                     </div>
@@ -269,20 +372,62 @@ export default function CalebFloatingWidget() {
             </button>
           </div>
 
+          {/* Attachment Preview Area */}
+          {attachedFile && (
+            <div className="px-4 py-1.5 bg-zinc-100 dark:bg-zinc-900 border-t border-zinc-200/80 dark:border-zinc-808 flex items-center justify-between text-[10px] text-zinc-650 dark:text-zinc-350 shrink-0">
+              <div className="flex items-center space-x-1.5 truncate">
+                <FileText className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
+                <span className="font-semibold truncate">{attachedFile.name}</span>
+                <span className="text-[9px] text-zinc-500">(Adjunto)</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setAttachedFile(null)}
+                className="p-1 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800 text-zinc-500 hover:text-red-500 transition-colors cursor-pointer"
+                title="Quitar archivo adjunto"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </div>
+          )}
+          {uploadingFile && (
+            <div className="px-4 py-1.5 bg-zinc-100 dark:bg-zinc-900 border-t border-zinc-200/80 dark:border-zinc-808 flex items-center space-x-1.5 text-[10px] text-zinc-500 shrink-0">
+              <RefreshCw className="h-3 w-3 animate-spin text-emerald-500" />
+              <span>Subiendo a Naski...</span>
+            </div>
+          )}
+
           {/* Input Form */}
-          <form onSubmit={handleSend} className="p-3 bg-white dark:bg-zinc-900 border-t border-zinc-200/80 dark:border-zinc-800/80 flex gap-2 shrink-0">
+          <form onSubmit={handleSend} className="p-3 bg-white dark:bg-zinc-900 border-t border-zinc-200/80 dark:border-zinc-800/80 flex gap-2 shrink-0 items-center">
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleFileChange}
+              className="hidden"
+              accept=".txt,.csv,.json,.md,.pdf,.png,.jpg,.jpeg"
+            />
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={loading || uploadingFile}
+              className="h-9 w-9 rounded-lg flex items-center justify-center border border-zinc-200 dark:border-zinc-800 bg-zinc-100 dark:bg-zinc-850 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-800 hover:text-emerald-500 dark:hover:text-emerald-400 disabled:opacity-50 transition-all cursor-pointer shrink-0"
+              title="Adjuntar documento"
+            >
+              <Paperclip className="h-4 w-4" />
+            </button>
+
             <input
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
               placeholder="Instrucción a Caleb..."
-              className="flex-1 bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-emerald-600 font-mono text-zinc-800 dark:text-white placeholder-zinc-700"
+              className="flex-1 bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-emerald-600 font-mono text-zinc-800 dark:text-white placeholder-zinc-700 h-9"
               disabled={loading}
             />
             <button
               type="submit"
-              disabled={loading || !input.trim()}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white px-3 rounded-lg flex items-center justify-center disabled:opacity-50 transition-colors cursor-pointer"
+              disabled={loading || uploadingFile || (!input.trim() && !attachedFile)}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white h-9 px-3 rounded-lg flex items-center justify-center disabled:opacity-50 transition-colors cursor-pointer shrink-0 font-bold"
             >
               {loading ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
             </button>

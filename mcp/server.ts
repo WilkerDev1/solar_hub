@@ -6,6 +6,10 @@ import {
 } from "@modelcontextprotocol/sdk/types.js";
 import { createClient } from "@supabase/supabase-js";
 import { Database } from "../src/core/database/types.js";
+import fs from "fs";
+import path from "path";
+import crypto from "crypto";
+import { execSync } from "child_process";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "http://127.0.0.1:54321";
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
@@ -37,6 +41,57 @@ async function getSupabaseClient(userJwt?: string) {
     return client;
   }
   return createClient<Database>(supabaseUrl, supabaseKey);
+}
+
+// Sanitizes folder/file names to make them safe as directory names on Unix/Windows
+function sanitizePathSegment(name: string): string {
+  return name.replace(/[\\\/\?\*\:\|\"<>]/g, '_').trim();
+}
+
+// Formats department names nicely for the Supabase folders UI
+function formatDeptName(dept?: string): string {
+  if (!dept) return 'General';
+  const trimmed = dept.trim();
+  return trimmed.charAt(0).toUpperCase() + trimmed.slice(1).toLowerCase();
+}
+
+// Traverses up from folderId using parent_id to build the physical path segments
+async function getPhysicalPathForFolder(
+  client: any,
+  folderId: string,
+  companyId: string
+): Promise<string[]> {
+  const segments: string[] = [];
+  let currentId: string | null = folderId;
+
+  while (currentId) {
+    const response = await client
+      .from('folders')
+      .select('name, parent_id')
+      .eq('id', currentId)
+      .eq('company_id', companyId)
+      .limit(1)
+      .maybeSingle();
+
+    if (response.error || !response.data) break;
+
+    const folder = response.data as { name: string; parent_id: string | null };
+    segments.unshift(folder.name);
+    currentId = folder.parent_id;
+  }
+
+  return segments;
+}
+
+function getMimeType(filename: string): string {
+  const ext = path.extname(filename).toLowerCase();
+  if (ext === '.csv') return 'text/csv';
+  if (ext === '.txt') return 'text/plain';
+  if (ext === '.json') return 'application/json';
+  if (ext === '.md') return 'text/markdown';
+  if (ext === '.html') return 'text/html';
+  if (ext === '.pdf') return 'application/pdf';
+  return 'application/octet-stream';
 }
 
 server.setRequestHandler(ListToolsRequestSchema, async () => {
@@ -193,6 +248,33 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             stock: { type: "number", description: "Nuevo stock físico disponible (opcional)" }
           },
           required: ["userJwt", "itemId"]
+        }
+      },
+      {
+        name: "read_document_content",
+        description: "Leer el contenido de un archivo/documento en Naski utilizando su UUID. Soporta archivos de texto plano (.txt, .csv, .json, .md, etc.) y documentos PDF.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            userJwt: { type: "string", description: "JWT del usuario activo para RLS" },
+            documentId: { type: "string", description: "UUID del documento a leer" }
+          },
+          required: ["userJwt", "documentId"]
+        }
+      },
+      {
+        name: "write_document_file",
+        description: "Crear un nuevo documento/archivo físico en Naski y registrar sus metadatos en Supabase. Útil para guardar reportes, listas de materiales, etc.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            userJwt: { type: "string", description: "JWT del usuario activo" },
+            name: { type: "string", description: "Nombre del archivo a crear (ej: reporte_bom.csv)" },
+            content: { type: "string", description: "Contenido textual a escribir en el archivo" },
+            projectId: { type: "string", description: "UUID de la obra/proyecto asociado (opcional)" },
+            department: { type: "string", description: "Departamento/Área operativa (opcional)" }
+          },
+          required: ["userJwt", "name", "content"]
         }
       }
     ]
@@ -707,6 +789,302 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           content: [{
             type: "text",
             text: `Material "${updatedItem.name}" (SKU: ${updatedItem.sku}) actualizado con éxito.`
+          }]
+        };
+      }
+
+      case "read_document_content": {
+        const documentId = args.documentId as string;
+
+        // Fetch document metadata
+        const { data: doc, error: docError } = await db
+          .from("documents")
+          .select("name, physical_path, mime_type, company_id")
+          .eq("id", documentId)
+          .single();
+
+        if (docError || !doc) {
+          throw new Error(`No se encontró el documento o no tiene permisos de acceso: ${docError?.message || 'No encontrado'}`);
+        }
+
+        // Verify physical file exists
+        if (!fs.existsSync(doc.physical_path)) {
+          throw new Error(`El archivo físico no se encuentra en el servidor: ${doc.physical_path}`);
+        }
+
+        // Read content
+        const ext = path.extname(doc.name).toLowerCase();
+        const isPdf = doc.mime_type === "application/pdf" || ext === ".pdf";
+
+        if (isPdf) {
+          try {
+            // Run pdftotext from poppler-utils
+            const textContent = execSync(`pdftotext "${doc.physical_path}" -`, {
+              encoding: "utf-8",
+              maxBuffer: 10 * 1024 * 1024
+            });
+            return {
+              content: [{
+                type: "text",
+                text: textContent || "[El PDF no contiene texto extraíble]"
+              }]
+            };
+          } catch (execErr: any) {
+            throw new Error(`Error al extraer texto del PDF con pdftotext: ${execErr.message}`);
+          }
+        } else {
+          // Check if it's text-like (best effort)
+          const isText = doc.mime_type.startsWith("text/") || 
+                         [".csv", ".json", ".txt", ".md", ".xml", ".html", ".js", ".ts", ".ini", ".cfg", ".yaml", ".yml"].includes(ext);
+
+          if (!isText) {
+            return {
+              content: [{
+                type: "text",
+                text: `El tipo de archivo (${doc.mime_type}) no es un formato de texto plano compatible para lectura directa. Datos: Nombre: ${doc.name}, Ruta: ${doc.physical_path}`
+              }]
+            };
+          }
+
+          try {
+            const textContent = fs.readFileSync(doc.physical_path, "utf-8");
+            return {
+              content: [{
+                type: "text",
+                text: textContent
+              }]
+            };
+          } catch (readErr: any) {
+            throw new Error(`Error al leer el archivo de texto: ${readErr.message}`);
+          }
+        }
+      }
+
+      case "write_document_file": {
+        const name = args.name as string;
+        const content = args.content as string;
+        const projectId = (args.projectId as string) || null;
+        const department = (args.department as string) || null;
+
+        // Verify session and fetch company
+        const { data: { user }, error: userError } = await db.auth.getUser();
+        if (userError || !user) throw new Error("Token de sesión inválido o expirado.");
+
+        const { data: profile, error: profileErr } = await db
+          .from("profiles")
+          .select("company_id")
+          .eq("id", user.id)
+          .single();
+
+        if (profileErr || !profile?.company_id) {
+          throw new Error("No se pudo obtener la compañía del perfil del usuario.");
+        }
+
+        const companyId = profile.company_id;
+
+        // Manage folders table indexation
+        let resolvedFolderId: string | null = null;
+        if (projectId) {
+          // 1. Find or create master folder "proyectos" (parent_id = null, project_id = null)
+          const { data: existingProyectosFolder } = await db
+            .from('folders')
+            .select('id')
+            .eq('company_id', companyId)
+            .eq('name', 'proyectos')
+            .is('parent_id', null)
+            .is('project_id', null)
+            .limit(1)
+            .maybeSingle();
+
+          let proyectosFolderId: string;
+          if (existingProyectosFolder) {
+            proyectosFolderId = existingProyectosFolder.id;
+          } else {
+            const { data: newProyectosFolder, error: createProyectosErr } = await db
+              .from('folders')
+              .insert({
+                company_id: companyId,
+                name: 'proyectos',
+                parent_id: null,
+                project_id: null,
+                department_id: null
+              })
+              .select('id')
+              .single();
+
+            if (createProyectosErr || !newProyectosFolder) {
+              throw new Error('Error al crear la carpeta maestra proyectos: ' + (createProyectosErr?.message || 'Unknown error'));
+            }
+            proyectosFolderId = newProyectosFolder.id;
+          }
+
+          // 2. Resolve project name
+          let projectFolderName = projectId; // Fallback
+          try {
+            const { data: projectData, error: projectErr } = await db
+              .from('projects')
+              .select('name')
+              .eq('id', projectId)
+              .limit(1)
+              .maybeSingle();
+
+            if (!projectErr && projectData?.name) {
+              projectFolderName = projectData.name.trim();
+            }
+          } catch (err) {
+            console.error('Error fetching project name, using UUID instead:', err);
+          }
+
+          // 3. Find or create project folder under "proyectos"
+          const { data: existingProjectFolder } = await db
+            .from('folders')
+            .select('id')
+            .eq('company_id', companyId)
+            .eq('parent_id', proyectosFolderId)
+            .eq('project_id', projectId)
+            .limit(1)
+            .maybeSingle();
+
+          let projectFolderId: string;
+          if (existingProjectFolder) {
+            projectFolderId = existingProjectFolder.id;
+          } else {
+            const { data: newProjectFolder, error: createProjectErr } = await db
+              .from('folders')
+              .insert({
+                company_id: companyId,
+                name: projectFolderName,
+                parent_id: proyectosFolderId,
+                project_id: projectId,
+                department_id: null
+              })
+              .select('id')
+              .single();
+
+            if (createProjectErr || !newProjectFolder) {
+              throw new Error('Error al crear la carpeta del proyecto: ' + (createProjectErr?.message || 'Unknown error'));
+            }
+            projectFolderId = newProjectFolder.id;
+          }
+
+          // 4. Find or create department folder under the project folder
+          const deptFolderName = formatDeptName(department || 'Caleb');
+          const { data: existingDeptFolder } = await db
+            .from('folders')
+            .select('id')
+            .eq('company_id', companyId)
+            .eq('parent_id', projectFolderId)
+            .eq('project_id', projectId)
+            .eq('name', deptFolderName)
+            .limit(1)
+            .maybeSingle();
+
+          if (existingDeptFolder) {
+            resolvedFolderId = existingDeptFolder.id;
+          } else {
+            const { data: newDeptFolder, error: createDeptErr } = await db
+              .from('folders')
+              .insert({
+                company_id: companyId,
+                name: deptFolderName,
+                parent_id: projectFolderId,
+                project_id: projectId,
+                department_id: department || 'Caleb'
+              })
+              .select('id')
+              .single();
+
+            if (createDeptErr || !newDeptFolder) {
+              throw new Error('Error al crear la carpeta del departamento: ' + (createDeptErr?.message || 'Unknown error'));
+            }
+            resolvedFolderId = newDeptFolder.id;
+          }
+        } else {
+          // Non-project: Create under folder "Caleb" or general
+          const folderName = department ? formatDeptName(department) : "Caleb";
+          const { data: existingFolder } = await db
+            .from('folders')
+            .select('id')
+            .eq('company_id', companyId)
+            .eq('name', folderName)
+            .is('project_id', null)
+            .is('parent_id', null)
+            .limit(1)
+            .maybeSingle();
+
+          if (existingFolder) {
+            resolvedFolderId = existingFolder.id;
+          } else {
+            const { data: newFolder, error: folderCreateErr } = await db
+              .from('folders')
+              .insert({
+                company_id: companyId,
+                name: folderName,
+                project_id: null,
+                parent_id: null,
+                department_id: department || 'Caleb'
+              })
+              .select('id')
+              .single();
+
+            if (!folderCreateErr && newFolder) {
+              resolvedFolderId = newFolder.id;
+            } else if (folderCreateErr) {
+              throw new Error('Error al crear la carpeta Caleb: ' + folderCreateErr.message);
+            }
+          }
+        }
+
+        // Build physical path
+        let targetDir = `/var/lib/solar-hub-storage/tenants/${companyId}`;
+        if (resolvedFolderId) {
+          const segments = await getPhysicalPathForFolder(db, resolvedFolderId, companyId);
+          const sanitizedSegments = segments.map(sanitizePathSegment);
+          targetDir = path.join(targetDir, ...sanitizedSegments);
+        } else {
+          targetDir = path.join(targetDir, 'general');
+        }
+
+        // Recursively create target folder
+        if (!fs.existsSync(targetDir)) {
+          fs.mkdirSync(targetDir, { recursive: true });
+        }
+
+        // Generate safe unique filename
+        const safeName = path.basename(name);
+        const fileExt = path.extname(safeName);
+        const uniqueFilename = `${crypto.randomUUID()}${fileExt}`;
+        const physicalPath = path.join(targetDir, uniqueFilename);
+
+        // Write file text content to disk
+        fs.writeFileSync(physicalPath, content, 'utf-8');
+
+        // Insert metadata record in Supabase
+        const { data: newDoc, error: docError } = await db
+          .from('documents')
+          .insert({
+            company_id: companyId,
+            folder_id: resolvedFolderId,
+            name: safeName,
+            physical_path: physicalPath,
+            file_size: Buffer.byteLength(content, 'utf-8'),
+            mime_type: getMimeType(safeName),
+            uploaded_by: user.id
+          })
+          .select()
+          .single();
+
+        if (docError) {
+          if (fs.existsSync(physicalPath)) {
+            fs.unlinkSync(physicalPath);
+          }
+          throw new Error('Error al registrar el metadato del archivo en Supabase: ' + docError.message);
+        }
+
+        return {
+          content: [{
+            type: "text",
+            text: `Archivo guardado con éxito. URL de descarga: /api/storage/file/${newDoc.id}?name=${encodeURIComponent(newDoc.name)}`
           }]
         };
       }
