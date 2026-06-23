@@ -266,6 +266,31 @@ server.setRequestHandler(types_js_1.ListToolsRequestSchema, async () => {
                     },
                     required: ["userJwt", "name", "content"]
                 }
+            },
+            {
+                name: "list_project_documents",
+                description: "Listar carpetas y documentos asociados a un proyecto o dentro de una carpeta específica. Útil para navegar y explorar la base de datos de archivos.",
+                inputSchema: {
+                    type: "object",
+                    properties: {
+                        userJwt: { type: "string", description: "JWT del usuario activo" },
+                        projectId: { type: "string", description: "UUID del proyecto/obra (opcional)" },
+                        folderId: { type: "string", description: "UUID de la carpeta específica (opcional)" }
+                    },
+                    required: ["userJwt"]
+                }
+            },
+            {
+                name: "search_documents",
+                description: "Buscar documentos en el sistema por coincidencia de nombre.",
+                inputSchema: {
+                    type: "object",
+                    properties: {
+                        userJwt: { type: "string", description: "JWT del usuario activo" },
+                        query: { type: "string", description: "Texto a buscar en el nombre del archivo (búsqueda parcial insensible a mayúsculas)" }
+                    },
+                    required: ["userJwt", "query"]
+                }
             }
         ]
     };
@@ -1025,6 +1050,105 @@ server.setRequestHandler(types_js_1.CallToolRequestSchema, async (request) => {
                     content: [{
                             type: "text",
                             text: `Archivo guardado con éxito. URL de descarga: /api/storage/file/${newDoc.id}?name=${encodeURIComponent(newDoc.name)}`
+                        }]
+                };
+            }
+            case "list_project_documents": {
+                const projectId = args.projectId || null;
+                const folderId = args.folderId || null;
+                // Fetch companyId of user
+                const { data: { user }, error: userError } = await db.auth.getUser();
+                if (userError || !user)
+                    throw new Error("Token de sesión inválido o expirado.");
+                const { data: profile } = await db
+                    .from("profiles")
+                    .select("company_id")
+                    .eq("id", user.id)
+                    .single();
+                if (!profile?.company_id)
+                    throw new Error("Compañía no encontrada.");
+                const companyId = profile.company_id;
+                let queryFolders = db.from("folders").select("id, name, parent_id, project_id, department_id").eq("company_id", companyId);
+                let queryDocs = db.from("documents").select("id, folder_id, name, file_size, mime_type, created_at").eq("company_id", companyId);
+                if (folderId) {
+                    queryFolders = queryFolders.eq("parent_id", folderId);
+                    queryDocs = queryDocs.eq("folder_id", folderId);
+                }
+                else if (projectId) {
+                    queryFolders = queryFolders.eq("project_id", projectId);
+                    const { data: projectFolders } = await db
+                        .from("folders")
+                        .select("id")
+                        .eq("company_id", companyId)
+                        .eq("project_id", projectId);
+                    const folderIds = (projectFolders || []).map((f) => f.id);
+                    if (folderIds.length > 0) {
+                        queryDocs = queryDocs.in("folder_id", folderIds);
+                    }
+                    else {
+                        queryDocs = queryDocs.is("folder_id", null);
+                    }
+                }
+                else {
+                    queryFolders = queryFolders.is("parent_id", null).is("project_id", null);
+                    queryDocs = queryDocs.is("folder_id", null);
+                }
+                const { data: folders, error: foldersErr } = await queryFolders;
+                if (foldersErr)
+                    throw foldersErr;
+                const { data: documents, error: docsErr } = await queryDocs;
+                if (docsErr)
+                    throw docsErr;
+                return {
+                    content: [{
+                            type: "text",
+                            text: JSON.stringify({
+                                folders: folders || [],
+                                documents: (documents || []).map((d) => ({
+                                    id: d.id,
+                                    name: d.name,
+                                    folder_id: d.folder_id,
+                                    file_size: d.file_size,
+                                    mime_type: d.mime_type,
+                                    created_at: d.created_at,
+                                    download_url: `/api/storage/file/${d.id}?name=${encodeURIComponent(d.name)}`
+                                }))
+                            }, null, 2)
+                        }]
+                };
+            }
+            case "search_documents": {
+                const query = args.query;
+                const { data: { user }, error: userError } = await db.auth.getUser();
+                if (userError || !user)
+                    throw new Error("Token de sesión inválido o expirado.");
+                const { data: profile } = await db
+                    .from("profiles")
+                    .select("company_id")
+                    .eq("id", user.id)
+                    .single();
+                if (!profile?.company_id)
+                    throw new Error("Compañía no encontrada.");
+                const companyId = profile.company_id;
+                const { data: documents, error } = await db
+                    .from("documents")
+                    .select("id, folder_id, name, file_size, mime_type, created_at")
+                    .eq("company_id", companyId)
+                    .ilike("name", `%${query}%`);
+                if (error)
+                    throw error;
+                return {
+                    content: [{
+                            type: "text",
+                            text: JSON.stringify((documents || []).map((d) => ({
+                                id: d.id,
+                                name: d.name,
+                                folder_id: d.folder_id,
+                                file_size: d.file_size,
+                                mime_type: d.mime_type,
+                                created_at: d.created_at,
+                                download_url: `/api/storage/file/${d.id}?name=${encodeURIComponent(d.name)}`
+                            })), null, 2)
                         }]
                 };
             }
