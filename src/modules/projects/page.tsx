@@ -44,7 +44,7 @@ export default function ProjectsModule() {
   const [clients, setClients] = useState<any[]>([]);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [creating, setCreating] = useState(false);
-  const [newProj, setNewProj] = useState({ client_id: '', name: '', phase: 'Diseño', capacity: '', location: '', status: 'en_progreso' });
+  const [newProj, setNewProj] = useState({ client_id: '', name: '', phase: 'Diseno', capacity: '', location: '', status: 'en_progreso' });
 
   const loadData = async () => {
     setLoading(true);
@@ -98,7 +98,7 @@ export default function ProjectsModule() {
     try {
       await createProject(newProj);
       setIsCreateOpen(false);
-      setNewProj({ client_id: '', name: '', phase: 'Diseño', capacity: '', location: '', status: 'en_progreso' });
+      setNewProj({ client_id: '', name: '', phase: 'Diseno', capacity: '', location: '', status: 'en_progreso' });
       loadData();
     } catch (err: any) {
       alert(err.message);
@@ -167,11 +167,10 @@ export default function ProjectsModule() {
                   <div className="space-y-1">
                     <label className="text-xs font-bold text-zinc-455 dark:text-zinc-400 uppercase">Fase</label>
                     <select value={newProj.phase} onChange={e => setNewProj({...newProj, phase: e.target.value})} className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-250 dark:border-zinc-800 rounded-lg p-2.5 text-sm text-zinc-700 dark:text-zinc-300 focus:border-emerald-500 outline-none transition-colors">
-                      <option>Diseño</option>
-                      <option>Permisos</option>
-                      <option>Ingeniería</option>
-                      <option>Construcción</option>
-                      <option>Puesta en Marcha</option>
+                      <option value="Diseno">Diseño</option>
+                      <option value="Permisos">Permisos</option>
+                      <option value="Construccion">Construcción</option>
+                      <option value="Operacion">Operación</option>
                     </select>
                   </div>
                   <div className="space-y-1">
@@ -224,11 +223,10 @@ export default function ProjectsModule() {
           className="bg-zinc-50 dark:bg-zinc-950 border border-zinc-250 dark:border-zinc-800 rounded-lg px-3 py-2 text-sm text-zinc-700 dark:text-zinc-300 focus:border-emerald-500 outline-none transition-colors"
         >
           <option value="todas">Todas las Fases</option>
-          <option value="Diseño">Diseño</option>
+          <option value="Diseno">Diseño</option>
           <option value="Permisos">Permisos</option>
-          <option value="Ingeniería">Ingeniería</option>
-          <option value="Construcción">Construcción</option>
-          <option value="Puesta en Marcha">Puesta en Marcha</option>
+          <option value="Construccion">Construcción</option>
+          <option value="Operacion">Operación</option>
         </select>
       </div>
 
@@ -320,8 +318,12 @@ export default function ProjectsModule() {
                       <span className="font-semibold text-zinc-700 dark:text-zinc-300 font-mono">{proj.capacity || 'N/D'}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="font-mono text-zinc-450 dark:text-zinc-550 text-[10px]">Fase actual:</span>
-                      <span className="font-semibold text-emerald-600 dark:text-emerald-400">{proj.phase}</span>
+                      <span className="font-mono text-zinc-455 dark:text-zinc-550 text-[10px]">Fase actual:</span>
+                      <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+                        {proj.phase === 'Diseno' ? 'Diseño' :
+                         proj.phase === 'Construccion' ? 'Construcción' :
+                         proj.phase === 'Operacion' ? 'Operación' : proj.phase}
+                      </span>
                     </div>
                   </div>
                 </div>

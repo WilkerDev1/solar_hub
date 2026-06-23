@@ -624,7 +624,11 @@ export default function ClientProfileModule({ clientId }: ClientProfileModulePro
                           <span className="text-xs text-zinc-600 italic">Sin GPS</span>
                         )}
                       </td>
-                      <td className="p-4 text-xs font-semibold text-emerald-400">{proj.phase}</td>
+                      <td className="p-4 text-xs font-semibold text-emerald-400">
+                        {proj.phase === 'Diseno' ? 'Diseño' :
+                         proj.phase === 'Construccion' ? 'Construcción' :
+                         proj.phase === 'Operacion' ? 'Operación' : proj.phase}
+                      </td>
                       <td className="p-4">
                         <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold uppercase ${
                           proj.status === 'completado' ? 'bg-emerald-950/50 text-emerald-400 border border-emerald-500/20' :
@@ -647,7 +651,11 @@ export default function ClientProfileModule({ clientId }: ClientProfileModulePro
                   <div className="flex justify-between items-start">
                     <div className="min-w-0 flex-1">
                       <h4 className="font-bold text-zinc-800 dark:text-white text-sm truncate">{proj.name}</h4>
-                      <p className="text-[10px] text-emerald-400 mt-1 uppercase font-semibold">Fase: {proj.phase}</p>
+                      <p className="text-[10px] text-emerald-400 mt-1 uppercase font-semibold">
+                        Fase: {proj.phase === 'Diseno' ? 'Diseño' :
+                               proj.phase === 'Construccion' ? 'Construcción' :
+                               proj.phase === 'Operacion' ? 'Operación' : proj.phase}
+                      </p>
                     </div>
                     <span className={`text-[9px] font-extrabold uppercase px-2 py-0.5 rounded-md border ${
                       proj.status === 'completado' ? 'bg-emerald-950/80 text-emerald-300 border-emerald-500/30' :

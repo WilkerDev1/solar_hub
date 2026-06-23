@@ -703,7 +703,11 @@ export default function ProjectDetailModule({ projectId }: { projectId: string }
           <div className="bg-zinc-900/40 border border-zinc-900 p-4 rounded-xl flex items-center justify-between">
             <div>
               <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-wider font-mono">Fase Actual</span>
-              <p className="text-sm font-bold text-emerald-400 mt-0.5">{project.phase}</p>
+              <p className="text-sm font-bold text-emerald-400 mt-0.5">
+                {project.phase === 'Diseno' ? 'Diseño' :
+                 project.phase === 'Construccion' ? 'Construcción' :
+                 project.phase === 'Operacion' ? 'Operación' : project.phase}
+              </p>
             </div>
             <Layers className="h-4 w-4 text-emerald-400/60" />
           </div>
@@ -1630,13 +1634,16 @@ export default function ProjectDetailModule({ projectId }: { projectId: string }
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
                   <label className="text-[10px] font-bold text-zinc-500 uppercase font-mono">Fase Operativa</label>
-                  <input
-                    type="text"
+                  <select
                     value={settingsForm.phase}
                     onChange={e => setSettingsForm({...settingsForm, phase: e.target.value})}
-                    className="w-full bg-zinc-900 border border-zinc-800 rounded-xl p-2.5 text-xs text-white focus:outline-none"
-                    placeholder="Ej. Construcción, Permisos..."
-                  />
+                    className="w-full bg-zinc-900 border border-zinc-800 rounded-xl p-2.5 text-xs text-white focus:outline-none font-semibold"
+                  >
+                    <option value="Diseno">Diseño</option>
+                    <option value="Permisos">Permisos</option>
+                    <option value="Construccion">Construcción</option>
+                    <option value="Operacion">Operación</option>
+                  </select>
                 </div>
                 <div className="space-y-1">
                   <label className="text-[10px] font-bold text-zinc-500 uppercase font-mono">Estado</label>
@@ -1645,10 +1652,10 @@ export default function ProjectDetailModule({ projectId }: { projectId: string }
                     onChange={e => setSettingsForm({...settingsForm, status: e.target.value})}
                     className="w-full bg-zinc-900 border border-zinc-800 rounded-xl p-2.5 text-xs text-white focus:outline-none font-semibold"
                   >
-                    <option value="diseño">Diseño</option>
                     <option value="en_progreso">En Progreso</option>
                     <option value="demorado">Demorado</option>
                     <option value="completado">Completado</option>
+                    <option value="archivado">Archivado</option>
                   </select>
                 </div>
               </div>
