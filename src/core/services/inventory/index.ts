@@ -512,9 +512,22 @@ export async function getInventoryAnalytics(): Promise<InventoryAnalytics> {
 /**
  * Upload image physical file to local storage bucket.
  */
-export async function uploadInventoryItemImage(file: File): Promise<string> {
-  const fileExt = file.name.split('.').pop();
-  const fileName = `item_${Math.random().toString(36).substring(2)}.${fileExt}`;
+export async function uploadInventoryItemImage(file: File, targetName?: string): Promise<string> {
+  const fileExt = file.name.split('.').pop() || 'png';
+  let prefix = 'item';
+  if (targetName) {
+    prefix = targetName
+      .toLowerCase()
+      .trim()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "") // remove accents/tildes
+      .replace(/[^a-z0-9\-_]/g, '_')  // replace non-safe chars with underscore
+      .replace(/__+/g, '_')           // collapse multiple underscores
+      .replace(/^_+|_+$/g, '');       // trim leading/trailing underscores
+    if (!prefix) prefix = 'item';
+  }
+  const randomSuffix = Math.random().toString(36).substring(2, 8);
+  const fileName = `${prefix}_${randomSuffix}.${fileExt}`;
   const filePath = `items/${fileName}`;
 
   const { error: uploadError } = await supabase.storage

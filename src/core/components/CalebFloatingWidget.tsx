@@ -46,6 +46,24 @@ export default function CalebFloatingWidget() {
     return files;
   };
 
+  const extractImageUrls = (text: string): string[] => {
+    if (!text) return [];
+    const regex = /(https?:\/\/[^\s$.?#].[^\s]*\.(?:png|jpg|jpeg|gif|webp|svg)(?:\?[^\s]*)?)/gi;
+    const urls: string[] = [];
+    let match;
+    while ((match = regex.exec(text)) !== null) {
+      if (!urls.includes(match[0])) {
+        urls.push(match[0]);
+      }
+    }
+    return urls;
+  };
+
+  const isImageFile = (name: string): boolean => {
+    const ext = name.split('.').pop()?.toLowerCase();
+    return !!ext && ['png', 'jpg', 'jpeg', 'webp', 'gif', 'svg'].includes(ext);
+  };
+
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -287,6 +305,7 @@ export default function CalebFloatingWidget() {
                 );
               }
               const files = extractStorageFiles(msg.text);
+              const imageUrls = extractImageUrls(msg.text);
               return (
                 <div key={idx} className={`flex space-x-2 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                   {msg.role === 'caleb' && (
@@ -301,48 +320,84 @@ export default function CalebFloatingWidget() {
                   }`}>
                     <div className="whitespace-pre-wrap">{msg.text}</div>
 
-                    {/* Visual file cards for documents parsed from message text */}
-                    {files.map((file, fIdx) => (
-                      <div 
-                        key={fIdx} 
-                        className="mt-2.5 flex items-center justify-between p-2 rounded bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-800 dark:text-zinc-200 shadow-sm"
-                      >
-                        <div className="flex items-center space-x-2 overflow-hidden">
-                          <FileText className="h-5 w-5 text-emerald-500 shrink-0" />
-                          <div className="text-left overflow-hidden">
-                            <div className="text-[10px] font-bold truncate">{file.name}</div>
-                          </div>
-                        </div>
-                        <a
-                          href={file.url}
-                          download={file.name}
-                          className="ml-3 shrink-0 flex items-center justify-center p-1.5 rounded bg-emerald-600 hover:bg-emerald-700 text-white transition-colors cursor-pointer"
-                          title="Descargar archivo"
-                        >
-                          <Download className="h-3 w-3" />
-                        </a>
+                    {/* Inline images parsed from absolute HTTP/HTTPS URLs */}
+                    {imageUrls.map((url, imgIdx) => (
+                      <div key={imgIdx} className="mt-2.5 rounded-lg overflow-hidden border border-zinc-200/50 dark:border-zinc-800/50 bg-black/5 dark:bg-black/20 max-w-full">
+                        <img 
+                          src={url} 
+                          alt="Vista previa" 
+                          className="w-full h-auto object-contain max-h-40 hover:scale-[1.02] transition-transform duration-200"
+                          onError={(e) => {
+                            (e.target as HTMLElement).style.display = 'none';
+                          }}
+                        />
                       </div>
                     ))}
 
-                    {/* User's uploaded file attachment pill */}
-                    {msg.role === 'user' && msg.attachment && (
-                      <div 
-                        className="mt-2.5 flex items-center justify-between p-2 rounded bg-zinc-50 dark:bg-zinc-950/40 border border-zinc-200 dark:border-zinc-850 text-zinc-700 dark:text-zinc-300 shadow-sm"
-                      >
-                        <div className="flex items-center space-x-2 overflow-hidden">
-                          <FileText className="h-5 w-5 text-zinc-400 shrink-0" />
-                          <div className="text-left overflow-hidden">
-                            <div className="text-[10px] font-semibold truncate">{msg.attachment.name}</div>
+                    {/* Visual file cards for documents parsed from message text */}
+                    {files.map((file, fIdx) => {
+                      const isImage = isImageFile(file.name);
+                      return (
+                        <div key={fIdx} className="mt-2.5 space-y-1.5">
+                          {isImage && (
+                            <div className="rounded-lg overflow-hidden border border-zinc-200/50 dark:border-zinc-800/50 bg-black/5 dark:bg-black/20 max-w-full">
+                              <img 
+                                src={file.url} 
+                                alt={file.name} 
+                                className="w-full h-auto object-contain max-h-40 hover:scale-[1.02] transition-transform duration-200"
+                              />
+                            </div>
+                          )}
+                          <div className="flex items-center justify-between p-2 rounded bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-800 dark:text-zinc-200 shadow-sm">
+                            <div className="flex items-center space-x-2 overflow-hidden">
+                              <FileText className="h-5 w-5 text-emerald-500 shrink-0" />
+                              <div className="text-left overflow-hidden">
+                                <div className="text-[10px] font-bold truncate">{file.name}</div>
+                              </div>
+                            </div>
+                            <a
+                              href={file.url}
+                              download={file.name}
+                              className="ml-3 shrink-0 flex items-center justify-center p-1.5 rounded bg-emerald-600 hover:bg-emerald-700 text-white transition-colors cursor-pointer"
+                              title="Descargar archivo"
+                            >
+                              <Download className="h-3 w-3" />
+                            </a>
                           </div>
                         </div>
-                        <a
-                          href={`/api/storage/file/${msg.attachment.id}?name=${encodeURIComponent(msg.attachment.name)}`}
-                          download={msg.attachment.name}
-                          className="ml-3 shrink-0 flex items-center justify-center p-1.5 rounded bg-zinc-200 hover:bg-zinc-300 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-255 transition-colors cursor-pointer"
-                          title="Descargar archivo"
+                      );
+                    })}
+
+                    {/* User's uploaded file attachment pill */}
+                    {msg.role === 'user' && msg.attachment && (
+                      <div className="mt-2.5 space-y-1.5">
+                        {isImageFile(msg.attachment.name) && (
+                          <div className="rounded-lg overflow-hidden border border-zinc-200/50 dark:border-zinc-850/50 bg-black/5 dark:bg-black/20 max-w-full">
+                            <img 
+                              src={`/api/storage/file/${msg.attachment.id}?name=${encodeURIComponent(msg.attachment.name)}`}
+                              alt={msg.attachment.name} 
+                              className="w-full h-auto object-contain max-h-40 hover:scale-[1.02] transition-transform duration-200"
+                            />
+                          </div>
+                        )}
+                        <div 
+                          className="flex items-center justify-between p-2 rounded bg-zinc-50 dark:bg-zinc-955/40 border border-zinc-200 dark:border-zinc-850 text-zinc-700 dark:text-zinc-300 shadow-sm"
                         >
-                          <Download className="h-3 w-3" />
-                        </a>
+                          <div className="flex items-center space-x-2 overflow-hidden">
+                            <FileText className="h-5 w-5 text-zinc-400 shrink-0" />
+                            <div className="text-left overflow-hidden">
+                              <div className="text-[10px] font-semibold truncate">{msg.attachment.name}</div>
+                            </div>
+                          </div>
+                          <a
+                            href={`/api/storage/file/${msg.attachment.id}?name=${encodeURIComponent(msg.attachment.name)}`}
+                            download={msg.attachment.name}
+                            className="ml-3 shrink-0 flex items-center justify-center p-1.5 rounded bg-zinc-200 hover:bg-zinc-300 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-255 transition-colors cursor-pointer"
+                            title="Descargar archivo"
+                          >
+                            <Download className="h-3 w-3" />
+                          </a>
+                        </div>
                       </div>
                     )}
 

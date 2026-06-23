@@ -174,7 +174,7 @@ export default function InventoryModule() {
       const urls: string[] = [];
       for (let i = 0; i < e.target.files.length; i++) {
         const file = e.target.files[i];
-        const url = await uploadInventoryItemImage(file);
+        const url = await uploadInventoryItemImage(file, addForm.name);
         urls.push(url);
       }
       setUploadedImages(prev => [...prev, ...urls]);
@@ -300,7 +300,7 @@ export default function InventoryModule() {
       const urls: string[] = [];
       for (let i = 0; i < e.target.files.length; i++) {
         const file = e.target.files[i];
-        const url = await uploadInventoryItemImage(file);
+        const url = await uploadInventoryItemImage(file, selectedItem?.name);
         urls.push(url);
       }
       setEditForm(prev => ({
