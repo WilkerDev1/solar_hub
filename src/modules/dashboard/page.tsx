@@ -17,6 +17,7 @@ import {
   ArrowRight,
   TrendingUp
 } from 'lucide-react';
+import MobileDashboard from './MobileDashboard';
 
 interface ActivityItem {
   id: string;
@@ -233,17 +234,26 @@ export default function DashboardModule() {
   };
 
   return (
-    <div className="space-y-6">
-      <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight text-zinc-800 dark:text-zinc-50 transition-colors">
-            Buenos días, {user?.fullName || 'Usuario'}
-          </h1>
-          <p className="text-zinc-500 dark:text-zinc-400 mt-1 transition-colors">
-            Resumen operativo de tu planta solar y tareas del día.
-          </p>
-        </div>
-      </header>
+    <>
+      <div className="block md:hidden">
+        <MobileDashboard 
+          user={user} 
+          stats={stats} 
+          myTasks={myTasks} 
+          activities={activities} 
+        />
+      </div>
+      <div className="hidden md:block space-y-6">
+        <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight text-zinc-800 dark:text-zinc-50 transition-colors">
+              Buenos días, {user?.fullName || 'Usuario'}
+            </h1>
+            <p className="text-zinc-500 dark:text-zinc-400 mt-1 transition-colors">
+              Resumen operativo de tu planta solar y tareas del día.
+            </p>
+          </div>
+        </header>
 
       {/* Quick stats grid */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -436,6 +446,7 @@ export default function DashboardModule() {
           </div>
         </div>
       </div>
-    </div>
+      </div>
+    </>
   );
 }

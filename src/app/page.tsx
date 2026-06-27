@@ -330,10 +330,35 @@ export function DashboardShell({ children, defaultTab = 'dashboard' }: Dashboard
         </header>
 
         {/* Module Content */}
-        <main className="flex-1 p-4 md:p-8 overflow-y-auto z-10">
+        <main className="flex-1 p-4 pb-24 md:p-8 md:pb-8 overflow-y-auto z-10">
           {children ? children : renderModule()}
         </main>
       </div>
+
+      {/* Mobile Bottom Navigation Bar */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/90 dark:bg-zinc-950/90 backdrop-blur-lg border-t border-zinc-200 dark:border-zinc-800 flex justify-around items-center h-16 pb-safe">
+        {[
+          { id: 'dashboard', label: 'Inicio', icon: LayoutDashboard },
+          { id: 'tasks', label: 'Tareas', icon: ClipboardList },
+          { id: 'inventory', label: 'Inventario', icon: Package },
+          { id: 'documents', label: 'Docs', icon: FolderOpen }
+        ].map((item) => {
+          const Icon = item.icon;
+          const isActive = !children && activeTab === item.id;
+          return (
+            <button
+              key={item.id}
+              onClick={() => handleTabClick(item.id as any)}
+              className={`flex flex-col items-center justify-center w-full h-full space-y-1 ${
+                isActive ? 'text-emerald-600 dark:text-emerald-400' : 'text-zinc-500 dark:text-zinc-400'
+              }`}
+            >
+              <Icon className="h-5 w-5" />
+              <span className="text-[10px] font-medium">{item.label}</span>
+            </button>
+          );
+        })}
+      </nav>
       {/* Global Floating AI Agent Widget */}
       <CalebFloatingWidget />
     </div>

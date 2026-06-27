@@ -1,5 +1,6 @@
 import { supabase } from '@/core/database/supabase';
 import { Database } from '@/core/database/types';
+import { uploadDocument } from '@/core/services/documents';
 
 export type InventoryCategoryRow = Database['public']['Tables']['inventory_categories']['Row'];
 export type InventoryTagRow = Database['public']['Tables']['inventory_tags']['Row'];
@@ -509,41 +510,106 @@ export async function getInventoryAnalytics(): Promise<InventoryAnalytics> {
   };
 }
 
-/**
- * Upload image physical file to local storage bucket.
- */
 export async function uploadInventoryItemImage(file: File, targetName?: string): Promise<string> {
-  const fileExt = file.name.split('.').pop() || 'png';
-  let prefix = 'item';
-  if (targetName) {
-    prefix = targetName
-      .toLowerCase()
-      .trim()
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "") // remove accents/tildes
-      .replace(/[^a-z0-9\-_]/g, '_')  // replace non-safe chars with underscore
-      .replace(/__+/g, '_')           // collapse multiple underscores
-      .replace(/^_+|_+$/g, '');       // trim leading/trailing underscores
-    if (!prefix) prefix = 'item';
-  }
-  const randomSuffix = Math.random().toString(36).substring(2, 8);
-  const fileName = `${prefix}_${randomSuffix}.${fileExt}`;
-  const filePath = `items/${fileName}`;
+  const companyId = await getUserCompanyId();
 
-  const { error: uploadError } = await supabase.storage
-    .from('inventory-images')
-    .upload(filePath, file);
+  // 1. Get or create root folder "almacen"
+  let { data: almacenFolder, error: err1 } = await supabase
+    .from('folders')
+    .select('id')
+    .eq('company_id', companyId)
+    .eq('name', 'almacen')
+    .is('parent_id', null)
+    .is('project_id', null)
+    .maybeSingle();
 
-  if (uploadError) {
-    console.error('Error uploading inventory image:', uploadError);
-    throw new Error('No se pudo subir la imagen al Storage. Asegúrate de que el Bucket "inventory-images" existe.');
+  if (err1) {
+    console.error('Error finding almacen folder:', err1);
   }
 
-  const { data: publicUrlData } = supabase.storage
-    .from('inventory-images')
-    .getPublicUrl(filePath);
+  if (!almacenFolder) {
+    const { data: newAlmacen, error: createErr } = await supabase
+      .from('folders')
+      .insert({
+        company_id: companyId,
+        name: 'almacen',
+        parent_id: null,
+        project_id: null
+      })
+      .select('id')
+      .single();
+    if (createErr || !newAlmacen) {
+      throw new Error('Error al crear la carpeta almacen: ' + (createErr?.message || ''));
+    }
+    almacenFolder = newAlmacen;
+  }
 
-  return publicUrlData.publicUrl;
+  // 2. Get or create folder for targetName (item's name) under "almacen"
+  const itemName = targetName ? targetName.trim() : 'item';
+  let { data: itemFolder, error: err2 } = await supabase
+    .from('folders')
+    .select('id')
+    .eq('company_id', companyId)
+    .eq('parent_id', almacenFolder.id)
+    .eq('name', itemName)
+    .maybeSingle();
+
+  if (err2) {
+    console.error('Error finding item folder:', err2);
+  }
+
+  if (!itemFolder) {
+    const { data: newItemFolder, error: createErr2 } = await supabase
+      .from('folders')
+      .insert({
+        company_id: companyId,
+        name: itemName,
+        parent_id: almacenFolder.id,
+        project_id: null
+      })
+      .select('id')
+      .single();
+    if (createErr2 || !newItemFolder) {
+      throw new Error('Error al crear la carpeta del item: ' + (createErr2?.message || ''));
+    }
+    itemFolder = newItemFolder;
+  }
+
+  // 3. Get or create folder "fotos" under item folder
+  let { data: fotosFolder, error: err3 } = await supabase
+    .from('folders')
+    .select('id')
+    .eq('company_id', companyId)
+    .eq('parent_id', itemFolder.id)
+    .eq('name', 'fotos')
+    .maybeSingle();
+
+  if (err3) {
+    console.error('Error finding fotos folder:', err3);
+  }
+
+  if (!fotosFolder) {
+    const { data: newFotosFolder, error: createErr3 } = await supabase
+      .from('folders')
+      .insert({
+        company_id: companyId,
+        name: 'fotos',
+        parent_id: itemFolder.id,
+        project_id: null
+      })
+      .select('id')
+      .single();
+    if (createErr3 || !newFotosFolder) {
+      throw new Error('Error al crear la carpeta fotos: ' + (createErr3?.message || ''));
+    }
+    fotosFolder = newFotosFolder;
+  }
+
+  // 4. Upload document to the fotos folder
+  const doc = await uploadDocument(file, fotosFolder.id);
+
+  // Return download/stream url
+  return `/api/storage/file/${doc.id}?name=${encodeURIComponent(doc.name)}`;
 }
 
 /**

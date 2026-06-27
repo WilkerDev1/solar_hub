@@ -269,13 +269,13 @@ server.setRequestHandler(types_js_1.ListToolsRequestSchema, async () => {
             },
             {
                 name: "list_project_documents",
-                description: "Listar carpetas y documentos asociados a un proyecto o dentro de una carpeta específica. Útil para navegar y explorar la base de datos de archivos.",
+                description: "Listar carpetas y documentos raíz globales, asociados a un proyecto o dentro de una carpeta específica. Si se omite projectId y folderId, listará las carpetas raíz globales de la organización (tales como 'almacen', 'proyectos' y 'Caleb'). Útil para explorar libremente todo el repositorio de archivos.",
                 inputSchema: {
                     type: "object",
                     properties: {
-                        userJwt: { type: "string", description: "JWT del usuario activo" },
-                        projectId: { type: "string", description: "UUID del proyecto/obra (opcional)" },
-                        folderId: { type: "string", description: "UUID de la carpeta específica (opcional)" }
+                        userJwt: { type: "string", description: "JWT del usuario activo para RLS" },
+                        projectId: { type: "string", description: "UUID del proyecto/obra (opcional, omitir para raíz global)" },
+                        folderId: { type: "string", description: "UUID de la carpeta específica (opcional, omitir para raíz global o de proyecto)" }
                     },
                     required: ["userJwt"]
                 }

@@ -2,6 +2,8 @@ import { Suspense } from 'react';
 import ProjectDetailModule from '@/modules/projects/[id]/page';
 import { DashboardShell } from '@/app/page';
 
+export function generateStaticParams() { return [{ id: '1' }]; }
+
 interface PageProps {
   params: Promise<{ id: string }>;
 }

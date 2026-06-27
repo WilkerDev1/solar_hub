@@ -9,13 +9,14 @@ import {
   updateTaskStatus, 
   updateTask,
   uploadTaskEvidence,
+  deleteTask,
   TaskRow 
 } from '@/core/services/tasks';
 import { 
   ClipboardList, CheckSquare, Square, ExternalLink, Loader2, AlertCircle,
   FolderKanban, Building, Package, Database, Calendar, Plus, List, LayoutGrid,
   Filter, SlidersHorizontal, ChevronLeft, ChevronRight, User, Tag, Clock, ArrowRight, X,
-  FileText, Upload
+  FileText, Upload, Edit, Trash2
 } from 'lucide-react';
 import { Button } from '@/core/components/ui/button';
 import { supabase } from '@/core/database/supabase';
@@ -53,6 +54,7 @@ export default function TasksModule() {
   // Selected task for drawer
   const [selectedTask, setSelectedTask] = useState<TaskRow | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [drawerEditMode, setDrawerEditMode] = useState(false);
 
   // Create Task form state
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -156,13 +158,32 @@ export default function TasksModule() {
   // Open task drawer
   const handleOpenTask = (task: TaskRow) => {
     setSelectedTask(task);
+    setDrawerEditMode(false);
     setIsDrawerOpen(true);
+  };
+
+  const handleEditTask = (task: TaskRow) => {
+    setSelectedTask(task);
+    setDrawerEditMode(true);
+    setIsDrawerOpen(true);
+  };
+
+  const handleDeleteTask = async (task: TaskRow) => {
+    if (!confirm(`¿Está seguro que desea eliminar la tarea "${task.title}"?`)) return;
+    try {
+      await deleteTask(task.id);
+      alert('Tarea eliminada con éxito.');
+      loadTasks();
+    } catch (err: any) {
+      alert('Error al eliminar tarea: ' + err.message);
+    }
   };
 
   // Close drawer and reload
   const handleDrawerClose = () => {
     setIsDrawerOpen(false);
     setSelectedTask(null);
+    setDrawerEditMode(false);
   };
 
   // Toggle checkbox status for 'check' tasks
@@ -493,7 +514,7 @@ export default function TasksModule() {
                         className="flex-1 overflow-y-auto space-y-3 pb-4 min-h-[150px] scrollbar-thin scrollbar-thumb-zinc-900"
                       >
                         {getColumnTasks('pendiente').map((task, index) => (
-                          <KanbanCard key={task.id} task={task} index={index} onClick={() => handleOpenTask(task)} handleToggleCheck={handleToggleCheck} employees={employees} onUploadSuccess={loadTasks} documentMap={documentMap} />
+                          <KanbanCard key={task.id} task={task} index={index} onClick={() => handleOpenTask(task)} handleToggleCheck={handleToggleCheck} employees={employees} onUploadSuccess={loadTasks} documentMap={documentMap} onEditClick={handleEditTask} onDeleteClick={handleDeleteTask} />
                         ))}
                         {provided.placeholder}
                       </div>
@@ -518,7 +539,7 @@ export default function TasksModule() {
                         className="flex-1 overflow-y-auto space-y-3 pb-4 min-h-[150px] scrollbar-thin scrollbar-thumb-zinc-900"
                       >
                         {getColumnTasks('en_progreso').map((task, index) => (
-                          <KanbanCard key={task.id} task={task} index={index} onClick={() => handleOpenTask(task)} handleToggleCheck={handleToggleCheck} employees={employees} onUploadSuccess={loadTasks} documentMap={documentMap} />
+                          <KanbanCard key={task.id} task={task} index={index} onClick={() => handleOpenTask(task)} handleToggleCheck={handleToggleCheck} employees={employees} onUploadSuccess={loadTasks} documentMap={documentMap} onEditClick={handleEditTask} onDeleteClick={handleDeleteTask} />
                         ))}
                         {provided.placeholder}
                       </div>
@@ -543,7 +564,7 @@ export default function TasksModule() {
                         className="flex-1 overflow-y-auto space-y-3 pb-4 min-h-[150px] scrollbar-thin scrollbar-thumb-zinc-900"
                       >
                         {getColumnTasks('completada').map((task, index) => (
-                          <KanbanCard key={task.id} task={task} index={index} onClick={() => handleOpenTask(task)} handleToggleCheck={handleToggleCheck} employees={employees} onUploadSuccess={loadTasks} documentMap={documentMap} />
+                          <KanbanCard key={task.id} task={task} index={index} onClick={() => handleOpenTask(task)} handleToggleCheck={handleToggleCheck} employees={employees} onUploadSuccess={loadTasks} documentMap={documentMap} onEditClick={handleEditTask} onDeleteClick={handleDeleteTask} />
                         ))}
                         {provided.placeholder}
                       </div>
@@ -890,6 +911,7 @@ export default function TasksModule() {
         user={user}
         projects={projects}
         onTaskUpdated={loadTasks}
+        initialEditMode={drawerEditMode}
       />
     </div>
   );
@@ -904,9 +926,11 @@ interface KanbanCardProps {
   employees: any[];
   onUploadSuccess?: () => void;
   documentMap?: Record<string, { name: string; mime_type: string }>;
+  onEditClick?: (task: TaskRow) => void;
+  onDeleteClick?: (task: TaskRow) => void;
 }
 
-function KanbanCard({ task, index, onClick, handleToggleCheck, employees, onUploadSuccess, documentMap = {} }: KanbanCardProps) {
+function KanbanCard({ task, index, onClick, handleToggleCheck, employees, onUploadSuccess, documentMap = {}, onEditClick, onDeleteClick }: KanbanCardProps) {
   const isCompleted = task.status === 'completada';
   const isDeliverable = ['entregable', 'reporte', 'evidencia'].includes(task.task_type);
   const [uploading, setUploading] = useState(false);
@@ -994,11 +1018,33 @@ function KanbanCard({ task, index, onClick, handleToggleCheck, employees, onUplo
                 )}
               </div>
 
-              {/* Task Type Icon */}
-              <div className="shrink-0 text-zinc-500">
-                {task.task_type === 'evidencia' && <FileText className="h-3 w-3 text-purple-400" />}
-                {task.task_type === 'reporte' && <FileText className="h-3 w-3 text-blue-400" />}
-                {task.task_type === 'entregable' && <FileText className="h-3 w-3 text-yellow-400" />}
+              {/* Task Actions (Edit/Delete) & Type Icon */}
+              <div className="flex items-center gap-1.5 shrink-0 text-zinc-550">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onEditClick?.(task);
+                  }}
+                  className="p-1 rounded hover:bg-zinc-900 hover:text-zinc-350 transition-colors"
+                  title="Editar Tarea"
+                >
+                  <Edit className="h-3 w-3" />
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDeleteClick?.(task);
+                  }}
+                  className="p-1 rounded hover:bg-zinc-900 hover:text-rose-400 transition-colors"
+                  title="Eliminar Tarea"
+                >
+                  <Trash2 className="h-3 w-3" />
+                </button>
+                {task.task_type === 'evidencia' && <FileText className="h-3 w-3 text-purple-400 shrink-0" />}
+                {task.task_type === 'reporte' && <FileText className="h-3 w-3 text-blue-400 shrink-0" />}
+                {task.task_type === 'entregable' && <FileText className="h-3 w-3 text-yellow-400 shrink-0" />}
               </div>
             </div>
 

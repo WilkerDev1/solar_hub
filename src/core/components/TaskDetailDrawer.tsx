@@ -17,9 +17,10 @@ interface TaskDetailDrawerProps {
   isOpen: boolean;
   onClose: () => void;
   employees: any[];
-  user: any;
-  projects: any[];
+  user?: any;
+  projects?: any[];
   onTaskUpdated: () => void;
+  initialEditMode?: boolean;
 }
 
 export default function TaskDetailDrawer({
@@ -28,13 +29,14 @@ export default function TaskDetailDrawer({
   onClose,
   employees,
   user,
-  projects,
-  onTaskUpdated
+  projects = [],
+  onTaskUpdated,
+  initialEditMode = false
 }: TaskDetailDrawerProps) {
   const { roles } = useAuth();
   // Tabs: 'requisitos' | 'entregables' | 'subtareas' | 'actividad' | 'comentarios'
   const [activeTab, setActiveTab] = useState<'requisitos' | 'entregables' | 'subtareas' | 'actividad' | 'comentarios'>('comentarios');
-  const [editMode, setEditMode] = useState(false);
+  const [editMode, setEditMode] = useState(initialEditMode);
   const [loading, setLoading] = useState(false);
 
   // Form Edit State
@@ -124,9 +126,9 @@ export default function TaskDetailDrawer({
       setAuditComments((task as any).audit_comments || '');
       setLocalAuditComments('');
       setShowChangesForm(false);
-      setEditMode(false);
+      setEditMode(initialEditMode);
     }
-  }, [task, isOpen]);
+  }, [task, isOpen, initialEditMode]);
 
   if (!isOpen || !task) return null;
 

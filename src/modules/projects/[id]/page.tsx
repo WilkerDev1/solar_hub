@@ -8,12 +8,12 @@ import {
   Shield, Check, X, AlertTriangle, Plus, Settings, Eye, FileSpreadsheet,
   Calendar as CalendarIcon, User, Layers, Share2, ClipboardList, Info,
   Package, Search, Download, Trash2, ArrowRight, CheckSquare, Square,
-  ChevronLeft, ChevronRight
+  ChevronLeft, ChevronRight, Edit
 } from 'lucide-react';
 import { supabase } from '@/core/database/supabase';
 import { Button } from '@/core/components/ui/button';
 import { RequirePermission } from '@/core/auth/AuthContext';
-import { getTasks, createTask, updateTaskStatus, auditTaskStatus, uploadTaskEvidence, TaskRow } from '@/core/services/tasks';
+import { getTasks, createTask, updateTaskStatus, auditTaskStatus, uploadTaskEvidence, deleteTask, TaskRow } from '@/core/services/tasks';
 import { getProjectMessages, sendMessage, ProjectMessageRow } from '@/core/services/chat';
 import { 
   getProjectMaterials, 
@@ -57,6 +57,7 @@ export default function ProjectDetailModule({ projectId }: { projectId: string }
   const [documentMap, setDocumentMap] = useState<Record<string, { name: string; mime_type: string }>>({});
   const [selectedTask, setSelectedTask] = useState<TaskRow | null>(null);
   const [isTaskDrawerOpen, setIsTaskDrawerOpen] = useState(false);
+  const [taskDrawerEditMode, setTaskDrawerEditMode] = useState(false);
 
   // Chat States
   const [messages, setMessages] = useState<ProjectMessageRow[]>([]);
@@ -391,6 +392,29 @@ export default function ProjectDetailModule({ projectId }: { projectId: string }
     } catch (err: any) {
       loadProjectTasks();
       alert('Error: ' + err.message);
+    }
+  };
+
+  const handleOpenTask = (task: TaskRow) => {
+    setSelectedTask(task);
+    setTaskDrawerEditMode(false);
+    setIsTaskDrawerOpen(true);
+  };
+
+  const handleEditTask = (task: TaskRow) => {
+    setSelectedTask(task);
+    setTaskDrawerEditMode(true);
+    setIsTaskDrawerOpen(true);
+  };
+
+  const handleDeleteTask = async (task: TaskRow) => {
+    if (!confirm(`¿Está seguro que desea eliminar la tarea "${task.title}"?`)) return;
+    try {
+      await deleteTask(task.id);
+      alert('Tarea eliminada con éxito.');
+      loadProjectTasks();
+    } catch (err: any) {
+      alert('Error al eliminar tarea: ' + err.message);
     }
   };
 
@@ -919,7 +943,7 @@ export default function ProjectDetailModule({ projectId }: { projectId: string }
                           className="flex-1 overflow-y-auto space-y-3 pb-4 min-h-[150px] scrollbar-thin scrollbar-thumb-zinc-900"
                         >
                           {getColumnTasks('pendiente').map((task, index) => (
-                            <KanbanCard key={task.id} task={task} index={index} onClick={() => { setSelectedTask(task); setIsTaskDrawerOpen(true); }} handleToggleCheck={handleToggleCheck} employees={employees} onUploadSuccess={loadProjectTasks} documentMap={documentMap} />
+                            <KanbanCard key={task.id} task={task} index={index} onClick={() => handleOpenTask(task)} handleToggleCheck={handleToggleCheck} employees={employees} onUploadSuccess={loadProjectTasks} documentMap={documentMap} onEditClick={handleEditTask} onDeleteClick={handleDeleteTask} />
                           ))}
                           {provided.placeholder}
                         </div>
@@ -943,7 +967,7 @@ export default function ProjectDetailModule({ projectId }: { projectId: string }
                           className="flex-1 overflow-y-auto space-y-3 pb-4 min-h-[150px] scrollbar-thin scrollbar-thumb-zinc-900"
                         >
                           {getColumnTasks('en_progreso').map((task, index) => (
-                            <KanbanCard key={task.id} task={task} index={index} onClick={() => { setSelectedTask(task); setIsTaskDrawerOpen(true); }} handleToggleCheck={handleToggleCheck} employees={employees} onUploadSuccess={loadProjectTasks} documentMap={documentMap} />
+                            <KanbanCard key={task.id} task={task} index={index} onClick={() => handleOpenTask(task)} handleToggleCheck={handleToggleCheck} employees={employees} onUploadSuccess={loadProjectTasks} documentMap={documentMap} onEditClick={handleEditTask} onDeleteClick={handleDeleteTask} />
                           ))}
                           {provided.placeholder}
                         </div>
@@ -967,7 +991,7 @@ export default function ProjectDetailModule({ projectId }: { projectId: string }
                           className="flex-1 overflow-y-auto space-y-3 pb-4 min-h-[150px] scrollbar-thin scrollbar-thumb-zinc-900"
                         >
                           {getColumnTasks('completada').map((task, index) => (
-                            <KanbanCard key={task.id} task={task} index={index} onClick={() => { setSelectedTask(task); setIsTaskDrawerOpen(true); }} handleToggleCheck={handleToggleCheck} employees={employees} onUploadSuccess={loadProjectTasks} documentMap={documentMap} />
+                            <KanbanCard key={task.id} task={task} index={index} onClick={() => handleOpenTask(task)} handleToggleCheck={handleToggleCheck} employees={employees} onUploadSuccess={loadProjectTasks} documentMap={documentMap} onEditClick={handleEditTask} onDeleteClick={handleDeleteTask} />
                           ))}
                           {provided.placeholder}
                         </div>
@@ -2004,11 +2028,16 @@ export default function ProjectDetailModule({ projectId }: { projectId: string }
       <TaskDetailDrawer
         task={selectedTask}
         isOpen={isTaskDrawerOpen}
-        onClose={() => { setIsTaskDrawerOpen(false); setSelectedTask(null); }}
+        onClose={() => { 
+          setIsTaskDrawerOpen(false); 
+          setSelectedTask(null); 
+          setTaskDrawerEditMode(false);
+        }}
         employees={employees}
         user={currentUser}
         projects={[project]}
         onTaskUpdated={loadProjectTasks}
+        initialEditMode={taskDrawerEditMode}
       />
     </div>
   );
@@ -2023,9 +2052,11 @@ interface KanbanCardProps {
   employees: any[];
   onUploadSuccess?: () => void;
   documentMap?: Record<string, { name: string; mime_type: string }>;
+  onEditClick?: (task: TaskRow) => void;
+  onDeleteClick?: (task: TaskRow) => void;
 }
 
-function KanbanCard({ task, index, onClick, handleToggleCheck, employees, onUploadSuccess, documentMap = {} }: KanbanCardProps) {
+function KanbanCard({ task, index, onClick, handleToggleCheck, employees, onUploadSuccess, documentMap = {}, onEditClick, onDeleteClick }: KanbanCardProps) {
   const isCompleted = task.status === 'completada';
   const isDeliverable = ['entregable', 'reporte', 'evidencia'].includes(task.task_type);
   const [uploading, setUploading] = useState(false);
@@ -2112,10 +2143,33 @@ function KanbanCard({ task, index, onClick, handleToggleCheck, employees, onUplo
                 )}
               </div>
 
-              <div className="shrink-0 text-zinc-500">
-                {task.task_type === 'evidencia' && <FileText className="h-3 w-3 text-purple-400" />}
-                {task.task_type === 'reporte' && <FileText className="h-3 w-3 text-blue-400" />}
-                {task.task_type === 'entregable' && <FileText className="h-3 w-3 text-yellow-400" />}
+              {/* Task Actions (Edit/Delete) & Type Icon */}
+              <div className="flex items-center gap-1.5 shrink-0 text-zinc-550">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onEditClick?.(task);
+                  }}
+                  className="p-1 rounded hover:bg-zinc-900 hover:text-zinc-355 transition-colors"
+                  title="Editar Tarea"
+                >
+                  <Edit className="h-3 w-3" />
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDeleteClick?.(task);
+                  }}
+                  className="p-1 rounded hover:bg-zinc-900 hover:text-rose-400 transition-colors"
+                  title="Eliminar Tarea"
+                >
+                  <Trash2 className="h-3 w-3" />
+                </button>
+                {task.task_type === 'evidencia' && <FileText className="h-3 w-3 text-purple-400 shrink-0" />}
+                {task.task_type === 'reporte' && <FileText className="h-3 w-3 text-blue-400 shrink-0" />}
+                {task.task_type === 'entregable' && <FileText className="h-3 w-3 text-yellow-400 shrink-0" />}
               </div>
             </div>
 
