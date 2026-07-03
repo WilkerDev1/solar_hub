@@ -425,7 +425,7 @@ export default function ProjectDetailModule({ projectId }: { projectId: string }
     if (!destination) return;
     if (destination.droppableId === source.droppableId && destination.index === source.index) return;
 
-    const nextStatus = destination.droppableId as 'pendiente' | 'en_progreso' | 'completada';
+    const nextStatus = destination.droppableId as 'backlog' | 'pendiente' | 'en_progreso' | 'bloqueada' | 'completada';
     setTasks(prev => prev.map(t => t.id === draggableId ? { ...t, status: nextStatus } : t));
 
     try {
@@ -448,7 +448,7 @@ export default function ProjectDetailModule({ projectId }: { projectId: string }
     return true;
   });
 
-  const getColumnTasks = (status: 'pendiente' | 'en_progreso' | 'completada') => {
+  const getColumnTasks = (status: 'backlog' | 'pendiente' | 'en_progreso' | 'bloqueada' | 'completada') => {
     return filteredTasks.filter(t => t.status === status);
   };
 
@@ -926,13 +926,37 @@ export default function ProjectDetailModule({ projectId }: { projectId: string }
               </div>
 
               <DragDropContext onDragEnd={onDragEnd}>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 h-[550px] items-stretch min-h-0">
+                <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 overflow-x-auto min-w-0 pb-4 h-[650px] items-stretch">
                   
-                  {/* Column: To Do */}
-                  <div className="bg-zinc-900/10 border border-zinc-900 rounded-2xl flex flex-col min-h-0 h-full p-4">
+                  {/* Column: Backlog */}
+                  <div className="bg-[#121214]/50 border border-zinc-800/80 rounded-2xl flex flex-col min-h-0 h-full p-3.5 border-t-2 border-t-zinc-600">
                     <div className="flex justify-between items-center mb-3 shrink-0 px-1">
-                      <span className="text-[10px] font-bold text-zinc-550 uppercase tracking-widest font-mono">Por Hacer</span>
-                      <span className="bg-zinc-900 text-zinc-400 px-2 py-0.5 rounded text-[10px] font-bold font-mono">
+                      <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest font-mono">Backlog</span>
+                      <span className="bg-[#1c1c21] text-zinc-400 px-2 py-0.5 rounded text-[10px] font-bold font-mono border border-zinc-800">
+                        {getColumnTasks('backlog').length}
+                      </span>
+                    </div>
+                    <Droppable droppableId="backlog">
+                      {(provided) => (
+                        <div
+                          ref={provided.innerRef}
+                          {...provided.droppableProps}
+                          className="flex-1 overflow-y-auto space-y-3 pb-4 min-h-[150px] scrollbar-thin scrollbar-thumb-zinc-800 pr-1"
+                        >
+                          {getColumnTasks('backlog').map((task, index) => (
+                            <KanbanCard key={task.id} task={task} index={index} onClick={() => handleOpenTask(task)} handleToggleCheck={handleToggleCheck} employees={employees} onUploadSuccess={loadProjectTasks} documentMap={documentMap} onEditClick={handleEditTask} onDeleteClick={handleDeleteTask} />
+                          ))}
+                          {provided.placeholder}
+                        </div>
+                      )}
+                    </Droppable>
+                  </div>
+
+                  {/* Column: To Do */}
+                  <div className="bg-[#121214]/50 border border-zinc-800/80 rounded-2xl flex flex-col min-h-0 h-full p-3.5 border-t-2 border-t-indigo-500">
+                    <div className="flex justify-between items-center mb-3 shrink-0 px-1">
+                      <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest font-mono">Por Hacer</span>
+                      <span className="bg-[#1c1c21] text-zinc-400 px-2 py-0.5 rounded text-[10px] font-bold font-mono border border-zinc-800">
                         {getColumnTasks('pendiente').length}
                       </span>
                     </div>
@@ -941,7 +965,7 @@ export default function ProjectDetailModule({ projectId }: { projectId: string }
                         <div
                           ref={provided.innerRef}
                           {...provided.droppableProps}
-                          className="flex-1 overflow-y-auto space-y-3 pb-4 min-h-[150px] scrollbar-thin scrollbar-thumb-zinc-900"
+                          className="flex-1 overflow-y-auto space-y-3 pb-4 min-h-[150px] scrollbar-thin scrollbar-thumb-zinc-800 pr-1"
                         >
                           {getColumnTasks('pendiente').map((task, index) => (
                             <KanbanCard key={task.id} task={task} index={index} onClick={() => handleOpenTask(task)} handleToggleCheck={handleToggleCheck} employees={employees} onUploadSuccess={loadProjectTasks} documentMap={documentMap} onEditClick={handleEditTask} onDeleteClick={handleDeleteTask} />
@@ -953,10 +977,10 @@ export default function ProjectDetailModule({ projectId }: { projectId: string }
                   </div>
 
                   {/* Column: In Progress */}
-                  <div className="bg-zinc-900/10 border border-zinc-900 rounded-2xl flex flex-col min-h-0 h-full p-4">
+                  <div className="bg-[#121214]/50 border border-zinc-800/80 rounded-2xl flex flex-col min-h-0 h-full p-3.5 border-t-2 border-t-purple-500">
                     <div className="flex justify-between items-center mb-3 shrink-0 px-1">
-                      <span className="text-[10px] font-bold text-zinc-555 uppercase tracking-widest font-mono">En Progreso</span>
-                      <span className="bg-zinc-900 text-zinc-400 px-2 py-0.5 rounded text-[10px] font-bold font-mono">
+                      <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest font-mono">En Progreso</span>
+                      <span className="bg-[#1c1c21] text-zinc-400 px-2 py-0.5 rounded text-[10px] font-bold font-mono border border-zinc-800">
                         {getColumnTasks('en_progreso').length}
                       </span>
                     </div>
@@ -965,7 +989,7 @@ export default function ProjectDetailModule({ projectId }: { projectId: string }
                         <div
                           ref={provided.innerRef}
                           {...provided.droppableProps}
-                          className="flex-1 overflow-y-auto space-y-3 pb-4 min-h-[150px] scrollbar-thin scrollbar-thumb-zinc-900"
+                          className="flex-1 overflow-y-auto space-y-3 pb-4 min-h-[150px] scrollbar-thin scrollbar-thumb-zinc-800 pr-1"
                         >
                           {getColumnTasks('en_progreso').map((task, index) => (
                             <KanbanCard key={task.id} task={task} index={index} onClick={() => handleOpenTask(task)} handleToggleCheck={handleToggleCheck} employees={employees} onUploadSuccess={loadProjectTasks} documentMap={documentMap} onEditClick={handleEditTask} onDeleteClick={handleDeleteTask} />
@@ -976,11 +1000,35 @@ export default function ProjectDetailModule({ projectId }: { projectId: string }
                     </Droppable>
                   </div>
 
-                  {/* Column: Completed */}
-                  <div className="bg-zinc-900/10 border border-zinc-900 rounded-2xl flex flex-col min-h-0 h-full p-4">
+                  {/* Column: Bloqueada */}
+                  <div className="bg-[#121214]/50 border border-zinc-800/80 rounded-2xl flex flex-col min-h-0 h-full p-3.5 border-t-2 border-t-rose-500">
                     <div className="flex justify-between items-center mb-3 shrink-0 px-1">
-                      <span className="text-[10px] font-bold text-zinc-555 uppercase tracking-widest font-mono">Finalizadas</span>
-                      <span className="bg-zinc-900 text-zinc-400 px-2 py-0.5 rounded text-[10px] font-bold font-mono">
+                      <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest font-mono">Bloqueada</span>
+                      <span className="bg-[#1c1c21] text-zinc-400 px-2 py-0.5 rounded text-[10px] font-bold font-mono border border-zinc-800">
+                        {getColumnTasks('bloqueada').length}
+                      </span>
+                    </div>
+                    <Droppable droppableId="bloqueada">
+                      {(provided) => (
+                        <div
+                          ref={provided.innerRef}
+                          {...provided.droppableProps}
+                          className="flex-1 overflow-y-auto space-y-3 pb-4 min-h-[150px] scrollbar-thin scrollbar-thumb-zinc-800 pr-1"
+                        >
+                          {getColumnTasks('bloqueada').map((task, index) => (
+                            <KanbanCard key={task.id} task={task} index={index} onClick={() => handleOpenTask(task)} handleToggleCheck={handleToggleCheck} employees={employees} onUploadSuccess={loadProjectTasks} documentMap={documentMap} onEditClick={handleEditTask} onDeleteClick={handleDeleteTask} />
+                          ))}
+                          {provided.placeholder}
+                        </div>
+                      )}
+                    </Droppable>
+                  </div>
+
+                  {/* Column: Hecha */}
+                  <div className="bg-[#121214]/50 border border-zinc-800/80 rounded-2xl flex flex-col min-h-0 h-full p-3.5 border-t-2 border-t-blue-500">
+                    <div className="flex justify-between items-center mb-3 shrink-0 px-1">
+                      <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest font-mono">Hecha</span>
+                      <span className="bg-[#1c1c21] text-zinc-400 px-2 py-0.5 rounded text-[10px] font-bold font-mono border border-zinc-800">
                         {getColumnTasks('completada').length}
                       </span>
                     </div>
@@ -989,7 +1037,7 @@ export default function ProjectDetailModule({ projectId }: { projectId: string }
                         <div
                           ref={provided.innerRef}
                           {...provided.droppableProps}
-                          className="flex-1 overflow-y-auto space-y-3 pb-4 min-h-[150px] scrollbar-thin scrollbar-thumb-zinc-900"
+                          className="flex-1 overflow-y-auto space-y-3 pb-4 min-h-[150px] scrollbar-thin scrollbar-thumb-zinc-800 pr-1"
                         >
                           {getColumnTasks('completada').map((task, index) => (
                             <KanbanCard key={task.id} task={task} index={index} onClick={() => handleOpenTask(task)} handleToggleCheck={handleToggleCheck} employees={employees} onUploadSuccess={loadProjectTasks} documentMap={documentMap} onEditClick={handleEditTask} onDeleteClick={handleDeleteTask} />
@@ -2103,6 +2151,16 @@ function KanbanCard({ task, index, onClick, handleToggleCheck, employees, onUplo
 
   const subProgress = getSubtaskProgress(task.subtasks);
 
+  const [zoomUrl, setZoomUrl] = useState<string | null>(null);
+  const [zoomName, setZoomName] = useState<string>('');
+
+  const borderAccentColor = 
+    task.area === 'legal' ? 'border-l-purple-500' :
+    task.area === 'almacen' ? 'border-l-blue-500' :
+    task.area === 'operaciones' ? 'border-l-cyan-500' :
+    task.area === 'administracion' ? 'border-l-amber-500' :
+    'border-l-emerald-500'; // general
+
   return (
     <Draggable draggableId={task.id} index={index}>
       {(provided, snapshot) => (
@@ -2111,48 +2169,55 @@ function KanbanCard({ task, index, onClick, handleToggleCheck, employees, onUplo
           {...provided.draggableProps}
           {...provided.dragHandleProps}
           onClick={onClick}
-          className={`bg-zinc-950 border p-4 rounded-xl flex flex-col justify-between hover:border-zinc-700 transition-all select-none ${
-            snapshot.isDragging ? 'shadow-2xl border-emerald-500 bg-zinc-900 scale-[1.02]' : 'border-zinc-900'
-          } ${isCompleted ? 'opacity-55' : ''}`}
+          className={`bg-[#1c1c21] border-l-4 ${borderAccentColor} border-t border-r border-b border-zinc-800/85 p-4 rounded-xl flex flex-col justify-between hover:border-zinc-700 transition-all select-none relative ${
+            snapshot.isDragging ? 'shadow-2xl border-emerald-500 bg-zinc-900 scale-[1.02]' : ''
+          } ${isCompleted ? 'opacity-65' : ''}`}
         >
-          <div className="space-y-2">
+          <div className="space-y-3">
+            {/* Audit Status Alert Banner (Requires Audit & Pending) */}
+            {task.requires_audit && task.audit_status === 'pendiente' && (
+              <div className="mb-2 bg-amber-500/10 border border-amber-500/30 text-amber-400 px-2.5 py-1.5 rounded-lg text-[9px] font-bold flex items-center gap-1.5 animate-pulse">
+                <AlertCircle className="h-3.5 w-3.5 shrink-0 text-amber-500" />
+                <span>Auditoría Pendiente (Revisar)</span>
+              </div>
+            )}
+
+            {/* Badges bar */}
             <div className="flex flex-wrap items-center justify-between gap-1.5">
               <div className="flex gap-1.5 flex-wrap">
-                <span className="bg-zinc-900 border border-zinc-800 text-[8px] font-mono font-bold uppercase tracking-wider px-1.5 py-0.5 rounded text-zinc-400">
+                <span className="bg-zinc-800 border border-zinc-700/60 text-[9px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded text-zinc-300">
                   {task.area || 'general'}
                 </span>
                 
-                <span className={`text-[8px] font-mono font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full ${
-                  (task as any).priority === 'alta' ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20' :
-                  (task as any).priority === 'media' ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' :
-                  'bg-zinc-900 text-zinc-500 border border-zinc-800'
+                <span className={`text-[9px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full ${
+                  (task as any).priority === 'alta' ? 'bg-rose-500/20 text-rose-350 border border-rose-500/30' :
+                  (task as any).priority === 'media' ? 'bg-amber-500/20 text-amber-350 border border-amber-500/30' :
+                  'bg-zinc-800 text-zinc-400 border border-zinc-700'
                 }`}>
                   {(task as any).priority || 'baja'}
                 </span>
 
-                {task.requires_audit && (
-                  <span className={`text-[8px] font-mono font-bold uppercase tracking-wider px-1.5 py-0.5 rounded border ${
-                    task.audit_status === 'aceptado' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/25' :
-                    task.audit_status === 'denegado' ? 'bg-rose-500/10 text-rose-400 border-rose-500/25' :
-                    task.audit_status === 'requiere_revision' ? 'bg-amber-500/10 text-amber-400 border-amber-500/25' :
-                    'bg-zinc-900 text-zinc-500 border-zinc-800'
+                {task.requires_audit && task.audit_status !== 'pendiente' && (
+                  <span className={`text-[9px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded border ${
+                    task.audit_status === 'aceptado' ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/25' :
+                    task.audit_status === 'denegado' ? 'bg-rose-500/15 text-rose-400 border-rose-500/25' :
+                    'bg-amber-500/15 text-amber-400 border-amber-500/25' // requiere_revision
                   }`}>
-                    {task.audit_status === 'pendiente' ? 'Rev. Pendiente' : 
-                     task.audit_status === 'aceptado' ? 'Aprobado' : 
+                    {task.audit_status === 'aceptado' ? 'Aprobado' : 
                      task.audit_status === 'denegado' ? 'Rechazado' : 'Cambios'}
                   </span>
                 )}
               </div>
 
               {/* Task Actions (Edit/Delete) & Type Icon */}
-              <div className="flex items-center gap-1.5 shrink-0 text-zinc-550">
+              <div className="flex items-center gap-1.5 shrink-0 text-zinc-500">
                 <button
                   type="button"
                   onClick={(e) => {
                     e.stopPropagation();
                     onEditClick?.(task);
                   }}
-                  className="p-1 rounded hover:bg-zinc-900 hover:text-zinc-355 transition-colors"
+                  className="p-1 rounded hover:bg-zinc-800 hover:text-zinc-300 transition-colors"
                   title="Editar Tarea"
                 >
                   <Edit className="h-3 w-3" />
@@ -2163,7 +2228,7 @@ function KanbanCard({ task, index, onClick, handleToggleCheck, employees, onUplo
                     e.stopPropagation();
                     onDeleteClick?.(task);
                   }}
-                  className="p-1 rounded hover:bg-zinc-900 hover:text-rose-400 transition-colors"
+                  className="p-1 rounded hover:bg-zinc-800 hover:text-rose-455 transition-colors"
                   title="Eliminar Tarea"
                 >
                   <Trash2 className="h-3 w-3" />
@@ -2178,7 +2243,7 @@ function KanbanCard({ task, index, onClick, handleToggleCheck, employees, onUplo
               {!isDeliverable ? (
                 <button
                   onClick={(e) => handleToggleCheck(e, task)}
-                  className="mt-0.5 text-zinc-650 hover:text-emerald-400 transition-colors shrink-0"
+                  className="mt-0.5 text-zinc-500 hover:text-emerald-400 transition-colors shrink-0"
                 >
                   {isCompleted ? (
                     <CheckSquare className="h-4.5 w-4.5 text-emerald-400" />
@@ -2187,16 +2252,32 @@ function KanbanCard({ task, index, onClick, handleToggleCheck, employees, onUplo
                   )}
                 </button>
               ) : null}
-              <span className={`font-bold text-xs text-white leading-snug text-left ${isCompleted ? 'line-through text-zinc-500' : ''}`}>
+              <span className={`font-bold text-xs text-white leading-snug text-left ${isCompleted ? 'line-through text-zinc-550' : ''}`}>
                 {task.title}
               </span>
             </div>
 
             {task.description && (
-              <p className="text-[10px] text-zinc-500 line-clamp-2 text-left leading-relaxed">
+              <p className="text-[10px] text-zinc-450 line-clamp-2 text-left leading-relaxed">
                 {task.description}
               </p>
             )}
+
+            {/* Highlighted Assignees Pills */}
+            <div className="flex flex-wrap gap-1 mt-1">
+              {((task as any).assigned_to_ids && (task as any).assigned_to_ids.length > 0
+                ? (task as any).assigned_to_ids
+                : (task.assigned_to ? [task.assigned_to] : [])
+              ).map((id: string, i: number) => {
+                const emp = employees.find(e => e.id === id);
+                if (!emp) return null;
+                return (
+                  <span key={i} className="inline-flex items-center bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded text-[10px] font-bold transition-colors">
+                    {emp.full_name?.split(' ')[0].toLowerCase() || emp.email.split('@')[0]}
+                  </span>
+                );
+              })}
+            </div>
 
             {isDeliverable && (
               <div className="pt-1 flex flex-col gap-2">
@@ -2208,7 +2289,7 @@ function KanbanCard({ task, index, onClick, handleToggleCheck, employees, onUplo
                 ) : (
                   <label 
                     onClick={(e) => e.stopPropagation()} 
-                    className="inline-flex items-center gap-1 text-[9px] bg-zinc-900 hover:bg-zinc-850 text-zinc-300 font-bold border border-zinc-800 hover:border-zinc-700 px-2 py-1 rounded-md cursor-pointer transition-colors w-fit"
+                    className="inline-flex items-center gap-1 text-[9px] bg-zinc-900 hover:bg-zinc-800 text-zinc-300 font-bold border border-zinc-800 hover:border-zinc-700 px-2 py-1 rounded-md cursor-pointer transition-colors w-fit"
                   >
                     <Upload className="h-2.5 w-2.5 text-zinc-400" />
                     <span>Subir Entregable</span>
@@ -2223,7 +2304,7 @@ function KanbanCard({ task, index, onClick, handleToggleCheck, employees, onUplo
             )}
 
             {task.evidence_urls && task.evidence_urls.length > 0 && (
-              <div className="mt-2.5 pt-2 border-t border-zinc-900/60 space-y-1.5 text-left">
+              <div className="mt-2.5 pt-2 border-t border-zinc-800/80 space-y-1.5 text-left">
                 <span className="text-[8px] font-mono font-bold text-zinc-500 uppercase tracking-wider block">Entregables:</span>
                 <div className="flex flex-wrap gap-2">
                   {task.evidence_urls.map((url, idx) => {
@@ -2254,18 +2335,27 @@ function KanbanCard({ task, index, onClick, handleToggleCheck, employees, onUplo
                     extension = filename.split('.').pop()?.toLowerCase() || '';
                     const isImg = ['png', 'jpg', 'jpeg', 'webp', 'gif'].includes(extension) || mimeType.startsWith('image/');
 
+                    const fullUrl = url.startsWith('/api/storage/file/') ? getApiUrl(`${url}${url.includes('?') ? '&' : '?'}token=${token || ''}`) : url;
+
                     return (
-                      <div key={idx} className="flex flex-col gap-1 max-w-[120px] bg-zinc-900/30 border border-zinc-900/80 p-1.5 rounded-lg">
+                      <div key={idx} className="flex flex-col gap-1 max-w-[120px] bg-zinc-900/30 border border-zinc-800 p-1.5 rounded-lg">
                         <div className="flex items-center gap-1 text-[8px] text-zinc-400">
-                          <FileText className="h-2.5 w-2.5 text-zinc-550 shrink-0" />
+                          <FileText className="h-2.5 w-2.5 text-zinc-555 shrink-0" />
                           <span className="truncate" title={filename}>{filename}</span>
                         </div>
                         {isImg && (
-                          <div className="h-10 w-16 border border-zinc-900 rounded-md overflow-hidden bg-zinc-950">
+                          <div 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setZoomUrl(fullUrl);
+                              setZoomName(filename);
+                            }}
+                            className="h-14 w-24 border border-zinc-800 rounded-md overflow-hidden bg-zinc-950 cursor-zoom-in hover:border-emerald-500/50 transition-colors"
+                          >
                             <img 
-                              src={url.startsWith('/api/storage/file/') ? getApiUrl(`${url}${url.includes('?') ? '&' : '?'}token=${token || ''}`) : url} 
+                              src={fullUrl} 
                               alt={filename} 
-                              className="w-full h-full object-cover" 
+                              className="w-full h-full object-cover hover:scale-105 transition-transform duration-200" 
                             />
                           </div>
                         )}
@@ -2277,16 +2367,16 @@ function KanbanCard({ task, index, onClick, handleToggleCheck, employees, onUplo
             )}
           </div>
 
-          <div className="mt-3 pt-3 border-t border-zinc-900 flex justify-between items-center shrink-0">
+          <div className="mt-3 pt-3 border-t border-zinc-800/80 flex justify-between items-center shrink-0">
             <div className="flex items-center gap-2 text-[9px] font-mono text-zinc-500 font-bold">
               {subProgress && (
-                <span className="flex items-center gap-1 bg-zinc-900 px-1.5 py-0.5 rounded text-zinc-400">
+                <span className="flex items-center gap-1 bg-zinc-900/60 border border-zinc-800 px-1.5 py-0.5 rounded text-zinc-400">
                   <CheckSquare className="h-3 w-3 text-emerald-400 shrink-0" />
                   {subProgress}
                 </span>
               )}
               {(task as any).due_date && (
-                <span className="flex items-center gap-0.5">
+                <span className="flex items-center gap-0.5 text-zinc-400">
                   <Clock className="h-3 w-3 shrink-0" />
                   {new Date((task as any).due_date).toLocaleDateString([], { day: '2-digit', month: 'short' })}
                 </span>
@@ -2303,7 +2393,7 @@ function KanbanCard({ task, index, onClick, handleToggleCheck, employees, onUplo
                 return (
                   <div
                     key={i}
-                    className="h-5.5 w-5.5 rounded-full bg-zinc-900 border border-zinc-950 flex items-center justify-center text-[8px] font-bold text-zinc-300 ring-1 ring-zinc-800"
+                    className="h-5.5 w-5.5 rounded-full bg-zinc-900 border border-zinc-955 flex items-center justify-center text-[8px] font-bold text-zinc-300 ring-1 ring-zinc-800"
                     title={emp.full_name}
                   >
                     {emp.full_name?.charAt(0).toUpperCase()}
@@ -2311,12 +2401,45 @@ function KanbanCard({ task, index, onClick, handleToggleCheck, employees, onUplo
                 );
               })}
               {((task as any).assigned_to_ids?.length || 0) > 3 && (
-                <div className="h-5.5 w-5.5 rounded-full bg-zinc-900 border border-zinc-955 flex items-center justify-center text-[7px] font-bold text-zinc-500 ring-1 ring-zinc-800">
+                <div className="h-5.5 w-5.5 rounded-full bg-zinc-900 border border-zinc-950 flex items-center justify-center text-[7px] font-bold text-zinc-500 ring-1 ring-zinc-800">
                   +{((task as any).assigned_to_ids?.length || 0) - 3}
                 </div>
               )}
             </div>
           </div>
+
+          {/* Lightweight zoom view portal */}
+          {zoomUrl && (
+            <div 
+              onClick={(e) => {
+                e.stopPropagation();
+                setZoomUrl(null);
+              }}
+              className="fixed inset-0 bg-black/90 backdrop-blur-sm flex items-center justify-center z-50 p-4 cursor-zoom-out"
+            >
+              <div className="relative max-w-4xl max-h-[90vh] flex flex-col justify-center items-center">
+                <button 
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setZoomUrl(null);
+                  }}
+                  className="absolute -top-12 right-0 bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 text-white rounded-full p-2 transition-colors cursor-pointer"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+                <img 
+                  src={zoomUrl} 
+                  alt={zoomName} 
+                  className="max-w-full max-h-[80vh] object-contain rounded-lg shadow-2xl border border-zinc-800"
+                  onClick={(e) => e.stopPropagation()} 
+                />
+                <div className="mt-3 text-zinc-300 text-xs font-mono bg-zinc-900/90 border border-zinc-800 px-3 py-1.5 rounded-xl truncate max-w-md">
+                  {zoomName}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </Draggable>

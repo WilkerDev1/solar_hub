@@ -10,7 +10,7 @@ export interface TaskFilters {
   assignedTo?: string;
   projectId?: string;
   origin?: 'proyecto' | 'administracion' | 'consulta' | 'almacen';
-  status?: 'pendiente' | 'en_progreso' | 'completada';
+  status?: 'backlog' | 'pendiente' | 'en_progreso' | 'bloqueada' | 'completada';
   area?: 'legal' | 'almacen' | 'operaciones' | 'administracion' | 'general';
 }
 
@@ -150,7 +150,7 @@ export async function createTask(taskData: {
  */
 export async function updateTaskStatus(
   taskId: string,
-  status: 'pendiente' | 'en_progreso' | 'completada'
+  status: 'backlog' | 'pendiente' | 'en_progreso' | 'bloqueada' | 'completada'
 ): Promise<TaskRow> {
   const { data: { user } } = await supabase.auth.getUser();
   
