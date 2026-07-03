@@ -60,7 +60,14 @@ export default function ProjectDetailModule({ projectId }: Props) {
 
         {/* TAB: OVERVIEW */}
         {ctx.activeTab === 'overview' && (
-          <OverviewTab project={ctx.project} employees={ctx.employees} />
+          <OverviewTab
+            project={ctx.project}
+            employees={ctx.employees}
+            projectDocuments={ctx.projectDocuments}
+            handleUploadBanner={ctx.handleUploadBanner}
+            handleUploadGalleryImage={ctx.handleUploadGalleryImage}
+            uploadingFile={ctx.uploadingFile}
+          />
         )}
 
         {/* TAB: KANBAN */}

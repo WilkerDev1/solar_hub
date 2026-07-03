@@ -120,7 +120,13 @@ export default function ProjectsModule() {
         };
       });
 
-      setProjects(mapped);
+      // Sort: active projects first, archived projects at the bottom
+      const sortedMapped = [...mapped].sort((a, b) => {
+        if (a.status === 'archivado' && b.status !== 'archivado') return 1;
+        if (a.status !== 'archivado' && b.status === 'archivado') return -1;
+        return 0; // maintain default order (created_at desc)
+      });
+      setProjects(sortedMapped);
     } catch (err: any) {
       console.error('Error loading projects:', err);
       setError(err.message || 'Error al cargar los proyectos.');
@@ -344,116 +350,127 @@ export default function ProjectsModule() {
       ) : viewMode === 'grid' ? (
         /* GRID VIEW */
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {projects.map((proj) => (
-            <div key={proj.id} className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl overflow-hidden hover:border-zinc-300 dark:hover:border-zinc-700 transition-all flex flex-col justify-between relative group shadow-md dark:shadow-lg">
-              
-              {/* Cover Banner Image */}
-              <div className="relative h-32 w-full bg-zinc-100 dark:bg-zinc-950 overflow-hidden border-b border-zinc-200 dark:border-zinc-850 shrink-0 transition-colors">
-                {proj.banner_url ? (
-                  <img src={proj.banner_url} alt={proj.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-555 ease-in-out" />
-                ) : (
-                  <div className="w-full h-full bg-gradient-to-br from-emerald-100/10 dark:from-emerald-950/20 via-zinc-200/40 dark:via-zinc-900/60 to-zinc-100 dark:to-zinc-950 flex items-center justify-center">
-                    <Folder className="h-10 w-10 text-zinc-400 dark:text-zinc-700 opacity-55" />
-                  </div>
-                )}
-                <div className="absolute inset-0 bg-gradient-to-t from-white dark:from-zinc-900 via-transparent to-transparent opacity-80" />
-                
-                {/* Status Badge overlays the image */}
-                <div className="absolute bottom-3 left-4 flex gap-2">
-                  <span className={`text-[9px] font-bold uppercase px-2.5 py-0.5 rounded-md border backdrop-blur-xs ${
-                    proj.status === 'completado' ? 'bg-emerald-50/80 dark:bg-emerald-950/70 text-emerald-700 dark:text-emerald-400 border-emerald-250 dark:border-emerald-500/20' :
-                    proj.status === 'en_progreso' ? 'bg-amber-50/80 dark:bg-amber-950/70 text-amber-750 dark:text-amber-400 border-amber-250 dark:border-amber-500/20' :
-                    proj.status === 'archivado' ? 'bg-zinc-100/90 dark:bg-zinc-900/80 text-zinc-600 dark:text-zinc-400 border-zinc-250 dark:border-zinc-650' :
-                    'bg-rose-50/80 dark:bg-rose-950/70 text-rose-700 dark:text-rose-400 border-rose-250 dark:border-rose-500/20'
-                  }`}>
-                    {proj.status.replace('_', ' ')}
-                  </span>
-                </div>
+          {projects.map((proj) => {
+            const borderAccent =
+              proj.status === 'completado' ? 'border-l-emerald-500' :
+              proj.status === 'en_progreso' ? 'border-l-amber-500' :
+              proj.status === 'demorado' ? 'border-l-rose-500' :
+              'border-l-zinc-400';
 
-                {/* KEBAB MENU PARA ADMIN OVERLAYS THE IMAGE */}
-                <RequirePermission action="project:write">
-                  <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity z-10">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger className="p-1.5 rounded-lg bg-white/80 dark:bg-zinc-950/80 border border-zinc-200 dark:border-zinc-800 text-zinc-500 dark:text-zinc-400 hover:text-zinc-800 hover:bg-zinc-100 dark:hover:text-white dark:hover:bg-zinc-900 outline-none cursor-pointer">
-                        <MoreVertical className="h-4 w-4" />
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-40 bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 text-zinc-800 dark:text-zinc-300">
-                        <DropdownMenuItem onClick={() => handleArchive(proj.id)} className="hover:bg-zinc-100 dark:hover:bg-zinc-800 cursor-pointer">
-                          <Archive className="h-4 w-4 mr-2" /> Archivar
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator className="bg-zinc-200 dark:bg-zinc-800" />
-                        <DropdownMenuItem onClick={() => handleDelete(proj.id)} className="text-rose-600 dark:text-rose-400 focus:bg-rose-50 dark:focus:bg-rose-500/10 focus:text-rose-600 dark:focus:text-rose-450 cursor-pointer">
-                          <Trash2 className="h-4 w-4 mr-2" /> Eliminar
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-                </RequirePermission>
-              </div>
+            const titleColor =
+              proj.status === 'completado' ? 'text-emerald-700 hover:text-emerald-800' :
+              proj.status === 'en_progreso' ? 'text-amber-700 hover:text-amber-800' :
+              proj.status === 'demorado' ? 'text-rose-700 hover:text-rose-800' :
+              'text-zinc-650 hover:text-zinc-700';
 
-              {/* Card content */}
-              <div className="p-5 flex-1 flex flex-col justify-between space-y-4">
-                <div className="space-y-3">
-                  <div className="flex justify-between items-start">
-                    <div className="flex items-center space-x-2 min-w-0">
-                      <Folder className="h-4.5 w-4.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                      <h3 className="font-bold text-zinc-850 dark:text-white truncate text-sm hover:text-emerald-650 dark:hover:text-emerald-400 transition-colors cursor-pointer" onClick={() => router.push(`/?tab=projects&projectId=${proj.id}`)}>{proj.name}</h3>
+            return (
+              <div
+                key={proj.id}
+                className={`bg-white border-l-[6px] ${borderAccent} border-t border-r border-b border-zinc-200/90 rounded-none overflow-hidden hover:shadow-lg transition-all flex flex-col justify-between relative group text-zinc-900`}
+              >
+                {/* Cover Banner Image */}
+                <div className="relative h-44 w-full bg-zinc-100 overflow-hidden shrink-0 border-b border-zinc-200/80">
+                  {proj.banner_url ? (
+                    <img src={proj.banner_url} alt={proj.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-in-out" />
+                  ) : (
+                    <div className="w-full h-full bg-gradient-to-br from-zinc-100 via-zinc-200/50 to-zinc-100 flex items-center justify-center">
+                      <Folder className="h-10 w-10 text-zinc-400 opacity-50" />
                     </div>
-                  </div>
-                  <div className="flex items-center gap-1.5 text-xs text-zinc-500">
-                    <span className="text-[10px] text-zinc-550 dark:text-zinc-400 truncate font-semibold">Cliente: {proj.clients?.name || 'Sin Cliente'}</span>
-                  </div>
-
-                  <div className="space-y-2 text-xs text-zinc-500 dark:text-zinc-400 pt-3 border-t border-zinc-150 dark:border-zinc-800/80">
-                    <div className="flex justify-between">
-                      <span className="font-mono text-zinc-450 dark:text-zinc-550 text-[10px]">Ubicación:</span>
-                      <span className="font-semibold text-zinc-700 dark:text-zinc-300">{proj.location || 'N/D'}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="font-mono text-zinc-455 dark:text-zinc-550 text-[10px]">Capacidad:</span>
-                      <span className="font-semibold text-zinc-700 dark:text-zinc-300 font-mono">{proj.capacity || 'N/D'}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="font-mono text-zinc-455 dark:text-zinc-550 text-[10px]">Fase actual:</span>
-                      <span className="font-semibold text-emerald-600 dark:text-emerald-400">
-                        {proj.phase === 'Diseno' ? 'Diseño' :
-                         proj.phase === 'Construccion' ? 'Construcción' :
-                         proj.phase === 'Operacion' ? 'Operación' : proj.phase}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="pt-3 border-t border-zinc-150 dark:border-zinc-800/60 space-y-3">
-                  <div className="flex items-center justify-between text-xs bg-zinc-50 dark:bg-zinc-950/40 p-2.5 rounded-xl border border-zinc-200 dark:border-zinc-850">
-                    <span className="text-zinc-500 font-mono text-[9px] uppercase">Hitos Entregables</span>
-                    <span className="font-bold text-zinc-805 dark:text-white font-mono text-xs">
-                      {proj.completedDeliverables}/{proj.totalDeliverables} completados
+                  )}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent opacity-80" />
+                  
+                  {/* Status Badge overlays the image */}
+                  <div className="absolute bottom-3 left-4 flex gap-2">
+                    <span className={`text-[9px] font-bold uppercase px-2.5 py-0.5 rounded border ${
+                      proj.status === 'completado' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                      proj.status === 'en_progreso' ? 'bg-amber-50 text-amber-700 border-amber-200' :
+                      proj.status === 'archivado' ? 'bg-zinc-100 text-zinc-650 border-zinc-200' :
+                      'bg-rose-50 text-rose-700 border-rose-200'
+                    }`}>
+                      {proj.status.replace('_', ' ')}
                     </span>
                   </div>
 
-                  <div className="flex gap-2">
+                  {/* KEBAB MENU PARA ADMIN OVERLAYS THE IMAGE */}
+                  <RequirePermission action="project:write">
+                    <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger className="p-1.5 rounded-lg bg-white/90 border border-zinc-200 text-zinc-550 hover:text-zinc-800 hover:bg-zinc-100 outline-none cursor-pointer">
+                          <MoreVertical className="h-4 w-4" />
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-40 bg-white border border-zinc-200 text-zinc-800">
+                          <DropdownMenuItem onClick={() => handleArchive(proj.id)} className="hover:bg-zinc-100 cursor-pointer">
+                            <Archive className="h-4 w-4 mr-2" /> Archivar
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator className="bg-zinc-200" />
+                          <DropdownMenuItem onClick={() => handleDelete(proj.id)} className="text-rose-600 focus:bg-rose-50 focus:text-rose-600 cursor-pointer">
+                            <Trash2 className="h-4 w-4 mr-2" /> Eliminar
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  </RequirePermission>
+                </div>
+
+                {/* Card content */}
+                <div className="p-5 flex-1 flex flex-col justify-between space-y-4">
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-start">
+                      <div className="flex items-center space-x-2 min-w-0">
+                        <Folder className="h-4 w-4 text-zinc-400 shrink-0" />
+                        <h3
+                          className={`font-bold truncate text-sm ${titleColor} transition-colors cursor-pointer`}
+                          onClick={() => router.push(`/?tab=projects&projectId=${proj.id}`)}
+                        >
+                          {proj.name}
+                        </h3>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-xs text-zinc-500">
+                      <span className="text-[10px] text-zinc-450 font-semibold font-mono uppercase tracking-wider block">
+                        Cliente: {proj.clients?.name || 'Sin Cliente'}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs pt-3 border-t border-zinc-150">
+                      <div>
+                        <span className="text-[10px] text-zinc-400 block font-mono uppercase">Ubicación</span>
+                        <span className="font-bold text-zinc-800">{proj.location || '—'}</span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-zinc-400 block font-mono uppercase">Capacidad</span>
+                        <span className="font-bold text-zinc-800 font-mono">{proj.capacity || '—'}</span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-zinc-400 block font-mono uppercase">Fase actual</span>
+                        <span className="font-bold text-zinc-800">
+                          {proj.phase === 'Diseno' ? 'Diseño' :
+                           proj.phase === 'Construccion' ? 'Construcción' :
+                           proj.phase === 'Operacion' ? 'Operación' : proj.phase}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-zinc-400 block font-mono uppercase">Hitos</span>
+                        <span className="font-bold text-zinc-800">
+                          {proj.completedDeliverables}/{proj.totalDeliverables} completados
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="pt-3">
                     <button
                       onClick={() => router.push(`/?tab=projects&projectId=${proj.id}`)}
-                      className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-750 text-zinc-700 dark:text-zinc-200 text-xs font-bold rounded-xl border border-zinc-250 dark:border-zinc-700 hover:border-zinc-350 dark:hover:bg-zinc-650 transition-colors cursor-pointer"
+                      className="w-full text-center py-2.5 bg-zinc-50 hover:bg-zinc-100 text-zinc-700 text-xs font-bold border border-zinc-200 transition-colors uppercase tracking-wider cursor-pointer"
                       style={{ minHeight: '40px' }}
                     >
-                      <LayoutList className="h-3.5 w-3.5 text-zinc-550 dark:text-zinc-400" />
-                      Detalles ({proj.completedTasks}/{proj.totalTasks})
-                    </button>
-                    <button
-                      onClick={() => router.push(`/?tab=clients&clientId=${proj.client_id}`)}
-                      className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-zinc-100/40 hover:bg-zinc-200/50 dark:bg-zinc-800/40 dark:hover:bg-zinc-800/80 text-zinc-600 dark:text-zinc-300 text-xs font-bold rounded-xl border border-zinc-250 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 transition-colors cursor-pointer"
-                      style={{ minHeight: '40px' }}
-                    >
-                      <ClipboardList className="h-3.5 w-3.5 text-zinc-550 dark:text-zinc-400" />
-                      Expediente
+                      Detalles ({proj.completedTasks}/{proj.totalTasks} tareas)
                     </button>
                   </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       ) : (
         /* LIST VIEW */

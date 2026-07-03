@@ -15,7 +15,7 @@ import {
   ProjectDispatchTransaction
 } from '@/core/services/inventory';
 import { updateProject } from '@/core/services/projects';
-import { getFolders, getDocumentsByProject, uploadDocument, DocumentRow } from '@/core/services/documents';
+import { getFolders, getDocumentsByProject, uploadDocument, createFolder, DocumentRow } from '@/core/services/documents';
 import { getApiUrl } from '@/core/utils/api';
 
 export type TabType = 'overview' | 'kanban' | 'list' | 'calendar' | 'files' | 'materials' | 'activity';
@@ -167,7 +167,7 @@ export function useProjectDetail(projectId: string) {
 
       const { data: projData, error: fetchErr } = await supabase
         .from('projects')
-        .select('*, clients(id, name)')
+        .select('*, clients(*)')
         .eq('id', projectId)
         .single();
 
@@ -332,6 +332,45 @@ export function useProjectDetail(projectId: string) {
       alert('Archivo subido con éxito.');
     } catch (err: any) {
       alert('Error al subir archivo: ' + err.message);
+    } finally {
+      setUploadingFile(false);
+    }
+  };
+
+  const handleUploadBanner = async (file: File) => {
+    setUploadingFile(true);
+    try {
+      const doc = await uploadDocument(file, null, projectId, 'general');
+      const bannerUrl = `/api/storage/file/${doc.id}?name=${encodeURIComponent(doc.name)}`;
+      await updateProject(projectId, { banner_url: bannerUrl });
+      await loadProjectData();
+      alert('Banner actualizado con éxito.');
+    } catch (err: any) {
+      alert('Error al subir banner: ' + err.message);
+    } finally {
+      setUploadingFile(false);
+    }
+  };
+
+  const handleUploadGalleryImage = async (file: File) => {
+    setUploadingFile(true);
+    try {
+      let galleryFolder = projectFolders.find(f => f.name.toLowerCase() === 'galería' || f.name.toLowerCase() === 'galeria');
+      let folderId = galleryFolder?.id;
+      if (!folderId) {
+        const newFolder = await createFolder({
+          name: 'Galería',
+          projectId: projectId
+        });
+        folderId = newFolder.id;
+        const folders = await getFolders({ projectId });
+        setProjectFolders(folders);
+      }
+      await uploadDocument(file, folderId, projectId, 'general');
+      await loadProjectTasks();
+      alert('Imagen agregada a la galería con éxito.');
+    } catch (err: any) {
+      alert('Error al subir imagen a la galería: ' + err.message);
     } finally {
       setUploadingFile(false);
     }
@@ -750,6 +789,8 @@ export function useProjectDetail(projectId: string) {
     fileFilterExt, setFileFilterExt,
     selectedUploadDept, setSelectedUploadDept,
     uploadingFile,
+    projectFolders,
+    projectDocuments,
 
     // Activity
     activityMemberFilter, setActivityMemberFilter,
@@ -762,6 +803,8 @@ export function useProjectDetail(projectId: string) {
 
     // Handlers
     handleDirectFileUpload,
+    handleUploadBanner,
+    handleUploadGalleryImage,
     handleCreateSubmit,
     handleSendMessage,
     handleToggleCheck,
