@@ -52,6 +52,25 @@ export default function InventoryModule() {
   const [selectedTag, setSelectedTag] = useState('todos');
   const [filterLowStock, setFilterLowStock] = useState(false);
 
+  // Selection states
+  const [selectedItemIds, setSelectedItemIds] = useState<string[]>([]);
+  const [isFilterOpen, setIsFilterOpen] = useState(true);
+
+  // Selection handlers
+  const handleToggleSelectItem = (id: string) => {
+    setSelectedItemIds(prev =>
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    );
+  };
+
+  const handleToggleSelectAll = () => {
+    if (selectedItemIds.length === items.length) {
+      setSelectedItemIds([]);
+    } else {
+      setSelectedItemIds(items.map(item => item.id));
+    }
+  };
+
   // Modals state
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isConfigModalOpen, setIsConfigModalOpen] = useState(false);
@@ -402,7 +421,11 @@ export default function InventoryModule() {
 
   // Setup Bulk Adjustment Modal
   const openBulkAdjustment = () => {
-    const list = items.map(item => ({
+    const itemsToAdjust = selectedItemIds.length > 0
+      ? items.filter(item => selectedItemIds.includes(item.id))
+      : items;
+
+    const list = itemsToAdjust.map(item => ({
       id: item.id,
       name: item.name,
       sku: item.sku,
@@ -435,6 +458,7 @@ export default function InventoryModule() {
     try {
       await processBulkStockAdjustments(activeAdjustments as any[]);
       setIsBulkModalOpen(false);
+      setSelectedItemIds([]); // Clear selection after successful adjustment
       loadData();
     } catch (err: any) {
       alert('Error en ajuste masivo: ' + err.message);
@@ -468,18 +492,36 @@ export default function InventoryModule() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button onClick={handleRefresh} variant="outline" className="bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-white" disabled={refreshing}>
+          <Button onClick={handleRefresh} variant="outline" className="bg-[#121214] border border-zinc-805 text-zinc-400 hover:text-white rounded-lg h-10" disabled={refreshing}>
             {refreshing ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Sincronizar'}
           </Button>
 
+          <Button 
+            onClick={() => setIsFilterOpen(!isFilterOpen)} 
+            variant="outline" 
+            className={`bg-[#121214] border border-zinc-808 text-zinc-400 hover:text-white rounded-lg h-10 transition-colors ${
+              isFilterOpen ? 'border-emerald-500/30 text-emerald-450' : ''
+            }`}
+          >
+            <SlidersHorizontal className="h-4 w-4 mr-1.5" />
+            {isFilterOpen ? 'Ocultar Filtros' : 'Filtros'}
+          </Button>
+
           <RequirePermission action="inventory:write">
-            <Button onClick={openBulkAdjustment} className="bg-amber-600/10 text-amber-400 hover:bg-amber-600 hover:text-black border border-amber-500/20 font-bold text-xs h-10 px-4 rounded-xl">
-              <Sliders className="h-4 w-4 mr-1.5" /> Ajuste Masivo
+            <Button 
+              onClick={openBulkAdjustment} 
+              className={`font-bold text-xs h-10 px-4 rounded-lg transition-all ${
+                selectedItemIds.length > 0
+                  ? 'bg-amber-500 text-black hover:bg-amber-400 animate-pulse'
+                  : 'bg-amber-600/10 text-amber-400 hover:bg-amber-600 hover:text-black border border-amber-500/20'
+              }`}
+            >
+              <Sliders className="h-4 w-4 mr-1.5" /> Ajuste Masivo {selectedItemIds.length > 0 ? `(${selectedItemIds.length})` : ''}
             </Button>
-            <Button onClick={() => setIsConfigModalOpen(true)} className="bg-zinc-900 border-zinc-800 text-zinc-350 hover:text-white font-bold text-xs h-10 px-4 rounded-xl">
+            <Button onClick={() => setIsConfigModalOpen(true)} className="bg-[#121214] border border-zinc-808 text-zinc-350 hover:text-white font-bold text-xs h-10 px-4 rounded-lg">
               <Settings className="h-4 w-4 mr-1.5" /> Configurar WMS
             </Button>
-            <Button onClick={() => setIsAddModalOpen(true)} className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs h-10 px-4 rounded-xl">
+            <Button onClick={() => setIsAddModalOpen(true)} className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs h-10 px-4 rounded-lg">
               <Plus className="h-4 w-4 mr-1.5" /> Ingresar Material
             </Button>
           </RequirePermission>
@@ -489,204 +531,281 @@ export default function InventoryModule() {
       {/* Analytics Cards */}
       {analytics && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="bg-zinc-900/40 border border-zinc-850 p-5 rounded-2xl flex items-center justify-between">
+          <div className="bg-[#1c1c21] border border-zinc-800 p-5 rounded-lg flex items-center justify-between">
             <div className="space-y-1">
               <span className="text-[10px] font-bold text-zinc-550 uppercase tracking-wider font-mono">Valor Estimado</span>
               <p className="text-xl font-bold text-emerald-400 font-mono">
                 ${analytics.estimatedValue.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </p>
             </div>
-            <div className="h-10 w-10 bg-emerald-500/10 rounded-xl border border-emerald-500/20 flex items-center justify-center">
+            <div className="h-10 w-10 bg-emerald-500/10 rounded-lg border border-emerald-500/20 flex items-center justify-center">
               <DollarSign className="h-5 w-5 text-emerald-400" />
             </div>
           </div>
 
-          <div className="bg-zinc-900/40 border border-zinc-850 p-5 rounded-2xl flex items-center justify-between">
+          <div className="bg-[#1c1c21] border border-zinc-800 p-5 rounded-lg flex items-center justify-between">
             <div className="space-y-1">
               <span className="text-[10px] font-bold text-zinc-550 uppercase tracking-wider font-mono">Items en Catálogo</span>
               <p className="text-xl font-bold text-white font-mono">{analytics.totalItems}</p>
             </div>
-            <div className="h-10 w-10 bg-blue-500/10 rounded-xl border border-blue-500/20 flex items-center justify-center">
+            <div className="h-10 w-10 bg-blue-500/10 rounded-lg border border-blue-500/20 flex items-center justify-center">
               <Archive className="h-5 w-5 text-blue-400" />
             </div>
           </div>
 
-          <div className="bg-zinc-900/40 border border-zinc-850 p-5 rounded-2xl flex items-center justify-between">
+          <div className="bg-[#1c1c21] border border-zinc-800 p-5 rounded-lg flex items-center justify-between">
             <div className="space-y-1">
               <span className="text-[10px] font-bold text-zinc-550 uppercase tracking-wider font-mono">Stock Crítico</span>
               <p className={`text-xl font-bold font-mono ${analytics.lowStockCount > 0 ? 'text-amber-400' : 'text-white'}`}>
                 {analytics.lowStockCount} items
               </p>
             </div>
-            <div className={`h-10 w-10 rounded-xl border flex items-center justify-center ${
+            <div className={`h-10 w-10 rounded-lg border flex items-center justify-center ${
               analytics.lowStockCount > 0 ? 'bg-amber-500/10 border-amber-500/20' : 'bg-zinc-800 border-zinc-700'
             }`}>
               <AlertTriangle className={`h-5 w-5 ${analytics.lowStockCount > 0 ? 'text-amber-400' : 'text-zinc-500'}`} />
             </div>
           </div>
 
-          <div className="bg-zinc-900/40 border border-zinc-850 p-5 rounded-2xl flex items-center justify-between">
+          <div className="bg-[#1c1c21] border border-zinc-800 p-5 rounded-lg flex items-center justify-between">
             <div className="space-y-1">
               <span className="text-[10px] font-bold text-zinc-550 uppercase tracking-wider font-mono">Top Solicitado</span>
               <p className="text-xs font-bold text-white truncate max-w-[150px]">
                 {analytics.topUsed?.[0] ? `${analytics.topUsed[0].name} (${analytics.topUsed[0].usage_count})` : 'Sin datos'}
               </p>
             </div>
-            <div className="h-10 w-10 bg-purple-500/10 rounded-xl border border-purple-500/20 flex items-center justify-center">
+            <div className="h-10 w-10 bg-purple-500/10 rounded-lg border border-purple-500/20 flex items-center justify-center">
               <TrendingUp className="h-5 w-5 text-purple-400" />
             </div>
           </div>
         </div>
       )}
 
-      {/* Filter and Search Bar */}
-      <div className="bg-zinc-900/30 border border-zinc-850 p-4 rounded-2xl flex flex-wrap items-center gap-3">
-        <div className="relative flex-1 min-w-[240px]">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500" />
-          <input
-            type="text"
-            placeholder="Buscar por nombre o SKU..."
-            value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
-            className="w-full bg-zinc-950 border border-zinc-800 rounded-xl pl-9 pr-4 py-2 text-xs text-white focus:outline-none focus:border-emerald-500/50 transition-colors h-10"
-          />
-        </div>
+      {/* Flexible Layout container for Table + Sidebar */}
+      <div className="flex flex-col lg:flex-row gap-6 items-start w-full">
+        
+        {/* Catalog Content Area */}
+        <div className="flex-1 w-full space-y-6 min-w-0">
+          {/* Search bar */}
+          <div className="bg-[#1c1c21] border border-zinc-800 p-4 rounded-lg flex items-center gap-3 w-full">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500" />
+              <input
+                type="text"
+                placeholder="Buscar por nombre o SKU..."
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                className="w-full bg-zinc-950 border border-zinc-850 rounded-lg pl-9 pr-4 py-2 text-xs text-white focus:outline-none focus:border-emerald-500/50 transition-colors h-10 font-semibold"
+              />
+            </div>
+            {selectedItemIds.length > 0 && (
+              <div className="flex items-center gap-2 shrink-0 bg-amber-500/10 border border-amber-500/20 text-amber-400 px-3.5 py-2 rounded-lg text-xs font-bold font-mono">
+                {selectedItemIds.length} seleccionados
+                <button 
+                  onClick={() => setSelectedItemIds([])}
+                  className="text-zinc-500 hover:text-white transition-colors cursor-pointer ml-1"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            )}
+          </div>
 
-        <div className="flex gap-3 flex-wrap">
-          <select
-            value={selectedCategory}
-            onChange={e => setSelectedCategory(e.target.value)}
-            className="bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-zinc-300 focus:outline-none focus:border-emerald-500/50 h-10 font-semibold"
-          >
-            <option value="todos">Categorías: Todas</option>
-            {categories.map(cat => (
-              <option key={cat.id} value={cat.id}>{cat.name}</option>
-            ))}
-          </select>
-
-          <select
-            value={selectedTag}
-            onChange={e => setSelectedTag(e.target.value)}
-            className="bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-zinc-300 focus:outline-none focus:border-emerald-500/50 h-10 font-semibold"
-          >
-            <option value="todos">Etiquetas: Todas</option>
-            {tags.map(tag => (
-              <option key={tag.id} value={tag.name}>{tag.name}</option>
-            ))}
-          </select>
-
-          <button
-            onClick={() => setFilterLowStock(!filterLowStock)}
-            className={`px-4 py-2 rounded-xl text-xs font-bold border transition-all h-10 ${
-              filterLowStock 
-                ? 'bg-amber-500/10 text-amber-400 border-amber-500/30' 
-                : 'bg-zinc-950 border-zinc-800 text-zinc-400 hover:text-zinc-200'
-            }`}
-          >
-            Bajo Stock
-          </button>
-        </div>
-      </div>
-
-      {/* Catalog Table */}
-      {loading ? (
-        <div className="py-20 flex flex-col items-center justify-center space-y-3 bg-zinc-900/10 border border-zinc-850 rounded-2xl">
-          <Loader2 className="h-8 w-8 text-emerald-500 animate-spin" />
-          <span className="text-zinc-500 text-xs">Cargando catálogo...</span>
-        </div>
-      ) : items.length === 0 ? (
-        <div className="bg-zinc-900/10 border border-zinc-850 p-12 text-center rounded-2xl">
-          <Archive className="h-10 w-10 text-zinc-700 mx-auto mb-3" />
-          <h3 className="text-zinc-450 font-bold text-sm">Sin materiales</h3>
-          <p className="text-zinc-500 text-xs mt-1">No se encontraron items que coincidan con la búsqueda.</p>
-        </div>
-      ) : (
-        <div className="bg-zinc-900/10 border border-zinc-850 rounded-2xl overflow-hidden shadow-xl">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-zinc-900/50 border-b border-zinc-850 text-[10px] font-bold uppercase tracking-wider text-zinc-500">
-                <th className="px-6 py-4">Material / SKU</th>
-                <th className="px-6 py-4">Categoría</th>
-                <th className="px-6 py-4">Stock Actual</th>
-                <th className="px-6 py-4">Última Actividad</th>
-                <th className="px-6 py-4">Estado</th>
-                <th className="px-6 py-4 text-right">Acciones</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-zinc-850 text-xs">
-              {items.map((item) => {
-                const category = categories.find(c => c.id === item.category_id);
-                const latestTx = latestTxMap[item.id];
-                return (
-                  <tr key={item.id} className="hover:bg-zinc-900/30 transition-colors">
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 rounded-lg bg-zinc-950 border border-zinc-850 overflow-hidden shrink-0 flex items-center justify-center">
-                          {item.image_urls?.[0] || item.image_url ? (
-                            <img src={item.image_urls?.[0] || item.image_url || undefined} alt={item.name} className="h-full w-full object-cover" />
-                          ) : (
-                            <PackageCheck className="h-5 w-5 text-zinc-650" />
-                          )}
-                        </div>
-                        <div>
-                          <div className="font-semibold text-white text-sm">{item.name}</div>
-                          <div className="text-[10px] text-zinc-500 font-mono mt-0.5">{item.sku}</div>
-                        </div>
+          {/* Catalog Table / Grid */}
+          {loading ? (
+            <div className="py-20 flex flex-col items-center justify-center space-y-3 bg-[#1c1c21] border border-zinc-800 rounded-lg">
+              <Loader2 className="h-8 w-8 text-emerald-500 animate-spin" />
+              <span className="text-zinc-500 text-xs font-semibold">Cargando catálogo...</span>
+            </div>
+          ) : items.length === 0 ? (
+            <div className="bg-[#1c1c21] border border-zinc-800 p-12 text-center rounded-lg">
+              <Archive className="h-10 w-10 text-zinc-700 mx-auto mb-3" />
+              <h3 className="text-zinc-450 font-bold text-sm">Sin materiales</h3>
+              <p className="text-zinc-500 text-xs mt-1">No se encontraron items que coincidan con la búsqueda o filtros.</p>
+            </div>
+          ) : (
+            <div className="bg-[#1c1c21] border border-zinc-800 rounded-lg overflow-hidden shadow-xl">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-[#121214]/60 border-b border-zinc-800 text-[10px] font-bold uppercase tracking-wider text-zinc-400">
+                    <th className="px-6 py-5">Material / SKU</th>
+                    <th className="px-6 py-5">Categoría</th>
+                    <th className="px-6 py-5">Stock Actual</th>
+                    <th className="px-6 py-5">Última Actividad</th>
+                    <th className="px-6 py-5">Estado</th>
+                    <th className="px-6 py-5 text-center w-24">
+                      <div className="flex items-center justify-center gap-1.5">
+                        <input
+                          type="checkbox"
+                          checked={items.length > 0 && selectedItemIds.length === items.length}
+                          onChange={handleToggleSelectAll}
+                          className="rounded border-zinc-800 bg-zinc-950 text-emerald-600 focus:ring-emerald-500/20 h-4 w-4 cursor-pointer"
+                        />
+                        <span className="text-[9px] text-zinc-550">Todos</span>
                       </div>
-                    </td>
-                    <td className="px-6 py-4 text-zinc-400">
-                      {category ? category.name : 'Sin categoría'}
-                    </td>
-                    <td className="px-6 py-4 text-white font-semibold">
-                      {item.stock} {item.unit}
-                    </td>
-                    <td className="px-6 py-4">
-                      {latestTx ? (
-                        <div className="space-y-0.5">
-                          <span className={`font-mono text-[10px] font-bold ${
-                            latestTx.transaction_type === 'entrada' ? 'text-emerald-400' : 'text-rose-400'
-                          }`}>
-                            {latestTx.transaction_type === 'entrada' ? '+' : ''}{latestTx.quantity}
-                          </span>
-                          <div className="text-[9px] text-zinc-550 font-medium truncate max-w-[120px]" title={latestTx.reason}>
-                            {latestTx.reason}
-                          </div>
-                        </div>
-                      ) : (
-                        <span className="text-zinc-650 italic text-[10px]">Sin movimientos</span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4">
-                      {getStatusBadge(item.stock, item.min_stock)}
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <RequirePermission action="inventory:write">
-                          <Button
-                            onClick={() => handleOpenEdit(item)}
-                            size="sm"
-                            className="bg-zinc-900 border border-zinc-800 hover:text-white text-zinc-450 hover:bg-zinc-800 text-[10px] p-2 h-8 w-8 rounded-lg cursor-pointer"
-                            title="Editar Ficha"
-                          >
-                            <Edit2 className="h-3.5 w-3.5" />
-                          </Button>
-                        </RequirePermission>
-                        <Button
-                          onClick={() => handleOpenDetail(item)}
-                          size="sm"
-                          className="bg-zinc-900 border border-zinc-800 hover:text-white text-zinc-450 hover:bg-zinc-800 text-[10px] px-3.5 h-8 rounded-lg font-bold cursor-pointer"
-                        >
-                          Ficha & Kardex
-                        </Button>
-                      </div>
-                    </td>
+                    </th>
+                    <th className="px-6 py-5 text-right w-36">Acciones</th>
                   </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                </thead>
+                <tbody className="divide-y divide-zinc-800 text-xs">
+                  {items.map((item) => {
+                    const category = categories.find(c => c.id === item.category_id);
+                    const latestTx = latestTxMap[item.id];
+                    const isSelected = selectedItemIds.includes(item.id);
+                    return (
+                      <tr key={item.id} className={`hover:bg-zinc-800/20 transition-colors ${isSelected ? 'bg-amber-500/5' : ''}`}>
+                        <td className="px-6 py-5">
+                          <div className="flex items-center gap-3">
+                            <div className="h-14 w-20 rounded-md bg-zinc-950 border border-zinc-800 overflow-hidden shrink-0 flex items-center justify-center">
+                              {item.image_urls?.[0] || item.image_url ? (
+                                <img src={item.image_urls?.[0] || item.image_url || undefined} alt={item.name} className="h-full w-full object-cover" />
+                              ) : (
+                                <PackageCheck className="h-6 w-6 text-zinc-655" />
+                              )}
+                            </div>
+                            <div>
+                              <div className="font-bold text-white text-sm leading-snug">{item.name}</div>
+                              <div className="text-[10px] text-zinc-550 font-mono mt-1 tracking-wider uppercase">{item.sku}</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-5 text-zinc-400 font-semibold">
+                          {category ? category.name : 'Sin categoría'}
+                        </td>
+                        <td className="px-6 py-5 text-white font-bold">
+                          {item.stock} <span className="text-zinc-550 font-normal text-xs">{item.unit}</span>
+                        </td>
+                        <td className="px-6 py-5">
+                          {latestTx ? (
+                            <div className="space-y-0.5">
+                              <span className={`font-mono text-xs font-bold ${
+                                latestTx.transaction_type === 'entrada' ? 'text-emerald-450' : 'text-rose-450'
+                              }`}>
+                                {latestTx.transaction_type === 'entrada' ? '+' : ''}{latestTx.quantity}
+                              </span>
+                              <div className="text-[10px] text-zinc-550 font-medium truncate max-w-[120px]" title={latestTx.reason}>
+                                {latestTx.reason}
+                              </div>
+                            </div>
+                          ) : (
+                            <span className="text-zinc-600 italic text-[10px]">Sin movimientos</span>
+                          )}
+                        </td>
+                        <td className="px-6 py-5">
+                          {getStatusBadge(item.stock, item.min_stock)}
+                        </td>
+                        <td className="px-6 py-5 text-center">
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => handleToggleSelectItem(item.id)}
+                            className="rounded border-zinc-800 bg-zinc-950 text-emerald-600 focus:ring-emerald-500/20 h-4 w-4 cursor-pointer"
+                          />
+                        </td>
+                        <td className="px-6 py-5 text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            <RequirePermission action="inventory:write">
+                              <Button
+                                onClick={() => handleOpenEdit(item)}
+                                size="sm"
+                                className="bg-zinc-900 border border-zinc-800 hover:text-white text-zinc-450 hover:bg-zinc-800 text-[10px] p-2 h-8 w-8 rounded-lg cursor-pointer"
+                                title="Editar Ficha"
+                              >
+                                <Edit2 className="h-3.5 w-3.5" />
+                              </Button>
+                            </RequirePermission>
+                            <Button
+                              onClick={() => handleOpenDetail(item)}
+                              size="sm"
+                              className="bg-zinc-900 border border-zinc-800 hover:text-white text-zinc-450 hover:bg-zinc-800 text-[10px] px-3.5 h-8 rounded-lg font-bold cursor-pointer"
+                            >
+                              Ficha & Kardex
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
-      )}
+
+        {/* Sidebar Filters Panel right */}
+        {isFilterOpen && (
+          <div className="w-full lg:w-[260px] bg-[#121214] border border-zinc-800 rounded-lg p-5 space-y-5 text-left shrink-0 flex flex-col justify-between self-stretch">
+            <div className="space-y-5">
+              <div className="flex justify-between items-center border-b border-zinc-800 pb-3">
+                <span className="text-xs font-bold font-mono tracking-widest text-white">FILTRO WMS</span>
+                <button 
+                  onClick={() => setIsFilterOpen(false)}
+                  className="p-1 rounded bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 text-zinc-400 hover:text-white transition-colors cursor-pointer"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold text-zinc-550 uppercase font-mono tracking-wider block">POR CATEGORÍA</label>
+                  <select
+                    value={selectedCategory}
+                    onChange={e => setSelectedCategory(e.target.value)}
+                    className="w-full bg-zinc-950 border border-zinc-850 rounded-lg p-2.5 text-xs text-zinc-300 focus:border-emerald-500 outline-none font-semibold"
+                  >
+                    <option value="todos">Todo</option>
+                    {categories.map(cat => (
+                      <option key={cat.id} value={cat.id}>{cat.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold text-zinc-550 uppercase font-mono tracking-wider block">POR ETIQUETA</label>
+                  <select
+                    value={selectedTag}
+                    onChange={e => setSelectedTag(e.target.value)}
+                    className="w-full bg-zinc-955 border border-zinc-850 rounded-lg p-2.5 text-xs text-zinc-300 focus:border-emerald-500 outline-none font-semibold"
+                  >
+                    <option value="todos">Todo</option>
+                    {tags.map(tag => (
+                      <option key={tag.id} value={tag.name}>{tag.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold text-zinc-555 uppercase tracking-wider font-mono block">CRITERIOS</label>
+                  <button
+                    onClick={() => setFilterLowStock(!filterLowStock)}
+                    className={`w-full py-2.5 px-4 rounded-lg text-xs font-bold border transition-all flex items-center justify-between ${
+                      filterLowStock 
+                        ? 'bg-amber-500/10 text-amber-400 border-amber-500/30' 
+                        : 'bg-zinc-950 border-zinc-850 text-zinc-400 hover:text-zinc-200'
+                    }`}
+                  >
+                    <span>Bajo Stock Crítico</span>
+                    <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <button
+              onClick={() => {
+                setSelectedCategory('todos');
+                setSelectedTag('todos');
+                setFilterLowStock(false);
+                setSearchQuery('');
+              }}
+              className="w-full py-2 bg-zinc-900 hover:bg-zinc-850 border border-zinc-800 text-white rounded-lg text-xs font-bold transition-colors cursor-pointer mt-4"
+            >
+              Limpiar Filtros
+            </button>
+          </div>
+        )}
+      </div>
 
       {/* MODAL: INGRESAR MATERIAL */}
       {isAddModalOpen && (
@@ -1017,18 +1136,16 @@ export default function InventoryModule() {
                 Cerrar
               </Button>
             </div>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL: AJUSTE MASIVO */}
+            {/* MODAL: AJUSTE MASIVO */}
       {isBulkModalOpen && (
         <div className="fixed inset-0 bg-black/85 backdrop-blur-xs flex items-center justify-center z-50 p-4">
-          <div className="bg-zinc-950 border border-zinc-850 rounded-2xl w-full max-w-4xl max-h-[85vh] flex flex-col shadow-2xl">
-            <div className="p-5 border-b border-zinc-850 flex items-center justify-between shrink-0 font-sans">
+          <div className="bg-[#1c1c21] border border-zinc-800 rounded-lg w-full max-w-4xl max-h-[85vh] flex flex-col shadow-2xl">
+            <div className="p-5 border-b border-zinc-800 flex items-center justify-between shrink-0 font-sans">
               <div className="flex items-center gap-2 text-amber-400">
                 <Sliders className="h-5 w-5" />
-                <h3 className="font-bold text-sm uppercase tracking-wide">Conciliación Local y Ajuste Masivo</h3>
+                <h3 className="font-bold text-sm uppercase tracking-wide">
+                  Conciliación Local y Ajuste Masivo {selectedItemIds.length > 0 ? `(${selectedItemIds.length} Seleccionados)` : '(Catálogo Completo)'}
+                </h3>
               </div>
               <button onClick={() => setIsBulkModalOpen(false)} className="text-zinc-500 hover:text-white transition-colors">
                 <X className="h-5 w-5" />
@@ -1040,10 +1157,10 @@ export default function InventoryModule() {
                 Ingresa cantidades de ajuste y selecciona el método de acción para cada fila. Los cambios solo se aplicarán al presionar "Guardar Conciliación".
               </p>
               
-              <div className="border border-zinc-850 rounded-xl overflow-x-auto">
+              <div className="border border-zinc-800 rounded-lg overflow-x-auto">
                 <table className="w-full border-collapse text-xs">
                   <thead>
-                    <tr className="bg-zinc-900/60 border-b border-zinc-850 font-bold uppercase text-zinc-500">
+                    <tr className="bg-zinc-900/60 border-b border-zinc-800 font-bold uppercase text-zinc-400">
                       <th className="px-4 py-3 text-left">Material / SKU</th>
                       <th className="px-4 py-3 text-left">Stock Actual</th>
                       <th className="px-4 py-3 text-left w-24">Cantidad</th>
@@ -1051,9 +1168,9 @@ export default function InventoryModule() {
                       <th className="px-4 py-3 text-left">Motivo / Explicación</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-zinc-850">
+                  <tbody className="divide-y divide-zinc-800">
                     {bulkList.map((row, idx) => (
-                      <tr key={row.id} className="hover:bg-zinc-900/20">
+                      <tr key={row.id} className="hover:bg-zinc-800/10">
                         <td className="px-4 py-2.5">
                           <span className="font-semibold text-white block">{row.name}</span>
                           <span className="text-[10px] font-mono text-zinc-500">{row.sku}</span>
@@ -1072,7 +1189,7 @@ export default function InventoryModule() {
                               updated[idx].quantity = val;
                               setBulkList(updated);
                             }}
-                            className="bg-zinc-900 border border-zinc-800 rounded-lg p-1.5 w-20 text-center font-mono text-white focus:outline-none focus:border-emerald-500"
+                            className="bg-zinc-950 border border-zinc-850 rounded-lg p-1.5 w-20 text-center font-mono text-white focus:outline-none focus:border-emerald-500"
                           />
                         </td>
                         <td className="px-4 py-2.5">
@@ -1083,7 +1200,7 @@ export default function InventoryModule() {
                               updated[idx].transactionType = e.target.value;
                               setBulkList(updated);
                             }}
-                            className="bg-zinc-900 border border-zinc-850 rounded-lg p-1.5 text-xs text-white focus:outline-none w-full font-semibold"
+                            className="bg-zinc-950 border border-zinc-850 rounded-lg p-1.5 text-xs text-white focus:outline-none w-full font-semibold"
                           >
                             <option value="ajuste">Ajuste (Kardex)</option>
                             <option value="entrada">Entrada (Stock +)</option>
@@ -1100,7 +1217,7 @@ export default function InventoryModule() {
                               updated[idx].reason = e.target.value;
                               setBulkList(updated);
                             }}
-                            className="w-full bg-zinc-900 border border-zinc-800 rounded-lg p-1.5 text-xs text-white focus:outline-none focus:border-emerald-500"
+                            className="w-full bg-zinc-950 border border-zinc-850 rounded-lg p-1.5 text-xs text-white focus:outline-none focus:border-emerald-500"
                           />
                         </td>
                       </tr>
@@ -1110,7 +1227,7 @@ export default function InventoryModule() {
               </div>
             </div>
 
-            <div className="p-5 border-t border-zinc-850 flex justify-end gap-2 shrink-0">
+            <div className="p-5 border-t border-zinc-800 flex justify-end gap-2 shrink-0">
               <Button variant="ghost" onClick={() => setIsBulkModalOpen(false)} className="text-zinc-400">
                 Cancelar
               </Button>
@@ -1118,6 +1235,9 @@ export default function InventoryModule() {
                 {actionLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null} Guardar Conciliación
               </Button>
             </div>
+          </div>
+        </div>
+      )}
           </div>
         </div>
       )}
