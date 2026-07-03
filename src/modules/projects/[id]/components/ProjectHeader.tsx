@@ -17,10 +17,10 @@ export default function ProjectHeader({ project, isAdmin, isChatOpen, setIsChatO
   return (
     <>
       {/* Header Breadcrumbs & Quick Banner Image */}
-      <div className="flex items-center gap-3 border-b border-zinc-900 pb-5">
+      <div className="flex items-center gap-3 border-b border-zinc-800 pb-5">
         <button
           onClick={() => router.push('/?tab=projects')}
-          className="h-10 w-10 flex items-center justify-center rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white hover:bg-zinc-850 transition-colors shrink-0"
+          className="h-10 w-10 flex items-center justify-center rounded-none bg-zinc-800 border border-zinc-700 text-zinc-400 hover:text-white hover:bg-zinc-700 transition-colors shrink-0"
         >
           <ArrowLeft className="h-4 w-4" />
         </button>
@@ -34,10 +34,10 @@ export default function ProjectHeader({ project, isAdmin, isChatOpen, setIsChatO
         <div className="flex gap-2">
           <button
             onClick={() => setIsChatOpen(!isChatOpen)}
-            className={`h-10 w-10 flex items-center justify-center rounded-xl border transition-all ${
+            className={`h-10 w-10 flex items-center justify-center rounded-none border transition-all ${
               isChatOpen
                 ? 'bg-emerald-600/10 text-emerald-400 border-emerald-500/20'
-                : 'bg-zinc-900 border-zinc-800 text-zinc-550 hover:text-white'
+                : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:text-white hover:bg-zinc-700'
             }`}
             title="Toggle Chat Sidebar"
           >
@@ -47,7 +47,7 @@ export default function ProjectHeader({ project, isAdmin, isChatOpen, setIsChatO
           {isAdmin && (
             <button
               onClick={() => setIsSettingsOpen(true)}
-              className="h-10 w-10 flex items-center justify-center rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white transition-colors"
+              className="h-10 w-10 flex items-center justify-center rounded-none bg-zinc-800 border border-zinc-700 text-zinc-400 hover:text-white hover:bg-zinc-700 transition-colors"
               title="Configuración de Obra"
             >
               <Settings className="h-4.5 w-4.5" />
@@ -58,9 +58,9 @@ export default function ProjectHeader({ project, isAdmin, isChatOpen, setIsChatO
 
       {/* Header Metadata Quick Widgets */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="bg-zinc-900/40 border border-zinc-900 p-4 rounded-xl flex items-center justify-between">
+        <div className="bg-zinc-800 border border-zinc-700 p-4 rounded-none flex items-center justify-between">
           <div>
-            <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-wider font-mono">Fase Actual</span>
+            <span className="text-[9px] font-bold text-zinc-450 uppercase tracking-wider font-mono">Fase Actual</span>
             <p className="text-sm font-bold text-emerald-400 mt-0.5">
               {project.phase === 'Diseno' ? 'Diseño' :
                project.phase === 'Construccion' ? 'Construcción' :
@@ -70,44 +70,44 @@ export default function ProjectHeader({ project, isAdmin, isChatOpen, setIsChatO
           <Layers className="h-4 w-4 text-emerald-400/60" />
         </div>
 
-        <div className="bg-zinc-900/40 border border-zinc-900 p-4 rounded-xl flex items-center justify-between">
+        <div className="bg-zinc-800 border border-zinc-700 p-4 rounded-none flex items-center justify-between">
           <div>
-            <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-wider font-mono">Ubicación GPS</span>
+            <span className="text-[9px] font-bold text-zinc-450 uppercase tracking-wider font-mono">Ubicación GPS</span>
             <p className="text-xs font-mono font-bold text-white mt-0.5 select-all">{project.gps_coordinates || 'N/D'}</p>
           </div>
-          <MapPin className="h-4 w-4 text-zinc-555" />
+          <MapPin className="h-4 w-4 text-zinc-500" />
         </div>
 
-        <div className="bg-zinc-900/40 border border-zinc-900 p-4 rounded-xl flex items-center justify-between">
+        <div className="bg-zinc-800 border border-zinc-700 p-4 rounded-none flex items-center justify-between">
           <div>
-            <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-wider font-mono">Capacidad MWp</span>
+            <span className="text-[9px] font-bold text-zinc-455 uppercase tracking-wider font-mono">Capacidad MWp</span>
             <p className="text-sm font-bold text-white mt-0.5">{project.capacity || 'N/D'}</p>
           </div>
           <Zap className="h-4 w-4 text-amber-500/60" />
         </div>
 
-        <div className="bg-zinc-900/40 border border-zinc-900 p-4 rounded-xl flex items-center justify-between">
+        <div className="bg-zinc-800 border border-zinc-700 p-4 rounded-none flex items-center justify-between">
           <div>
-            <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-wider font-mono">Estado General</span>
+            <span className="text-[9px] font-bold text-zinc-455 uppercase tracking-wider font-mono">Estado General</span>
             <p className={`text-xs font-bold uppercase mt-0.5 ${
               project.status === 'completado' ? 'text-emerald-400' :
-              project.status === 'en_progreso' ? 'text-amber-400' : 'text-rose-400'
+              project.status === 'en_progreso' ? 'text-amber-400' : 'text-rose-455'
             }`}>{project.status.replace('_', ' ')}</p>
           </div>
-          <CheckCircle className="h-4 w-4 text-zinc-555" />
+          <CheckCircle className="h-4 w-4 text-zinc-500" />
         </div>
       </div>
 
       {/* Tab Selection Row */}
-      <div className="flex border-b border-zinc-850 pb-px overflow-x-auto gap-1">
+      <div className="flex border-b border-zinc-700 pb-px overflow-x-auto gap-1">
         {(['overview', 'kanban', 'list', 'calendar', 'files', 'materials', 'activity'] as const).map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
-            className={`px-4 py-3 text-xs font-bold uppercase transition-colors border-b-2 whitespace-nowrap ${
+            className={`px-4 py-3 text-xs font-bold uppercase transition-colors border-b-2 whitespace-nowrap rounded-none ${
               activeTab === tab
                 ? 'border-emerald-500 text-emerald-400 bg-emerald-500/5'
-                : 'border-transparent text-zinc-500 hover:text-zinc-300'
+                : 'border-transparent text-zinc-550 hover:text-zinc-300 hover:bg-zinc-800/20'
             }`}
           >
             {tab === 'overview' ? 'Overview' :
