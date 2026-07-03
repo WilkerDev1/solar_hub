@@ -519,7 +519,7 @@ export default function TaskDetailDrawer({
                   </select>
                 </div>
                 <div className="space-y-1">
-                  <label className="text-xs font-bold text-zinc-500 uppercase font-mono">Área</label>
+                  <label className="text-xs font-bold text-zinc-500 uppercase font-mono">Departamento</label>
                   <select 
                     value={area} 
                     onChange={e => setArea(e.target.value)} 
@@ -858,7 +858,7 @@ export default function TaskDetailDrawer({
                 </div>
 
                 <div className="space-y-1">
-                  <span className="text-[10px] font-bold text-zinc-550 uppercase tracking-wider font-mono">Área Operativa</span>
+                  <span className="text-[10px] font-bold text-zinc-550 uppercase tracking-wider font-mono">Departamento</span>
                   <span className="inline-flex items-center rounded-md bg-zinc-100 dark:bg-zinc-800 px-2 py-1 text-xs font-mono font-bold text-zinc-700 dark:text-zinc-300 uppercase border border-zinc-200 dark:border-zinc-700">
                     {task.area || 'general'}
                   </span>

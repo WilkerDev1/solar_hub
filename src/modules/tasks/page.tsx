@@ -446,7 +446,7 @@ export default function TasksModule() {
             onChange={e => setFilterArea(e.target.value)}
             className="bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-1.5 text-xs text-zinc-300 focus:outline-none focus:border-emerald-500/50 h-9 font-semibold"
           >
-            <option value="todos">Área: Todas</option>
+            <option value="todos">Departamento: Todos</option>
             <option value="general">General</option>
             <option value="legal">Legal</option>
             <option value="almacen">Almacén</option>
@@ -631,7 +631,7 @@ export default function TasksModule() {
                     <th className="px-6 py-4 w-12"></th>
                     <th className="px-6 py-4">Tarea</th>
                     <th className="px-6 py-4">Obra / Proyecto</th>
-                    <th className="px-6 py-4">Área</th>
+                    <th className="px-6 py-4">Departamento</th>
                     <th className="px-6 py-4">Vencimiento</th>
                     <th className="px-6 py-4">Prioridad</th>
                     <th className="px-6 py-4">Estado</th>
@@ -886,7 +886,7 @@ export default function TasksModule() {
 
               <div className="grid grid-cols-3 gap-4">
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-zinc-500 uppercase font-mono">Área</label>
+                  <label className="text-[10px] font-bold text-zinc-500 uppercase font-mono">Departamento</label>
                   <select
                     value={createForm.area}
                     onChange={e => setCreateForm({...createForm, area: e.target.value as any})}
