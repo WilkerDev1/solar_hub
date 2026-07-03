@@ -85,14 +85,14 @@ export default function KanbanCard({ task, index, onClick, handleToggleCheck, em
           {...provided.draggableProps}
           {...provided.dragHandleProps}
           onClick={onClick}
-          className={`bg-[#1c1c21] border-l-4 ${borderAccentColor} border-t border-r border-b border-zinc-800/85 p-4 rounded-xl flex flex-col justify-between hover:border-zinc-700 transition-all select-none relative ${
-            snapshot.isDragging ? 'shadow-2xl border-emerald-500 bg-zinc-900 scale-[1.02]' : ''
+          className={`bg-zinc-850 border-l-4 ${borderAccentColor} border-t border-r border-b border-zinc-700/80 p-4 rounded-none flex flex-col justify-between hover:border-zinc-500 transition-all select-none relative ${
+            snapshot.isDragging ? 'shadow-2xl border-emerald-500 bg-zinc-800 scale-[1.02]' : ''
           } ${isCompleted ? 'opacity-65' : ''}`}
         >
           <div className="space-y-3">
             {/* Audit Status Alert Banner (Requires Audit & Pending) */}
             {task.requires_audit && task.audit_status === 'pendiente' && (
-              <div className="mb-2 bg-amber-500/10 border border-amber-500/30 text-amber-400 px-2.5 py-1.5 rounded-lg text-[9px] font-bold flex items-center gap-1.5 animate-pulse">
+              <div className="mb-2 bg-amber-500/10 border border-amber-500/30 text-amber-400 px-2.5 py-1.5 rounded-none text-[9px] font-bold flex items-center gap-1.5 animate-pulse">
                 <AlertCircle className="h-3.5 w-3.5 shrink-0 text-amber-500" />
                 <span>Auditoría Pendiente (Revisar)</span>
               </div>
@@ -101,23 +101,23 @@ export default function KanbanCard({ task, index, onClick, handleToggleCheck, em
             {/* Badges bar */}
             <div className="flex flex-wrap items-center justify-between gap-1.5">
               <div className="flex gap-1.5 flex-wrap">
-                <span className="bg-zinc-800 border border-zinc-700/60 text-[9px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded text-zinc-300">
+                <span className="bg-zinc-900 border border-zinc-700 text-[9px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-none text-zinc-300">
                   {task.area || 'general'}
                 </span>
 
-                <span className={`text-[9px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full ${
+                <span className={`text-[9px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-none ${
                   (task as any).priority === 'alta' ? 'bg-rose-500/20 text-rose-350 border border-rose-500/30' :
                   (task as any).priority === 'media' ? 'bg-amber-500/20 text-amber-350 border border-amber-500/30' :
-                  'bg-zinc-800 text-zinc-400 border border-zinc-700'
+                  'bg-zinc-900 text-zinc-400 border border-zinc-700'
                 }`}>
                   {(task as any).priority || 'baja'}
                 </span>
 
                 {task.requires_audit && task.audit_status !== 'pendiente' && (
-                  <span className={`text-[9px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded border ${
+                  <span className={`text-[9px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-none border ${
                     task.audit_status === 'aceptado' ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/25' :
                     task.audit_status === 'denegado' ? 'bg-rose-500/15 text-rose-400 border-rose-500/25' :
-                    'bg-amber-500/15 text-amber-400 border-amber-500/25' // requiere_revision
+                    'bg-amber-500/15 text-amber-405 border-amber-500/25' // requiere_revision
                   }`}>
                     {task.audit_status === 'aceptado' ? 'Aprobado' :
                      task.audit_status === 'denegado' ? 'Rechazado' : 'Cambios'}
@@ -133,7 +133,7 @@ export default function KanbanCard({ task, index, onClick, handleToggleCheck, em
                     e.stopPropagation();
                     onEditClick?.(task);
                   }}
-                  className="p-1 rounded hover:bg-zinc-800 hover:text-zinc-300 transition-colors"
+                  className="p-1 rounded-none hover:bg-zinc-800 hover:text-zinc-355 transition-colors"
                   title="Editar Tarea"
                 >
                   <Edit className="h-3 w-3" />
@@ -144,7 +144,7 @@ export default function KanbanCard({ task, index, onClick, handleToggleCheck, em
                     e.stopPropagation();
                     onDeleteClick?.(task);
                   }}
-                  className="p-1 rounded hover:bg-zinc-800 hover:text-rose-455 transition-colors"
+                  className="p-1 rounded-none hover:bg-zinc-800 hover:text-rose-455 transition-colors"
                   title="Eliminar Tarea"
                 >
                   <Trash2 className="h-3 w-3" />
@@ -168,7 +168,7 @@ export default function KanbanCard({ task, index, onClick, handleToggleCheck, em
                   )}
                 </button>
               ) : null}
-              <span className={`font-bold text-xs text-white leading-snug text-left ${isCompleted ? 'line-through text-zinc-550' : ''}`}>
+              <span className={`font-bold text-xs text-white leading-snug text-left ${isCompleted ? 'line-through text-zinc-500' : ''}`}>
                 {task.title}
               </span>
             </div>
@@ -188,7 +188,7 @@ export default function KanbanCard({ task, index, onClick, handleToggleCheck, em
                 const emp = employees.find(e => e.id === id);
                 if (!emp) return null;
                 return (
-                  <span key={i} className="inline-flex items-center bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded text-[10px] font-bold transition-colors">
+                  <span key={i} className="inline-flex items-center bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded-none text-[10px] font-bold transition-colors">
                     {emp.full_name?.split(' ')[0].toLowerCase() || emp.email.split('@')[0]}
                   </span>
                 );
@@ -205,9 +205,9 @@ export default function KanbanCard({ task, index, onClick, handleToggleCheck, em
                 ) : (
                   <label
                     onClick={(e) => e.stopPropagation()}
-                    className="inline-flex items-center gap-1 text-[9px] bg-zinc-900 hover:bg-zinc-800 text-zinc-300 font-bold border border-zinc-800 hover:border-zinc-700 px-2 py-1 rounded-md cursor-pointer transition-colors w-fit"
+                    className="inline-flex items-center gap-1 text-[9px] bg-zinc-900 hover:bg-zinc-800 text-zinc-300 font-bold border border-zinc-700 hover:border-zinc-500 px-2 py-1 rounded-none cursor-pointer transition-colors w-fit"
                   >
-                    <Upload className="h-2.5 w-2.5 text-zinc-400" />
+                    <Upload className="h-2.5 w-2.5 text-zinc-450" />
                     <span>Subir Entregable</span>
                     <input
                       type="file"
@@ -220,8 +220,8 @@ export default function KanbanCard({ task, index, onClick, handleToggleCheck, em
             )}
 
             {task.evidence_urls && task.evidence_urls.length > 0 && (
-              <div className="mt-2.5 pt-2 border-t border-zinc-800/80 space-y-1.5 text-left">
-                <span className="text-[8px] font-mono font-bold text-zinc-500 uppercase tracking-wider block">Entregables:</span>
+              <div className="mt-2.5 pt-2 border-t border-zinc-700/80 space-y-1.5 text-left">
+                <span className="text-[8px] font-mono font-bold text-zinc-550 uppercase tracking-wider block">Entregables:</span>
                 <div className="flex flex-wrap gap-2">
                   {task.evidence_urls.map((url, idx) => {
                     let filename = `Archivo_${idx + 1}`;
@@ -254,9 +254,9 @@ export default function KanbanCard({ task, index, onClick, handleToggleCheck, em
                     const fullUrl = url.startsWith('/api/storage/file/') ? getApiUrl(`${url}${url.includes('?') ? '&' : '?'}token=${token || ''}`) : url;
 
                     return (
-                      <div key={idx} className="flex flex-col gap-1 max-w-[120px] bg-zinc-900/30 border border-zinc-800 p-1.5 rounded-lg">
+                      <div key={idx} className="flex flex-col gap-1 max-w-[120px] bg-zinc-900/30 border border-zinc-700 p-1.5 rounded-none">
                         <div className="flex items-center gap-1 text-[8px] text-zinc-400">
-                          <FileText className="h-2.5 w-2.5 text-zinc-555 shrink-0" />
+                          <FileText className="h-2.5 w-2.5 text-zinc-500 shrink-0" />
                           <span className="truncate" title={filename}>{filename}</span>
                         </div>
                         {isImg && (
@@ -266,7 +266,7 @@ export default function KanbanCard({ task, index, onClick, handleToggleCheck, em
                               setZoomUrl(fullUrl);
                               setZoomName(filename);
                             }}
-                            className="h-14 w-24 border border-zinc-800 rounded-md overflow-hidden bg-zinc-950 cursor-zoom-in hover:border-emerald-500/50 transition-colors"
+                            className="h-14 w-24 border border-zinc-700 rounded-none overflow-hidden bg-zinc-950 cursor-zoom-in hover:border-emerald-500/50 transition-colors"
                           >
                             <img
                               src={fullUrl}
@@ -283,11 +283,11 @@ export default function KanbanCard({ task, index, onClick, handleToggleCheck, em
             )}
           </div>
 
-          <div className="mt-3 pt-3 border-t border-zinc-800/80 flex justify-between items-center shrink-0">
-            <div className="flex items-center gap-2 text-[9px] font-mono text-zinc-500 font-bold">
+          <div className="mt-3 pt-3 border-t border-zinc-700/80 flex justify-between items-center shrink-0">
+            <div className="flex items-center gap-2 text-[9px] font-mono text-zinc-550 font-bold">
               {subProgress && (
-                <span className="flex items-center gap-1 bg-zinc-900/60 border border-zinc-800 px-1.5 py-0.5 rounded text-zinc-400">
-                  <CheckSquare className="h-3 w-3 text-emerald-400 shrink-0" />
+                <span className="flex items-center gap-1 bg-zinc-900/60 border border-zinc-700 px-1.5 py-0.5 rounded-none text-zinc-400">
+                  <CheckSquare className="h-3 w-3 text-emerald-450 shrink-0" />
                   {subProgress}
                 </span>
               )}
@@ -309,7 +309,7 @@ export default function KanbanCard({ task, index, onClick, handleToggleCheck, em
                 return (
                   <div
                     key={i}
-                    className="h-5.5 w-5.5 rounded-full bg-zinc-900 border border-zinc-955 flex items-center justify-center text-[8px] font-bold text-zinc-300 ring-1 ring-zinc-800"
+                    className="h-5.5 w-5.5 rounded-full bg-zinc-900 border border-zinc-800 flex items-center justify-center text-[8px] font-bold text-zinc-350 ring-1 ring-zinc-700"
                     title={emp.full_name}
                   >
                     {emp.full_name?.charAt(0).toUpperCase()}
@@ -317,7 +317,7 @@ export default function KanbanCard({ task, index, onClick, handleToggleCheck, em
                 );
               })}
               {((task as any).assigned_to_ids?.length || 0) > 3 && (
-                <div className="h-5.5 w-5.5 rounded-full bg-zinc-900 border border-zinc-950 flex items-center justify-center text-[7px] font-bold text-zinc-500 ring-1 ring-zinc-800">
+                <div className="h-5.5 w-5.5 rounded-full bg-zinc-900 border border-zinc-800 flex items-center justify-center text-[7px] font-bold text-zinc-500 ring-1 ring-zinc-700">
                   +{((task as any).assigned_to_ids?.length || 0) - 3}
                 </div>
               )}
@@ -340,17 +340,17 @@ export default function KanbanCard({ task, index, onClick, handleToggleCheck, em
                     e.stopPropagation();
                     setZoomUrl(null);
                   }}
-                  className="absolute -top-12 right-0 bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 text-white rounded-full p-2 transition-colors cursor-pointer"
+                  className="absolute -top-12 right-0 bg-zinc-900 border border-zinc-700 hover:bg-zinc-800 text-white rounded-none p-2 transition-colors cursor-pointer"
                 >
                   <X className="h-5 w-5" />
                 </button>
                 <img
                   src={zoomUrl}
                   alt={zoomName}
-                  className="max-w-full max-h-[80vh] object-contain rounded-lg shadow-2xl border border-zinc-800"
+                  className="max-w-full max-h-[80vh] object-contain rounded-none shadow-2xl border border-zinc-700"
                   onClick={(e) => e.stopPropagation()}
                 />
-                <div className="mt-3 text-zinc-300 text-xs font-mono bg-zinc-900/90 border border-zinc-800 px-3 py-1.5 rounded-xl truncate max-w-md">
+                <div className="mt-3 text-zinc-300 text-xs font-mono bg-zinc-900/90 border border-zinc-700 px-3 py-1.5 rounded-none truncate max-w-md">
                   {zoomName}
                 </div>
               </div>

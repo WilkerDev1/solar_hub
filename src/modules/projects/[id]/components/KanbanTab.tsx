@@ -33,22 +33,22 @@ export default function KanbanTab({
 }: Props) {
   return (
     <div className="space-y-4">
-      <div className="flex justify-between items-center bg-zinc-900/10 border border-zinc-900 p-4 rounded-xl">
+      <div className="flex justify-between items-center bg-zinc-800 border border-zinc-700 p-4 rounded-none">
         <div>
           <h4 className="text-sm font-bold text-white">Tablero de Tareas de la Obra</h4>
           <p className="text-[10px] text-zinc-500 mt-0.5 font-mono">Gestión visual del avance físico del proyecto.</p>
         </div>
-        <Button onClick={() => setIsCreateOpen(true)} className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs h-9 px-3 rounded-lg flex items-center gap-1 cursor-pointer">
+        <Button onClick={() => setIsCreateOpen(true)} className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs h-9 px-3 rounded-none flex items-center gap-1 cursor-pointer">
           <Plus className="h-4 w-4" /> Nueva Tarea
         </Button>
       </div>
 
-      <div className="bg-zinc-900/30 border border-zinc-900 p-4 rounded-xl flex flex-wrap items-center gap-3">
-        <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider font-mono">Filtrar Tareas:</span>
+      <div className="bg-zinc-800 border border-zinc-700 p-4 rounded-none flex flex-wrap items-center gap-3">
+        <span className="text-[10px] font-bold text-zinc-550 uppercase tracking-wider font-mono">Filtrar Tareas:</span>
         <select
           value={filterArea}
           onChange={e => setFilterArea(e.target.value)}
-          className="bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-1.5 text-xs text-zinc-300 focus:outline-none"
+          className="bg-zinc-900 border border-zinc-700 rounded-none px-3 py-1.5 text-xs text-zinc-300 focus:outline-none"
         >
           <option value="todos">Departamento: Todos</option>
           <option value="general">General</option>
@@ -61,7 +61,7 @@ export default function KanbanTab({
         <select
           value={filterPriority}
           onChange={e => setFilterPriority(e.target.value)}
-          className="bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-1.5 text-xs text-zinc-300 focus:outline-none font-semibold"
+          className="bg-zinc-900 border border-zinc-700 rounded-none px-3 py-1.5 text-xs text-zinc-300 focus:outline-none font-semibold"
         >
           <option value="todos">Prioridad: Todas</option>
           <option value="baja">Prioridad: Baja</option>
@@ -72,7 +72,7 @@ export default function KanbanTab({
         <select
           value={filterAssignee}
           onChange={e => setFilterAssignee(e.target.value)}
-          className="bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-1.5 text-xs text-zinc-300 focus:outline-none"
+          className="bg-zinc-900 border border-zinc-700 rounded-none px-3 py-1.5 text-xs text-zinc-300 focus:outline-none"
         >
           <option value="todos">Asignado a: Todos</option>
           {employees.map(emp => (
@@ -97,10 +97,10 @@ export default function KanbanTab({
       <DragDropContext onDragEnd={onDragEnd}>
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 overflow-x-auto min-w-0 pb-4 h-[650px] items-stretch">
           {COLUMNS.map(col => (
-            <div key={col.id} className={`bg-[#121214]/50 border border-zinc-800/80 rounded-2xl flex flex-col min-h-0 h-full p-3.5 border-t-2 ${col.borderColor}`}>
+            <div key={col.id} className={`bg-[#1e1e24] border border-zinc-700 rounded-none flex flex-col min-h-0 h-full p-3.5 border-t-[3px] ${col.borderColor}`}>
               <div className="flex justify-between items-center mb-3 shrink-0 px-1">
                 <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest font-mono">{col.label}</span>
-                <span className="bg-[#1c1c21] text-zinc-400 px-2 py-0.5 rounded text-[10px] font-bold font-mono border border-zinc-800">
+                <span className="bg-zinc-900 text-zinc-400 px-2 py-0.5 rounded-none text-[10px] font-bold font-mono border border-zinc-700">
                   {getColumnTasks(col.id).length}
                 </span>
               </div>
