@@ -21,6 +21,7 @@ import {
 import { Button } from '@/core/components/ui/button';
 import { supabase } from '@/core/database/supabase';
 import TaskDetailDrawer from '@/core/components/TaskDetailDrawer';
+import { getApiUrl } from '@/core/utils/api';
 
 // Drag & Drop Imports
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
@@ -1139,7 +1140,7 @@ function KanbanCard({ task, index, onClick, handleToggleCheck, employees, onUplo
                         {isImg && (
                           <div className="h-10 w-16 border border-zinc-900 rounded-md overflow-hidden bg-zinc-950">
                             <img 
-                              src={url.startsWith('/api/storage/file/') ? `${url}${url.includes('?') ? '&' : '?'}token=${token || ''}` : url} 
+                              src={url.startsWith('/api/storage/file/') ? getApiUrl(`${url}${url.includes('?') ? '&' : '?'}token=${token || ''}`) : url} 
                               alt={filename} 
                               className="w-full h-full object-cover" 
                             />

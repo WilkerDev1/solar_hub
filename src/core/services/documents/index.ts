@@ -1,4 +1,5 @@
 import { supabase } from '@/core/database/supabase';
+import { getApiUrl } from '@/core/utils/api';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -211,7 +212,7 @@ export async function uploadDocument(
   if (projectId) formData.append('projectId', projectId);
   if (department) formData.append('department', department);
 
-  const response = await fetch('/api/storage/upload', {
+  const response = await fetch(getApiUrl('/api/storage/upload'), {
     method: 'POST',
     headers: { 'x-user-jwt': token },
     body: formData,
@@ -264,7 +265,7 @@ export async function deleteDocument(id: string): Promise<void> {
   const token = session?.access_token;
   if (!token) throw new Error('No active session');
 
-  const response = await fetch(`/api/storage/file/${id}`, {
+  const response = await fetch(getApiUrl(`/api/storage/file/${id}`), {
     method: 'DELETE',
     headers: { 'x-user-jwt': token },
   });

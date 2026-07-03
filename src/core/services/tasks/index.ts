@@ -1,4 +1,5 @@
 import { supabase } from '@/core/database/supabase';
+import { getApiUrl } from '@/core/utils/api';
 import { Database } from '@/core/database/types';
 
 export type TaskRow = Database['public']['Tables']['global_tasks']['Row'];
@@ -407,7 +408,7 @@ export async function uploadTaskEvidence(
   if (department) formData.append('department', department || 'general');
 
   // Call Next.js storage proxy API route
-  const response = await fetch('/api/storage/upload', {
+  const response = await fetch(getApiUrl('/api/storage/upload'), {
     method: 'POST',
     headers: {
       'x-user-jwt': token

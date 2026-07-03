@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev --webpack",
-    "build": "next build",
+    "build": "mv src/app/api src/app/_api || true; next build; status=$?; mv src/app/_api src/app/api || true; exit $status",
     "start": "next start",
     "lint": "eslint"
   },

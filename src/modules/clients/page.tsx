@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
+import ClientProfileModule from '@/modules/clients/[id]/page';
 import { 
   Plus, 
   Search, 
@@ -61,6 +62,8 @@ const categoryBadge = (cat: string | null) => {
 
 export default function ClientsModule() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const clientId = searchParams.get('clientId');
   const [clients, setClients] = useState<ClientRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -143,6 +146,10 @@ export default function ClientsModule() {
       alert(err.message || 'Error al cambiar estado.');
     }
   };
+
+  if (clientId) {
+    return <ClientProfileModule clientId={clientId} />;
+  }
 
   return (
     <div className="space-y-6">
@@ -339,7 +346,7 @@ export default function ClientsModule() {
                   <tr key={client.id} className="hover:bg-zinc-100 dark:hover:bg-zinc-850/30 transition-colors group">
                     <td className="p-4 font-bold text-zinc-800 dark:text-white">
                       <button 
-                        onClick={() => router.push(`/clients/${client.id}`)}
+                        onClick={() => router.push(`/?tab=clients&clientId=${client.id}`)}
                         className="hover:text-emerald-400 hover:underline transition-colors text-left flex items-center gap-2"
                       >
                         {client.name}
@@ -379,7 +386,7 @@ export default function ClientsModule() {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300">
                           <DropdownMenuItem 
-                            onClick={() => router.push(`/clients/${client.id}`)}
+                            onClick={() => router.push(`/?tab=clients&clientId=${client.id}`)}
                             className="hover:bg-zinc-850 focus:bg-zinc-850 cursor-pointer"
                           >
                             Ver Expediente
@@ -422,7 +429,7 @@ export default function ClientsModule() {
                   <div className="min-w-0 flex-1">
                     <h3 className="font-extrabold text-zinc-800 dark:text-white text-base leading-tight truncate">
                       <button
-                        onClick={() => router.push(`/clients/${client.id}`)}
+                        onClick={() => router.push(`/?tab=clients&clientId=${client.id}`)}
                         className="hover:text-emerald-400 hover:underline transition-colors text-left font-extrabold"
                       >
                         {client.name}
@@ -451,7 +458,7 @@ export default function ClientsModule() {
                 {/* Tactile Action buttons - Minimum 48px tactile height */}
                 <div className="grid grid-cols-2 gap-2 pt-2">
                   <button
-                    onClick={() => router.push(`/clients/${client.id}`)}
+                    onClick={() => router.push(`/?tab=clients&clientId=${client.id}`)}
                     className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs py-3 rounded-lg border border-emerald-500 transition-colors flex items-center justify-center gap-1.5 col-span-2"
                     style={{ minHeight: '48px' }}
                   >

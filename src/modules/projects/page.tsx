@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { Plus, Folder, MapPin, Activity, CheckCircle2, ClipboardList, LayoutList, Loader2, AlertCircle, MoreVertical, Trash2, Archive, Search } from 'lucide-react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import ProjectDetailModule from '@/modules/projects/[id]/page';
+import { Plus, Folder, MapPin, Activity, CheckCircle2, ClipboardList, LayoutList, Loader2, AlertCircle, MoreVertical, Trash2, Archive, Search, LayoutGrid, Filter, X } from 'lucide-react';
 import { getProjects, createProject, deleteProject, archiveProject, ProjectFilters } from '@/core/services/projects';
 import { supabase } from '@/core/database/supabase';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from '@/core/components/ui/dropdown-menu';
@@ -29,9 +30,19 @@ interface ProjectWithStats {
 
 export default function ProjectsModule() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const projectId = searchParams.get('projectId');
   const [projects, setProjects] = useState<ProjectWithStats[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // View & selection states for list view
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [selectedClientId, setSelectedClientId] = useState<string>('');
+  const [bulkAction, setBulkAction] = useState<string>('');
+  const [executingBulk, setExecutingBulk] = useState(false);
 
   // Filters state
   const [filters, setFilters] = useState<ProjectFilters>({
@@ -45,6 +56,37 @@ export default function ProjectsModule() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [creating, setCreating] = useState(false);
   const [newProj, setNewProj] = useState({ client_id: '', name: '', phase: 'Diseno', capacity: '', location: '', status: 'en_progreso' });
+
+  const handleBulkAction = async () => {
+    if (selectedIds.length === 0) return alert('Por favor, selecciona al menos un proyecto.');
+    if (!bulkAction) return alert('Selecciona una acción.');
+    
+    const confirmMsg = bulkAction === 'delete' 
+      ? `¿Estás seguro de eliminar permanentemente los ${selectedIds.length} proyectos seleccionados?`
+      : `¿Estás seguro de archivar los ${selectedIds.length} proyectos seleccionados?`;
+
+    if (!confirm(confirmMsg)) return;
+
+    setExecutingBulk(true);
+    try {
+      if (bulkAction === 'delete') {
+        for (const id of selectedIds) {
+          await deleteProject(id);
+        }
+      } else if (bulkAction === 'archive') {
+        for (const id of selectedIds) {
+          await archiveProject(id);
+        }
+      }
+      setSelectedIds([]);
+      setBulkAction('');
+      loadData();
+    } catch (err: any) {
+      alert(`Error en acción en lote: ${err.message}`);
+    } finally {
+      setExecutingBulk(false);
+    }
+  };
 
   const loadData = async () => {
     setLoading(true);
@@ -127,6 +169,10 @@ export default function ProjectsModule() {
     }
   };
 
+  if (projectId) {
+    return <ProjectDetailModule projectId={projectId} />;
+  }
+
   return (
     <div className="space-y-6 text-left">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -206,28 +252,77 @@ export default function ProjectsModule() {
             className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-250 dark:border-zinc-800 rounded-lg pl-9 pr-4 py-2 text-sm text-zinc-800 dark:text-zinc-300 focus:border-emerald-500 focus:outline-none transition-colors"
           />
         </div>
-        <select 
-          value={filters.status}
-          onChange={(e) => setFilters({...filters, status: e.target.value})}
-          className="bg-zinc-50 dark:bg-zinc-950 border border-zinc-250 dark:border-zinc-800 rounded-lg px-3 py-2 text-sm text-zinc-700 dark:text-zinc-300 focus:border-emerald-500 outline-none transition-colors"
-        >
-          <option value="todos">Todos los Estados</option>
-          <option value="en_progreso">En Progreso</option>
-          <option value="completado">Completado</option>
-          <option value="demorado">Demorado</option>
-          <option value="archivado">Archivado</option>
-        </select>
-        <select 
-          value={filters.phase}
-          onChange={(e) => setFilters({...filters, phase: e.target.value})}
-          className="bg-zinc-50 dark:bg-zinc-950 border border-zinc-250 dark:border-zinc-800 rounded-lg px-3 py-2 text-sm text-zinc-700 dark:text-zinc-300 focus:border-emerald-500 outline-none transition-colors"
-        >
-          <option value="todas">Todas las Fases</option>
-          <option value="Diseno">Diseño</option>
-          <option value="Permisos">Permisos</option>
-          <option value="Construccion">Construcción</option>
-          <option value="Operacion">Operación</option>
-        </select>
+
+        {(!isFilterOpen || viewMode === 'grid') && (
+          <>
+            <select 
+              value={filters.status}
+              onChange={(e) => setFilters({...filters, status: e.target.value})}
+              className="bg-zinc-50 dark:bg-zinc-950 border border-zinc-250 dark:border-zinc-800 rounded-lg px-3 py-2 text-sm text-zinc-700 dark:text-zinc-300 focus:border-emerald-500 outline-none transition-colors"
+            >
+              <option value="todos">Todos los Estados</option>
+              <option value="en_progreso">En Progreso</option>
+              <option value="completado">Completado</option>
+              <option value="demorado">Demorado</option>
+              <option value="archivado">Archivado</option>
+            </select>
+            <select 
+              value={filters.phase}
+              onChange={(e) => setFilters({...filters, phase: e.target.value})}
+              className="bg-zinc-50 dark:bg-zinc-950 border border-zinc-250 dark:border-zinc-800 rounded-lg px-3 py-2 text-sm text-zinc-700 dark:text-zinc-300 focus:border-emerald-500 outline-none transition-colors"
+            >
+              <option value="todas">Todas las Fases</option>
+              <option value="Diseno">Diseño</option>
+              <option value="Permisos">Permisos</option>
+              <option value="Construccion">Construcción</option>
+              <option value="Operacion">Operación</option>
+            </select>
+          </>
+        )}
+
+        {/* List/Grid View Switcher */}
+        <div className="flex border border-zinc-250 dark:border-zinc-800 rounded-lg overflow-hidden shrink-0">
+          <button 
+            type="button"
+            onClick={() => setViewMode('grid')}
+            className={`px-3 py-2 text-xs font-bold transition-colors cursor-pointer flex items-center gap-1.5 ${
+              viewMode === 'grid' 
+                ? 'bg-zinc-200 dark:bg-zinc-800 text-zinc-900 dark:text-white font-semibold' 
+                : 'bg-zinc-50 dark:bg-zinc-950 text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'
+            }`}
+          >
+            <LayoutGrid className="h-3.5 w-3.5" />
+            Mosaico
+          </button>
+          <button 
+            type="button"
+            onClick={() => setViewMode('list')}
+            className={`px-3 py-2 text-xs font-bold transition-colors cursor-pointer flex items-center gap-1.5 ${
+              viewMode === 'list' 
+                ? 'bg-zinc-200 dark:bg-zinc-800 text-zinc-900 dark:text-white font-semibold' 
+                : 'bg-zinc-50 dark:bg-zinc-950 text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'
+            }`}
+          >
+            <LayoutList className="h-3.5 w-3.5" />
+            Lista
+          </button>
+        </div>
+
+        {/* Filtro Sidebar toggle button (list view only) */}
+        {viewMode === 'list' && (
+          <button 
+            type="button"
+            onClick={() => setIsFilterOpen(!isFilterOpen)}
+            className={`px-3.5 py-2 text-xs font-bold border border-zinc-250 dark:border-zinc-800 rounded-lg transition-colors cursor-pointer flex items-center gap-1.5 shrink-0 ${
+              isFilterOpen 
+                ? 'bg-emerald-600 border-emerald-500 text-white font-semibold' 
+                : 'bg-zinc-50 dark:bg-zinc-950 text-zinc-650 dark:text-zinc-300 hover:bg-zinc-150 dark:hover:bg-zinc-900'
+            }`}
+          >
+            <Filter className="h-3.5 w-3.5" />
+            Filtros
+          </button>
+        )}
       </div>
 
       {loading ? (
@@ -244,9 +339,10 @@ export default function ProjectsModule() {
         <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-12 text-center rounded-2xl transition-colors">
           <Folder className="h-10 w-10 text-zinc-400 dark:text-zinc-700 mx-auto mb-3" />
           <h3 className="text-zinc-700 dark:text-zinc-400 font-bold text-sm">Ningún proyecto encontrado</h3>
-          <p className="text-zinc-500 text-xs mt-1">Modifica los filtros o crea un proyecto nuevo.</p>
+          <p className="text-zinc-550 text-xs mt-1">Modifica los filtros o crea un proyecto nuevo.</p>
         </div>
-      ) : (
+      ) : viewMode === 'grid' ? (
+        /* GRID VIEW */
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {projects.map((proj) => (
             <div key={proj.id} className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl overflow-hidden hover:border-zinc-300 dark:hover:border-zinc-700 transition-all flex flex-col justify-between relative group shadow-md dark:shadow-lg">
@@ -265,10 +361,10 @@ export default function ProjectsModule() {
                 {/* Status Badge overlays the image */}
                 <div className="absolute bottom-3 left-4 flex gap-2">
                   <span className={`text-[9px] font-bold uppercase px-2.5 py-0.5 rounded-md border backdrop-blur-xs ${
-                    proj.status === 'completado' ? 'bg-emerald-50/80 dark:bg-emerald-950/70 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-500/20' :
-                    proj.status === 'en_progreso' ? 'bg-amber-50/80 dark:bg-amber-950/70 text-amber-750 dark:text-amber-400 border-amber-200 dark:border-amber-500/20' :
+                    proj.status === 'completado' ? 'bg-emerald-50/80 dark:bg-emerald-950/70 text-emerald-700 dark:text-emerald-400 border-emerald-250 dark:border-emerald-500/20' :
+                    proj.status === 'en_progreso' ? 'bg-amber-50/80 dark:bg-amber-950/70 text-amber-750 dark:text-amber-400 border-amber-250 dark:border-amber-500/20' :
                     proj.status === 'archivado' ? 'bg-zinc-100/90 dark:bg-zinc-900/80 text-zinc-600 dark:text-zinc-400 border-zinc-250 dark:border-zinc-650' :
-                    'bg-rose-50/80 dark:bg-rose-950/70 text-rose-700 dark:text-rose-400 border-rose-200 dark:border-rose-500/20'
+                    'bg-rose-50/80 dark:bg-rose-950/70 text-rose-700 dark:text-rose-400 border-rose-250 dark:border-rose-500/20'
                   }`}>
                     {proj.status.replace('_', ' ')}
                   </span>
@@ -301,7 +397,7 @@ export default function ProjectsModule() {
                   <div className="flex justify-between items-start">
                     <div className="flex items-center space-x-2 min-w-0">
                       <Folder className="h-4.5 w-4.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                      <h3 className="font-bold text-zinc-850 dark:text-white truncate text-sm hover:text-emerald-650 dark:hover:text-emerald-400 transition-colors cursor-pointer" onClick={() => router.push(`/projects/${proj.id}`)}>{proj.name}</h3>
+                      <h3 className="font-bold text-zinc-850 dark:text-white truncate text-sm hover:text-emerald-650 dark:hover:text-emerald-400 transition-colors cursor-pointer" onClick={() => router.push(`/?tab=projects&projectId=${proj.id}`)}>{proj.name}</h3>
                     </div>
                   </div>
                   <div className="flex items-center gap-1.5 text-xs text-zinc-500">
@@ -314,7 +410,7 @@ export default function ProjectsModule() {
                       <span className="font-semibold text-zinc-700 dark:text-zinc-300">{proj.location || 'N/D'}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="font-mono text-zinc-450 dark:text-zinc-550 text-[10px]">Capacidad:</span>
+                      <span className="font-mono text-zinc-455 dark:text-zinc-550 text-[10px]">Capacidad:</span>
                       <span className="font-semibold text-zinc-700 dark:text-zinc-300 font-mono">{proj.capacity || 'N/D'}</span>
                     </div>
                     <div className="flex justify-between">
@@ -338,15 +434,15 @@ export default function ProjectsModule() {
 
                   <div className="flex gap-2">
                     <button
-                      onClick={() => router.push(`/projects/${proj.id}`)}
-                      className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-750 text-zinc-700 dark:text-zinc-200 text-xs font-bold rounded-xl border border-zinc-250 dark:border-zinc-700 hover:border-zinc-350 dark:hover:border-zinc-650 transition-colors cursor-pointer"
+                      onClick={() => router.push(`/?tab=projects&projectId=${proj.id}`)}
+                      className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-750 text-zinc-700 dark:text-zinc-200 text-xs font-bold rounded-xl border border-zinc-250 dark:border-zinc-700 hover:border-zinc-350 dark:hover:bg-zinc-650 transition-colors cursor-pointer"
                       style={{ minHeight: '40px' }}
                     >
                       <LayoutList className="h-3.5 w-3.5 text-zinc-550 dark:text-zinc-400" />
                       Detalles ({proj.completedTasks}/{proj.totalTasks})
                     </button>
                     <button
-                      onClick={() => router.push(`/clients/${proj.client_id}`)}
+                      onClick={() => router.push(`/?tab=clients&clientId=${proj.client_id}`)}
                       className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-zinc-100/40 hover:bg-zinc-200/50 dark:bg-zinc-800/40 dark:hover:bg-zinc-800/80 text-zinc-600 dark:text-zinc-300 text-xs font-bold rounded-xl border border-zinc-250 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 transition-colors cursor-pointer"
                       style={{ minHeight: '40px' }}
                     >
@@ -358,6 +454,223 @@ export default function ProjectsModule() {
               </div>
             </div>
           ))}
+        </div>
+      ) : (
+        /* LIST VIEW */
+        <div className="flex gap-4 min-h-[400px] items-stretch">
+          {/* Main Table area */}
+          <div className="flex-1 flex flex-col justify-between overflow-x-auto bg-white dark:bg-zinc-900/40 rounded-xl border border-zinc-200 dark:border-zinc-800/80 p-4">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse min-w-[700px]">
+                <thead>
+                  <tr className="border-b border-zinc-200 dark:border-zinc-800 text-[11px] font-mono tracking-widest text-zinc-500 uppercase">
+                    <th className="py-3 px-2 w-8">
+                      <input 
+                        type="checkbox"
+                        checked={projects.length > 0 && selectedIds.length === projects.length}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedIds(projects.map(p => p.id));
+                          } else {
+                            setSelectedIds([]);
+                          }
+                        }}
+                        className="rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500"
+                      />
+                    </th>
+                    <th className="py-3 px-3">Proyecto</th>
+                    <th className="py-3 px-3">Cliente</th>
+                    <th className="py-3 px-3">Etapa</th>
+                    <th className="py-3 px-3">Capacidad</th>
+                    <th className="py-3 px-3">Ubicación</th>
+                    <th className="py-3 px-3">Hitos</th>
+                    <th className="py-3 px-3">Estado</th>
+                    <th className="py-3 px-3 w-12 text-center">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800/60 text-xs">
+                  {(selectedClientId ? projects.filter(p => p.client_id === selectedClientId) : projects).map((proj) => {
+                    const isSelected = selectedIds.includes(proj.id);
+                    return (
+                      <tr key={proj.id} className={`hover:bg-zinc-50 dark:hover:bg-zinc-900/30 transition-colors ${isSelected ? 'bg-emerald-50/5 dark:bg-emerald-950/5' : ''}`}>
+                        <td className="py-3.5 px-2">
+                          <input 
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setSelectedIds([...selectedIds, proj.id]);
+                              } else {
+                                setSelectedIds(selectedIds.filter(id => id !== proj.id));
+                              }
+                            }}
+                            className="rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500"
+                          />
+                        </td>
+                        <td className="py-3.5 px-3 font-semibold text-zinc-800 dark:text-white">
+                          <button
+                            onClick={() => router.push(`/?tab=projects&projectId=${proj.id}`)}
+                            className="hover:text-emerald-500 font-bold transition-colors cursor-pointer text-left"
+                          >
+                            {proj.name}
+                          </button>
+                        </td>
+                        <td className="py-3.5 px-3 text-zinc-500 dark:text-zinc-400">
+                          {proj.clients?.name || 'Sin Cliente'}
+                        </td>
+                        <td className="py-3.5 px-3">
+                          <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
+                            {proj.phase === 'Diseno' ? 'Diseño' :
+                             proj.phase === 'Construccion' ? 'Construcción' :
+                             proj.phase === 'Operacion' ? 'Operación' : proj.phase}
+                          </span>
+                        </td>
+                        <td className="py-3.5 px-3 text-zinc-650 dark:text-zinc-300 font-mono">
+                          {proj.capacity || '—'}
+                        </td>
+                        <td className="py-3.5 px-3 text-zinc-650 dark:text-zinc-300">
+                          {proj.location || '—'}
+                        </td>
+                        <td className="py-3.5 px-3 text-zinc-500 dark:text-zinc-400 font-mono">
+                          {proj.completedDeliverables}/{proj.totalDeliverables}
+                        </td>
+                        <td className="py-3.5 px-3">
+                          <span className={`text-[9px] font-bold uppercase px-2 py-0.5 rounded-md border ${
+                            proj.status === 'completado' ? 'bg-emerald-50/80 dark:bg-emerald-950/70 text-emerald-700 dark:text-emerald-400 border-emerald-250 dark:border-emerald-500/20' :
+                            proj.status === 'en_progreso' ? 'bg-amber-50/80 dark:bg-amber-950/70 text-amber-750 dark:text-amber-400 border-emerald-250 dark:border-emerald-500/20' :
+                            proj.status === 'archivado' ? 'bg-zinc-100/90 dark:bg-zinc-900/80 text-zinc-600 dark:text-zinc-400 border-zinc-250 dark:border-zinc-700' :
+                            'bg-rose-50/80 dark:bg-rose-950/70 text-rose-700 dark:text-rose-400 border-rose-250 dark:border-rose-500/20'
+                          }`}>
+                            {proj.status.replace('_', ' ')}
+                          </span>
+                        </td>
+                        <td className="py-3.5 px-3 text-center">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger className="p-1.5 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-500 dark:text-zinc-450 hover:text-zinc-900 dark:hover:text-white outline-none cursor-pointer">
+                              <MoreVertical className="h-4 w-4" />
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-40 bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 text-zinc-800 dark:text-zinc-300">
+                              <DropdownMenuItem onClick={() => handleArchive(proj.id)} className="hover:bg-zinc-100 dark:hover:bg-zinc-800 cursor-pointer">
+                                <Archive className="h-4 w-4 mr-2" /> Archivar
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator className="bg-zinc-200 dark:bg-zinc-800" />
+                              <DropdownMenuItem onClick={() => handleDelete(proj.id)} className="text-rose-600 dark:text-rose-405 focus:bg-rose-50 dark:focus:bg-rose-500/10 focus:text-rose-600 dark:focus:text-rose-450 cursor-pointer">
+                                <Trash2 className="h-4 w-4 mr-2" /> Eliminar
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Bulk actions bar at bottom */}
+            <div className="flex flex-col sm:flex-row justify-between items-center gap-3 pt-4 border-t border-zinc-200 dark:border-zinc-800 mt-4 text-xs">
+              <div className="flex items-center gap-2">
+                <span className="text-zinc-500 font-mono">Acción:</span>
+                <select 
+                  value={bulkAction}
+                  onChange={(e) => setBulkAction(e.target.value)}
+                  className="bg-zinc-50 dark:bg-zinc-950 border border-zinc-250 dark:border-zinc-800 rounded-lg px-2.5 py-1.5 focus:border-emerald-500 outline-none text-zinc-700 dark:text-zinc-300"
+                >
+                  <option value="">Seleccionar acción...</option>
+                  <option value="archive">Archivar seleccionados</option>
+                  <option value="delete">Eliminar seleccionados</option>
+                </select>
+                <button
+                  type="button"
+                  onClick={handleBulkAction}
+                  disabled={executingBulk || selectedIds.length === 0 || !bulkAction}
+                  className="bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg px-3 py-1.5 font-bold cursor-pointer disabled:opacity-40 transition-colors shrink-0"
+                >
+                  {executingBulk ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Ir'}
+                </button>
+                <span className="text-[10px] text-zinc-500 font-mono ml-2">
+                  seleccionados {selectedIds.length} de {projects.length}
+                </span>
+              </div>
+              <div className="text-zinc-500 text-[10px] font-mono">
+                Total: {projects.length} resultados
+              </div>
+            </div>
+          </div>
+
+          {/* Right Filters sidebar */}
+          {isFilterOpen && (
+            <div className="w-[260px] bg-[#121214] border border-zinc-800 rounded-xl p-4 space-y-5 text-left shrink-0 flex flex-col justify-between">
+              <div className="space-y-5">
+                {/* Header of Filter */}
+                <div className="flex justify-between items-center border-b border-zinc-800 pb-3">
+                  <span className="text-xs font-bold font-mono tracking-widest text-white">FILTRO</span>
+                  <button 
+                    onClick={() => setIsFilterOpen(false)}
+                    className="p-1 rounded bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 text-zinc-400 hover:text-white transition-colors cursor-pointer"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </div>
+
+                {/* Filters selects */}
+                <div className="space-y-4">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-zinc-500 uppercase font-mono tracking-wider block">POR ETAPA (FASE)</label>
+                    <select
+                      value={filters.phase}
+                      onChange={(e) => setFilters({...filters, phase: e.target.value})}
+                      className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2.5 text-xs text-zinc-300 focus:border-emerald-500 outline-none"
+                    >
+                      <option value="todas">Todo</option>
+                      <option value="Diseno">Diseño</option>
+                      <option value="Permisos">Permisos</option>
+                      <option value="Construccion">Construcción</option>
+                      <option value="Operacion">Operación</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-zinc-500 uppercase font-mono tracking-wider block">POR ESTADO (STATUS)</label>
+                    <select
+                      value={filters.status}
+                      onChange={(e) => setFilters({...filters, status: e.target.value})}
+                      className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2.5 text-xs text-zinc-300 focus:border-emerald-500 outline-none"
+                    >
+                      <option value="todos">Todo</option>
+                      <option value="en_progreso">En Progreso</option>
+                      <option value="completado">Completado</option>
+                      <option value="demorado">Demorado</option>
+                      <option value="archivado">Archivado</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-zinc-500 uppercase font-mono tracking-wider block">POR CLIENTE</label>
+                    <select
+                      value={selectedClientId}
+                      onChange={(e) => setSelectedClientId(e.target.value)}
+                      className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2.5 text-xs text-zinc-300 focus:border-emerald-500 outline-none"
+                    >
+                      <option value="">Todo</option>
+                      {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {/* Reset filter button */}
+              <button
+                onClick={() => {
+                  setFilters({ status: 'todos', phase: 'todas', search: '' });
+                  setSelectedClientId('');
+                }}
+                className="w-full py-2 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-white rounded-lg text-xs font-bold transition-colors cursor-pointer"
+              >
+                Limpiar Filtros
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>

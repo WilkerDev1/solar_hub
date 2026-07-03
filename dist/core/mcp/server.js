@@ -291,6 +291,30 @@ server.setRequestHandler(types_js_1.ListToolsRequestSchema, async () => {
                     },
                     required: ["userJwt", "query"]
                 }
+            },
+            {
+                name: "search_inventory_items",
+                description: "Buscar materiales en el inventario general por coincidencia de nombre o SKU.",
+                inputSchema: {
+                    type: "object",
+                    properties: {
+                        userJwt: { type: "string", description: "JWT del usuario activo para RLS" },
+                        query: { type: "string", description: "Texto a buscar en el nombre o SKU (insensible a mayúsculas)" }
+                    },
+                    required: ["userJwt", "query"]
+                }
+            },
+            {
+                name: "get_inventory_item_details",
+                description: "Obtener la información detallada de un material específico del inventario por su UUID (incluyendo stock, costo, y urls de imágenes).",
+                inputSchema: {
+                    type: "object",
+                    properties: {
+                        userJwt: { type: "string", description: "JWT del usuario activo para RLS" },
+                        itemId: { type: "string", description: "UUID del material/ítem del inventario" }
+                    },
+                    required: ["userJwt", "itemId"]
+                }
             }
         ]
     };
@@ -1069,7 +1093,7 @@ server.setRequestHandler(types_js_1.CallToolRequestSchema, async (request) => {
                     throw new Error("Compañía no encontrada.");
                 const companyId = profile.company_id;
                 let queryFolders = db.from("folders").select("id, name, parent_id, project_id, department_id").eq("company_id", companyId);
-                let queryDocs = db.from("documents").select("id, folder_id, name, file_size, mime_type, created_at").eq("company_id", companyId);
+                let queryDocs = db.from("documents").select("id, folder_id, name, file_size, mime_type, created_at, physical_path").eq("company_id", companyId);
                 if (folderId) {
                     queryFolders = queryFolders.eq("parent_id", folderId);
                     queryDocs = queryDocs.eq("folder_id", folderId);
@@ -1111,6 +1135,7 @@ server.setRequestHandler(types_js_1.CallToolRequestSchema, async (request) => {
                                     file_size: d.file_size,
                                     mime_type: d.mime_type,
                                     created_at: d.created_at,
+                                    physical_path: d.physical_path,
                                     download_url: `/api/storage/file/${d.id}?name=${encodeURIComponent(d.name)}`
                                 }))
                             }, null, 2)
@@ -1132,7 +1157,7 @@ server.setRequestHandler(types_js_1.CallToolRequestSchema, async (request) => {
                 const companyId = profile.company_id;
                 const { data: documents, error } = await db
                     .from("documents")
-                    .select("id, folder_id, name, file_size, mime_type, created_at")
+                    .select("id, folder_id, name, file_size, mime_type, created_at, physical_path")
                     .eq("company_id", companyId)
                     .ilike("name", `%${query}%`);
                 if (error)
@@ -1147,8 +1172,40 @@ server.setRequestHandler(types_js_1.CallToolRequestSchema, async (request) => {
                                 file_size: d.file_size,
                                 mime_type: d.mime_type,
                                 created_at: d.created_at,
+                                physical_path: d.physical_path,
                                 download_url: `/api/storage/file/${d.id}?name=${encodeURIComponent(d.name)}`
                             })), null, 2)
+                        }]
+                };
+            }
+            case "search_inventory_items": {
+                const query = args.query;
+                const { data: items, error } = await db
+                    .from("inventory_items")
+                    .select("*, inventory_categories(name)")
+                    .or(`name.ilike.%${query}%,sku.ilike.%${query}%`);
+                if (error)
+                    throw error;
+                return {
+                    content: [{
+                            type: "text",
+                            text: JSON.stringify(items, null, 2)
+                        }]
+                };
+            }
+            case "get_inventory_item_details": {
+                const itemId = args.itemId;
+                const { data: item, error } = await db
+                    .from("inventory_items")
+                    .select("*, inventory_categories(name)")
+                    .eq("id", itemId)
+                    .single();
+                if (error)
+                    throw error;
+                return {
+                    content: [{
+                            type: "text",
+                            text: JSON.stringify(item, null, 2)
                         }]
                 };
             }

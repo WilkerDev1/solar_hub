@@ -1,4 +1,5 @@
 import { supabase } from '@/core/database/supabase';
+import { getApiUrl } from '@/core/utils/api';
 import { Database } from '@/core/database/types';
 
 export type ProfileRow = Database['public']['Tables']['profiles']['Row'];
@@ -64,7 +65,7 @@ export async function createEmployee(data: {
   const { data: { session } } = await supabase.auth.getSession();
   const token = session?.access_token;
 
-  const response = await fetch('/api/admin/create-employee', {
+  const response = await fetch(getApiUrl('/api/admin/create-employee'), {
     method: 'POST',
     headers: { 
       'Content-Type': 'application/json',
@@ -261,7 +262,7 @@ export async function resetEmployeePassword(
   const { data: { session } } = await supabase.auth.getSession();
   const token = session?.access_token;
 
-  const response = await fetch('/api/admin/reset-password', {
+  const response = await fetch(getApiUrl('/api/admin/reset-password'), {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

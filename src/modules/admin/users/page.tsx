@@ -391,7 +391,7 @@ export default function EmployeeManagementModule() {
                       value={newName}
                       onChange={(e) => setNewName(e.target.value)}
                       placeholder="María García López"
-                      className="bg-white dark:bg-zinc-950 border-zinc-200 dark:border-zinc-800 text-zinc-800 dark:text-white text-sm h-11"
+                      className="bg-white dark:bg-[#161618] border-zinc-200 dark:border-zinc-800 text-zinc-800 dark:text-white text-sm h-11"
                       autoFocus
                     />
                   </div>
@@ -405,7 +405,7 @@ export default function EmployeeManagementModule() {
                       onChange={(e) => setNewEmail(e.target.value)}
                       type="email"
                       placeholder="maria@solarhub.cl"
-                      className="bg-white dark:bg-zinc-950 border-zinc-200 dark:border-zinc-800 text-zinc-800 dark:text-white text-sm h-11"
+                      className="bg-white dark:bg-[#161618] border-zinc-200 dark:border-zinc-800 text-zinc-800 dark:text-white text-sm h-11"
                     />
                   </div>
 
@@ -417,7 +417,7 @@ export default function EmployeeManagementModule() {
                       value={newOccupation}
                       onChange={(e) => setNewOccupation(e.target.value)}
                       placeholder="Almacén, Administración"
-                      className="bg-white dark:bg-zinc-950 border-zinc-200 dark:border-zinc-800 text-zinc-800 dark:text-white text-sm h-11"
+                      className="bg-white dark:bg-[#161618] border-zinc-200 dark:border-zinc-800 text-zinc-800 dark:text-white text-sm h-11"
                       list="suggested-occupations-list"
                     />
                     <p className="text-zinc-600 text-[10px]">Opcional. Define las áreas de responsabilidad del colaborador.</p>
@@ -470,7 +470,7 @@ export default function EmployeeManagementModule() {
             <div className="hidden md:block overflow-hidden bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl">
               <table className="w-full text-left border-collapse">
                 <thead>
-                  <tr className="bg-white dark:bg-zinc-950 border-b border-zinc-200 dark:border-zinc-800 text-[10px] text-zinc-550 dark:text-zinc-400 font-bold uppercase tracking-wider">
+                  <tr className="bg-white dark:bg-[#161618] border-b border-zinc-200 dark:border-zinc-800 text-[10px] text-zinc-550 dark:text-zinc-400 font-bold uppercase tracking-wider">
                     <th className="p-4">Colaborador</th>
                     <th className="p-4">Email</th>
                     <th className="p-4">Rol</th>
@@ -481,7 +481,7 @@ export default function EmployeeManagementModule() {
                 </thead>
                 <tbody className="divide-y divide-zinc-800/60 text-sm text-zinc-700 dark:text-zinc-300">
                   {employees.map((emp) => (
-                    <tr key={emp.id} className={`transition-colors${emp.is_active ? 'hover:bg-zinc-850/30' : 'opacity-50 bg-zinc-950/30'}`}>
+                    <tr key={emp.id} className={`transition-colors${emp.is_active ? 'hover:bg-zinc-850/30' : 'opacity-50 bg-[#161618]/30'}`}>
                       <td className="p-4">
                         <div className="flex items-center gap-3">
                           <div className="h-9 w-9 rounded-xl bg-emerald-700/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400 font-bold text-sm">
@@ -633,7 +633,7 @@ export default function EmployeeManagementModule() {
                   <Input
                     value={editName}
                     onChange={(e) => setEditName(e.target.value)}
-                    className="bg-white dark:bg-zinc-950 border-zinc-200 dark:border-zinc-800 text-zinc-800 dark:text-white text-sm h-10"
+                    className="bg-white dark:bg-[#161618] border-zinc-200 dark:border-zinc-800 text-zinc-800 dark:text-white text-sm h-10"
                   />
                 </div>
 
@@ -645,7 +645,7 @@ export default function EmployeeManagementModule() {
                     value={editOccupation}
                     onChange={(e) => setEditOccupation(e.target.value)}
                     placeholder="Ingeniería, Ventas"
-                    className="bg-white dark:bg-zinc-950 border-zinc-200 dark:border-zinc-800 text-zinc-800 dark:text-white text-sm h-10"
+                    className="bg-white dark:bg-[#161618] border-zinc-200 dark:border-zinc-800 text-zinc-800 dark:text-white text-sm h-10"
                     list="suggested-occupations-list"
                   />
                 </div>
@@ -656,7 +656,7 @@ export default function EmployeeManagementModule() {
                   <select
                     value={selectedRoleId}
                     onChange={(e) => handleRoleSelectChange(e.target.value)}
-                    className="w-full bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-lg text-sm p-2 text-zinc-800 dark:text-white h-9 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+                    className="w-full bg-white dark:bg-[#161618] border border-zinc-200 dark:border-zinc-800 rounded-lg text-sm p-2 text-zinc-800 dark:text-white h-9 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
                   >
                     <option value="">Ningún Rol (Sin acceso)</option>
                     {roles.map((r) => (
@@ -711,7 +711,7 @@ export default function EmployeeManagementModule() {
                       placeholder="Nueva contraseña temporal"
                       value={resetPasswordVal}
                       onChange={(e) => setResetPasswordVal(e.target.value)}
-                      className="bg-white dark:bg-zinc-950 border-zinc-200 dark:border-zinc-800 text-zinc-800 dark:text-white text-sm h-10 flex-1"
+                      className="bg-white dark:bg-[#161618] border-zinc-200 dark:border-zinc-800 text-zinc-800 dark:text-white text-sm h-10 flex-1"
                     />
                     <Button
                       type="button"

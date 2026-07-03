@@ -11,6 +11,7 @@ import { updateTask, auditTaskStatus, uploadTaskEvidence, deleteTask, TaskRow } 
 import { Button } from '@/core/components/ui/button';
 import { supabase } from '@/core/database/supabase';
 import { useAuth } from '@/core/auth/AuthContext';
+import { getApiUrl } from '@/core/utils/api';
 
 interface TaskDetailDrawerProps {
   task: TaskRow | null;
@@ -95,7 +96,8 @@ export default function TaskDetailDrawer({
 
   const getDownloadUrl = (url: string) => {
     if (url.startsWith('/api/storage/file/')) {
-      return token ? `${url}?token=${token}` : url;
+      const urlWithToken = token ? `${url}${url.includes('?') ? '&' : '?'}token=${token}` : url;
+      return getApiUrl(urlWithToken);
     }
     return url;
   };

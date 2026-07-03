@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/core/database/supabase';
+import { getApiUrl } from '@/core/utils/api';
 import {
   getAllFolders,
   getDocuments,
@@ -154,7 +155,7 @@ function InlineRename({ value, onSave, onCancel }: { value: string; onSave: (v: 
 // ─── Preview Modal ─────────────────────────────────────────────────────────────
 
 function PreviewModal({ doc, token, onClose }: { doc: DocumentRow; token: string | null; onClose: () => void }) {
-  const url = `/api/storage/file/${doc.id}?token=${token || ''}`;
+  const url = getApiUrl(`/api/storage/file/${doc.id}?token=${token || ''}`);
   const ext = doc.name.split('.').pop()?.toLowerCase() || '';
   const isImg = isImageMime(doc.mime_type);
   const isPdf = isPdfMime(doc.mime_type);
@@ -620,7 +621,7 @@ export default function DocumentsModule() {
               {filteredDocs.map(doc => {
                 const ext = doc.name.split('.').pop()?.toLowerCase() || '';
                 const isImg = isImageMime(doc.mime_type);
-                const fileUrl = `/api/storage/file/${doc.id}?token=${token || ''}`;
+                const fileUrl = getApiUrl(`/api/storage/file/${doc.id}?token=${token || ''}`);
 
                 return (
                   <div
@@ -729,7 +730,7 @@ export default function DocumentsModule() {
               {/* Documents */}
               {filteredDocs.map(doc => {
                 const ext = doc.name.split('.').pop()?.toLowerCase() || '';
-                const fileUrl = `/api/storage/file/${doc.id}?token=${token || ''}`;
+                const fileUrl = getApiUrl(`/api/storage/file/${doc.id}?token=${token || ''}`);
                 return (
                   <div
                     key={doc.id}
