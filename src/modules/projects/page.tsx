@@ -247,15 +247,15 @@ export default function ProjectsModule() {
       </div>
 
       {/* TOOLBAR: FILTERS */}
-      <div className="flex flex-col md:flex-row gap-3 bg-white dark:bg-zinc-900/50 p-3 rounded-xl border border-zinc-200 dark:border-zinc-800/80 transition-colors">
+      <div className="flex flex-col md:flex-row gap-3 bg-zinc-800 border border-zinc-700 p-3 rounded-none transition-colors">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400 dark:text-zinc-500" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
           <input 
             type="text" 
             placeholder="Buscar proyecto por nombre..." 
             value={filters.search}
             onChange={(e) => setFilters({...filters, search: e.target.value})}
-            className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-250 dark:border-zinc-800 rounded-lg pl-9 pr-4 py-2 text-sm text-zinc-800 dark:text-zinc-300 focus:border-emerald-500 focus:outline-none transition-colors"
+            className="w-full bg-zinc-900 border border-zinc-700 rounded-none pl-9 pr-4 py-2 text-sm text-zinc-100 placeholder-zinc-500 focus:border-emerald-500 focus:outline-none transition-colors"
           />
         </div>
 
@@ -264,7 +264,7 @@ export default function ProjectsModule() {
             <select 
               value={filters.status}
               onChange={(e) => setFilters({...filters, status: e.target.value})}
-              className="bg-zinc-50 dark:bg-zinc-950 border border-zinc-250 dark:border-zinc-800 rounded-lg px-3 py-2 text-sm text-zinc-700 dark:text-zinc-300 focus:border-emerald-500 outline-none transition-colors"
+              className="bg-zinc-900 border border-zinc-700 rounded-none px-3 py-2 text-sm text-zinc-300 focus:border-emerald-500 outline-none transition-colors"
             >
               <option value="todos">Todos los Estados</option>
               <option value="en_progreso">En Progreso</option>
@@ -275,7 +275,7 @@ export default function ProjectsModule() {
             <select 
               value={filters.phase}
               onChange={(e) => setFilters({...filters, phase: e.target.value})}
-              className="bg-zinc-50 dark:bg-zinc-950 border border-zinc-250 dark:border-zinc-800 rounded-lg px-3 py-2 text-sm text-zinc-700 dark:text-zinc-300 focus:border-emerald-500 outline-none transition-colors"
+              className="bg-zinc-900 border border-zinc-700 rounded-none px-3 py-2 text-sm text-zinc-300 focus:border-emerald-500 outline-none transition-colors"
             >
               <option value="todas">Todas las Fases</option>
               <option value="Diseno">Diseño</option>
@@ -287,14 +287,14 @@ export default function ProjectsModule() {
         )}
 
         {/* List/Grid View Switcher */}
-        <div className="flex border border-zinc-250 dark:border-zinc-800 rounded-lg overflow-hidden shrink-0">
+        <div className="flex border border-zinc-700 rounded-none overflow-hidden shrink-0">
           <button 
             type="button"
             onClick={() => setViewMode('grid')}
             className={`px-3 py-2 text-xs font-bold transition-colors cursor-pointer flex items-center gap-1.5 ${
               viewMode === 'grid' 
-                ? 'bg-zinc-200 dark:bg-zinc-800 text-zinc-900 dark:text-white font-semibold' 
-                : 'bg-zinc-50 dark:bg-zinc-950 text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'
+                ? 'bg-zinc-700 text-white font-semibold' 
+                : 'bg-zinc-900 text-zinc-500 hover:text-zinc-300'
             }`}
           >
             <LayoutGrid className="h-3.5 w-3.5" />
@@ -305,8 +305,8 @@ export default function ProjectsModule() {
             onClick={() => setViewMode('list')}
             className={`px-3 py-2 text-xs font-bold transition-colors cursor-pointer flex items-center gap-1.5 ${
               viewMode === 'list' 
-                ? 'bg-zinc-200 dark:bg-zinc-800 text-zinc-900 dark:text-white font-semibold' 
-                : 'bg-zinc-50 dark:bg-zinc-950 text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'
+                ? 'bg-zinc-700 text-white font-semibold' 
+                : 'bg-zinc-900 text-zinc-500 hover:text-zinc-300'
             }`}
           >
             <LayoutList className="h-3.5 w-3.5" />
@@ -319,10 +319,10 @@ export default function ProjectsModule() {
           <button 
             type="button"
             onClick={() => setIsFilterOpen(!isFilterOpen)}
-            className={`px-3.5 py-2 text-xs font-bold border border-zinc-250 dark:border-zinc-800 rounded-lg transition-colors cursor-pointer flex items-center gap-1.5 shrink-0 ${
+            className={`px-3.5 py-2 text-xs font-bold border border-zinc-700 rounded-none transition-colors cursor-pointer flex items-center gap-1.5 shrink-0 ${
               isFilterOpen 
                 ? 'bg-emerald-600 border-emerald-500 text-white font-semibold' 
-                : 'bg-zinc-50 dark:bg-zinc-950 text-zinc-650 dark:text-zinc-300 hover:bg-zinc-150 dark:hover:bg-zinc-900'
+                : 'bg-zinc-900 text-zinc-300 hover:bg-zinc-800'
             }`}
           >
             <Filter className="h-3.5 w-3.5" />
@@ -358,23 +358,23 @@ export default function ProjectsModule() {
               'border-l-zinc-400';
 
             const titleColor =
-              proj.status === 'completado' ? 'text-emerald-700 hover:text-emerald-800' :
-              proj.status === 'en_progreso' ? 'text-amber-700 hover:text-amber-800' :
-              proj.status === 'demorado' ? 'text-rose-700 hover:text-rose-800' :
-              'text-zinc-650 hover:text-zinc-700';
+              proj.status === 'completado' ? 'text-emerald-400 hover:text-emerald-350' :
+              proj.status === 'en_progreso' ? 'text-amber-400 hover:text-amber-350' :
+              proj.status === 'demorado' ? 'text-rose-455 hover:text-rose-400' :
+              'text-zinc-400 hover:text-zinc-350';
 
             return (
               <div
                 key={proj.id}
-                className={`bg-white border-l-[6px] ${borderAccent} border-t border-r border-b border-zinc-200/90 rounded-none overflow-hidden hover:shadow-lg transition-all flex flex-col justify-between relative group text-zinc-900`}
+                className={`bg-zinc-800 border-l-[6px] ${borderAccent} border-t border-r border-b border-zinc-700/80 rounded-none overflow-hidden hover:shadow-lg transition-all flex flex-col justify-between relative group text-zinc-100`}
               >
                 {/* Cover Banner Image */}
-                <div className="relative h-44 w-full bg-zinc-100 overflow-hidden shrink-0 border-b border-zinc-200/80">
+                <div className="relative h-44 w-full bg-zinc-905 overflow-hidden shrink-0 border-b border-zinc-700/60">
                   {proj.banner_url ? (
                     <img src={proj.banner_url} alt={proj.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-in-out" />
                   ) : (
-                    <div className="w-full h-full bg-gradient-to-br from-zinc-100 via-zinc-200/50 to-zinc-100 flex items-center justify-center">
-                      <Folder className="h-10 w-10 text-zinc-400 opacity-50" />
+                    <div className="w-full h-full bg-gradient-to-br from-zinc-900 via-zinc-850 to-zinc-900 flex items-center justify-center">
+                      <Folder className="h-10 w-10 text-zinc-500 opacity-50" />
                     </div>
                   )}
                   <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent opacity-80" />
@@ -382,10 +382,10 @@ export default function ProjectsModule() {
                   {/* Status Badge overlays the image */}
                   <div className="absolute bottom-3 left-4 flex gap-2">
                     <span className={`text-[9px] font-bold uppercase px-2.5 py-0.5 rounded border ${
-                      proj.status === 'completado' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
-                      proj.status === 'en_progreso' ? 'bg-amber-50 text-amber-700 border-amber-200' :
-                      proj.status === 'archivado' ? 'bg-zinc-100 text-zinc-650 border-zinc-200' :
-                      'bg-rose-50 text-rose-700 border-rose-200'
+                      proj.status === 'completado' ? 'bg-emerald-950/70 text-emerald-400 border-emerald-500/20' :
+                      proj.status === 'en_progreso' ? 'bg-amber-950/70 text-amber-400 border-amber-500/20' :
+                      proj.status === 'archivado' ? 'bg-zinc-900/80 text-zinc-400 border-zinc-700' :
+                      'bg-rose-950/70 text-rose-400 border-rose-500/20'
                     }`}>
                       {proj.status.replace('_', ' ')}
                     </span>
@@ -395,15 +395,15 @@ export default function ProjectsModule() {
                   <RequirePermission action="project:write">
                     <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity z-10">
                       <DropdownMenu>
-                        <DropdownMenuTrigger className="p-1.5 rounded-lg bg-white/90 border border-zinc-200 text-zinc-550 hover:text-zinc-800 hover:bg-zinc-100 outline-none cursor-pointer">
+                        <DropdownMenuTrigger className="p-1.5 rounded-lg bg-zinc-950/80 border border-zinc-700 text-zinc-400 hover:text-white hover:bg-zinc-900 outline-none cursor-pointer">
                           <MoreVertical className="h-4 w-4" />
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-40 bg-white border border-zinc-200 text-zinc-800">
-                          <DropdownMenuItem onClick={() => handleArchive(proj.id)} className="hover:bg-zinc-100 cursor-pointer">
+                        <DropdownMenuContent align="end" className="w-40 bg-zinc-900 border border-zinc-700 text-zinc-350">
+                          <DropdownMenuItem onClick={() => handleArchive(proj.id)} className="hover:bg-zinc-800 cursor-pointer">
                             <Archive className="h-4 w-4 mr-2" /> Archivar
                           </DropdownMenuItem>
-                          <DropdownMenuSeparator className="bg-zinc-200" />
-                          <DropdownMenuItem onClick={() => handleDelete(proj.id)} className="text-rose-600 focus:bg-rose-50 focus:text-rose-600 cursor-pointer">
+                          <DropdownMenuSeparator className="bg-zinc-800" />
+                          <DropdownMenuItem onClick={() => handleDelete(proj.id)} className="text-rose-400 focus:bg-rose-950/20 focus:text-rose-455 cursor-pointer">
                             <Trash2 className="h-4 w-4 mr-2" /> Eliminar
                           </DropdownMenuItem>
                         </DropdownMenuContent>
@@ -417,7 +417,7 @@ export default function ProjectsModule() {
                   <div className="space-y-3">
                     <div className="flex justify-between items-start">
                       <div className="flex items-center space-x-2 min-w-0">
-                        <Folder className="h-4 w-4 text-zinc-400 shrink-0" />
+                        <Folder className="h-4 w-4 text-zinc-500 shrink-0" />
                         <h3
                           className={`font-bold truncate text-sm ${titleColor} transition-colors cursor-pointer`}
                           onClick={() => router.push(`/?tab=projects&projectId=${proj.id}`)}
@@ -432,26 +432,26 @@ export default function ProjectsModule() {
                       </span>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs pt-3 border-t border-zinc-150">
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs pt-3 border-t border-zinc-700/60">
                       <div>
-                        <span className="text-[10px] text-zinc-400 block font-mono uppercase">Ubicación</span>
-                        <span className="font-bold text-zinc-800">{proj.location || '—'}</span>
+                        <span className="text-[10px] text-zinc-450 block font-mono uppercase">Ubicación</span>
+                        <span className="font-bold text-zinc-200">{proj.location || '—'}</span>
                       </div>
                       <div>
-                        <span className="text-[10px] text-zinc-400 block font-mono uppercase">Capacidad</span>
-                        <span className="font-bold text-zinc-800 font-mono">{proj.capacity || '—'}</span>
+                        <span className="text-[10px] text-zinc-450 block font-mono uppercase">Capacidad</span>
+                        <span className="font-bold text-zinc-200 font-mono">{proj.capacity || '—'}</span>
                       </div>
                       <div>
-                        <span className="text-[10px] text-zinc-400 block font-mono uppercase">Fase actual</span>
-                        <span className="font-bold text-zinc-800">
+                        <span className="text-[10px] text-zinc-455 block font-mono uppercase">Fase actual</span>
+                        <span className="font-bold text-zinc-200">
                           {proj.phase === 'Diseno' ? 'Diseño' :
                            proj.phase === 'Construccion' ? 'Construcción' :
                            proj.phase === 'Operacion' ? 'Operación' : proj.phase}
                         </span>
                       </div>
                       <div>
-                        <span className="text-[10px] text-zinc-400 block font-mono uppercase">Hitos</span>
-                        <span className="font-bold text-zinc-800">
+                        <span className="text-[10px] text-zinc-455 block font-mono uppercase">Hitos</span>
+                        <span className="font-bold text-zinc-200">
                           {proj.completedDeliverables}/{proj.totalDeliverables} completados
                         </span>
                       </div>
@@ -461,7 +461,7 @@ export default function ProjectsModule() {
                   <div className="pt-3">
                     <button
                       onClick={() => router.push(`/?tab=projects&projectId=${proj.id}`)}
-                      className="w-full text-center py-2.5 bg-zinc-50 hover:bg-zinc-100 text-zinc-700 text-xs font-bold border border-zinc-200 transition-colors uppercase tracking-wider cursor-pointer"
+                      className="w-full text-center py-2.5 bg-zinc-900 hover:bg-zinc-850 text-zinc-300 hover:text-white text-xs font-bold border border-zinc-700 transition-colors uppercase tracking-wider cursor-pointer"
                       style={{ minHeight: '40px' }}
                     >
                       Detalles ({proj.completedTasks}/{proj.totalTasks} tareas)
