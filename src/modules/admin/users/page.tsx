@@ -100,32 +100,33 @@ export default function EmployeeManagementModule() {
     setLoading(true);
     setError(null);
     try {
-      const emps = await getEmployees({ showArchived });
+      // 1. Fetch employees
+      const data = await getEmployees();
+      setEmployees(data);
 
-      // Fetch roles
+      // 2. Fetch role templates
       const { data: dbRoles, error: rolesErr } = await supabase
         .from('roles')
         .select('id, name');
-
+      
       if (rolesErr) throw rolesErr;
+      setRoles(dbRoles || []);
 
-      // Fetch permissions
+      // 3. Fetch permissions catalog
       const { data: dbPerms, error: permsErr } = await supabase
         .from('permissions')
         .select('id, action, description');
-
+      
       if (permsErr) throw permsErr;
-
-      // Fetch unique occupations
-      const uniqueOccs = await getUniqueOccupations();
-
-      setEmployees(emps);
-      setRoles(dbRoles || []);
       setAllPermissions(dbPerms || []);
-      setSuggestedOccupations(uniqueOccs);
+
+      // 4. Fetch suggested occupations
+      const occs = await getUniqueOccupations();
+      setSuggestedOccupations(occs);
+
     } catch (err: any) {
-      console.error('Error loading employee config:', err);
-      setError(err.message || 'Error al obtener perfiles o roles.');
+      console.error('Error loading employee config data:', err);
+      setError(err.message || 'Error al cargar listado de personal.');
     } finally {
       setLoading(false);
     }
@@ -133,19 +134,83 @@ export default function EmployeeManagementModule() {
 
   useEffect(() => {
     loadEmployeeData();
-  }, [showArchived]);
+  }, []);
 
-  // Create new employee
+  // Filter list
+  const filteredEmployees = employees.filter(emp => {
+    if (showArchived) return !emp.is_active;
+    return emp.is_active;
+  });
+
+  // Modal open
+  const handleOpenEdit = async (emp: EmployeeWithRole) => {
+    setSelectedUser(emp);
+    setEditName(emp.full_name || '');
+    setSelectedRoleId(emp.roleId || '');
+    setEditOccupation(emp.occupation ? emp.occupation.join(', ') : '');
+    setModalError(null);
+    setResetPasswordVal('');
+    setResetPasswordSuccess(false);
+
+    // Load active specific perms for this user (if any)
+    if (emp.roleId) {
+      try {
+        const { data: activePerms } = await supabase
+          .from('role_permissions')
+          .select('permission_id')
+          .eq('role_id', emp.roleId);
+        
+        const activeSet = new Set((activePerms || []).map(p => p.permission_id));
+        setActivePermissionIds(activeSet);
+      } catch (e) {
+        console.error('Error loading role permissions:', e);
+      }
+    } else {
+      setActivePermissionIds(new Set());
+    }
+
+    setEditDialogOpen(true);
+  };
+
+  // Toggle permission in dialog local state
+  const handleTogglePermission = (permId: string) => {
+    const next = new Set(activePermissionIds);
+    if (next.has(permId)) {
+      next.delete(permId);
+    } else {
+      next.add(permId);
+    }
+    setActivePermissionIds(next);
+  };
+
+  const handleRoleSelectChange = async (roleId: string) => {
+    setSelectedRoleId(roleId);
+    if (roleId) {
+      try {
+        const { data: activePerms } = await supabase
+          .from('role_permissions')
+          .select('permission_id')
+          .eq('role_id', roleId);
+        
+        const activeSet = new Set((activePerms || []).map(p => p.permission_id));
+        setActivePermissionIds(activeSet);
+      } catch (e) {
+        console.error('Error fetching role permissions on select change:', e);
+      }
+    } else {
+      setActivePermissionIds(new Set());
+    }
+  };
+
+  // Create Submit
   const handleCreateEmployee = async (e: React.FormEvent) => {
     e.preventDefault();
-    setCreateError(null);
-    setCreateSubmitting(true);
-
     if (!newName.trim() || !newEmail.trim()) {
-      setCreateError('Nombre y Email son campos obligatorios.');
-      setCreateSubmitting(false);
+      setCreateError('El nombre y el correo electrónico corporativo son mandatorios.');
       return;
     }
+    setCreateSubmitting(true);
+    setCreateError(null);
 
     try {
       const occupationArr = newOccupation
@@ -153,89 +218,28 @@ export default function EmployeeManagementModule() {
         .map(o => o.trim())
         .filter(o => o.length > 0);
 
+      // Trigger user profile creation
       await createEmployee({
         email: newEmail.trim(),
         full_name: newName.trim(),
-        occupation: occupationArr.length > 0 ? occupationArr : undefined,
+        occupation: occupationArr
       });
 
-      // Reset & close
+      // Clear states & reload
       setNewName('');
       setNewEmail('');
       setNewOccupation('');
       setCreateDialogOpen(false);
       loadEmployeeData();
     } catch (err: any) {
-      setCreateError(err.message || 'Error al crear la cuenta.');
+      console.error('Error creating employee:', err);
+      setCreateError(err.message || 'Error al guardar colaborador.');
     } finally {
       setCreateSubmitting(false);
     }
   };
 
-  // Open Edit Dialog and pre-fill form
-  const handleOpenEdit = async (employee: EmployeeWithRole) => {
-    setSelectedUser(employee);
-    setSelectedRoleId(employee.roleId);
-    setEditName(employee.full_name || '');
-    setEditOccupation((employee.occupation || []).join(', '));
-    setModalError(null);
-    setEditDialogOpen(true);
-
-    if (employee.roleId) {
-      try {
-        const { data: rolePerms, error } = await supabase
-          .from('role_permissions')
-          .select('permission_id')
-          .eq('role_id', employee.roleId);
-
-        if (error) throw error;
-        
-        const activeIds = new Set<string>((rolePerms || []).map(rp => rp.permission_id));
-        setActivePermissionIds(activeIds);
-      } catch (err: any) {
-        console.error('Error loading role permissions:', err);
-      }
-    } else {
-      setActivePermissionIds(new Set());
-    }
-  };
-
-  // Toggle permission ID in local modal state
-  const handleTogglePermission = (permissionId: string) => {
-    const nextSet = new Set(activePermissionIds);
-    if (nextSet.has(permissionId)) {
-      nextSet.delete(permissionId);
-    } else {
-      nextSet.add(permissionId);
-    }
-    setActivePermissionIds(nextSet);
-  };
-
-  // When changing role in dropdown, reload the permissions
-  const handleRoleSelectChange = async (newRoleId: string) => {
-    setSelectedRoleId(newRoleId);
-    setModalError(null);
-    
-    if (newRoleId) {
-      try {
-        const { data: rolePerms, error } = await supabase
-          .from('role_permissions')
-          .select('permission_id')
-          .eq('role_id', newRoleId);
-
-        if (error) throw error;
-        
-        const activeIds = new Set<string>((rolePerms || []).map(rp => rp.permission_id));
-        setActivePermissionIds(activeIds);
-      } catch (err: any) {
-        console.error('Error switching role permissions:', err);
-      }
-    } else {
-      setActivePermissionIds(new Set());
-    }
-  };
-
-  // Save changes
+  // Edit Submit
   const handleSaveConfigSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedUser) return;
@@ -302,11 +306,11 @@ export default function EmployeeManagementModule() {
   };
 
   const occupationBadges = (occ: string[] | null) => {
-    if (!occ || occ.length === 0) return <span className="text-zinc-600 italic text-xs">Sin asignar</span>;
+    if (!occ || occ.length === 0) return <span className="text-zinc-500 italic text-xs">Sin asignar</span>;
     return (
       <div className="flex flex-wrap gap-1">
         {occ.map((o, i) => (
-          <span key={i} className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700">
+          <span key={i} className="inline-flex items-center px-1.5 py-0.5 rounded-none text-[9px] font-bold bg-zinc-900 text-zinc-300 border border-zinc-700">
             {o}
           </span>
         ))}
@@ -316,26 +320,26 @@ export default function EmployeeManagementModule() {
 
   return (
     <RequirePermission action="admin:*" fallback={
-      <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-8 text-center rounded-2xl max-w-md mx-auto mt-12">
+      <div className="bg-zinc-800 border border-zinc-700 p-8 text-center rounded-none max-w-md mx-auto mt-12">
         <AlertCircle className="h-10 w-10 text-rose-500 mx-auto mb-4" />
-        <h3 className="text-zinc-800 dark:text-white font-bold text-lg">Acceso Denegado</h3>
-        <p className="text-zinc-550 dark:text-zinc-400 text-sm mt-2">No tienes privilegios administrativos para gestionar roles y permisos.</p>
+        <h3 className="text-white font-bold text-lg">Acceso Denegado</h3>
+        <p className="text-zinc-400 text-sm mt-2">No tienes privilegios administrativos para gestionar roles y permisos.</p>
       </div>
     }>
       <div className="space-y-6">
         {/* Header */}
-        <div className="flex flex-wrap items-center justify-between gap-4 border-b border-zinc-200 dark:border-zinc-800 pb-5">
+        <div className="flex flex-wrap items-center justify-between gap-4 border-b border-zinc-700 pb-5">
           <div className="flex items-center gap-3">
             <button
               onClick={() => router.push('/?tab=admin')}
-              className="h-10 w-10 flex items-center justify-center rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-550 dark:text-zinc-400 hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+              className="h-10 w-10 flex items-center justify-center rounded-none bg-zinc-900 border border-zinc-700 text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors cursor-pointer"
               style={{ minHeight: '40px', minWidth: '40px' }}
             >
               <ArrowLeft className="h-4 w-4" />
             </button>
-            <div>
-              <h1 className="text-xl font-bold text-zinc-800 dark:text-white tracking-wide">Gestión de Empleados</h1>
-              <p className="text-zinc-550 dark:text-zinc-400 text-xs mt-1">Panel de recursos humanos — Alta, edición, roles y borrado lógico.</p>
+            <div className="text-left">
+              <h1 className="text-xl font-bold text-white tracking-wide">Gestión de Empleados</h1>
+              <p className="text-zinc-500 text-xs mt-1">Panel de recursos humanos — Alta, edición, roles y borrado lógico.</p>
             </div>
           </div>
 
@@ -343,10 +347,10 @@ export default function EmployeeManagementModule() {
             {/* Toggle archived */}
             <button
               onClick={() => setShowArchived(!showArchived)}
-              className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold border transition-colors${
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-none text-xs font-bold border transition-colors cursor-pointer ${
                 showArchived
-                  ? 'bg-amber-950/20 text-amber-400 border-amber-500/30'
-                  : 'bg-zinc-900 text-zinc-400 border-zinc-800 hover:text-zinc-200'
+                  ? 'bg-amber-950/20 text-amber-405 border-amber-500/30'
+                  : 'bg-zinc-900 text-zinc-400 border-zinc-700 hover:text-zinc-200'
               }`}
             >
               {showArchived ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
@@ -359,45 +363,45 @@ export default function EmployeeManagementModule() {
                 render={
                   <Button 
                     onClick={() => setCreateDialogOpen(true)}
-                    className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl flex items-center gap-2 h-10 px-4 text-sm shadow-lg shadow-emerald-950/40"
+                    className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-none flex items-center gap-2 h-10 px-4 text-sm cursor-pointer"
                   />
                 }
               >
                 <UserPlus className="h-4 w-4" />
                 Nuevo Empleado
               </DialogTrigger>
-              <DialogContent className="max-w-md bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-800 dark:text-white p-6 rounded-2xl">
+              <DialogContent className="max-w-md bg-zinc-800 border border-zinc-700 text-white p-6 rounded-none">
                 <DialogHeader>
-                  <DialogTitle className="text-lg font-bold text-zinc-800 dark:text-white flex items-center gap-2">
+                  <DialogTitle className="text-lg font-bold text-white flex items-center gap-2">
                     <UserPlus className="h-5 w-5 text-emerald-400" />
                     Alta de Empleado
                   </DialogTitle>
-                  <DialogDescription className="text-zinc-550 dark:text-zinc-400 text-xs">
+                  <DialogDescription className="text-zinc-400 text-xs">
                     Crea una cuenta nueva. El empleado recibirá automáticamente el rol de Administrador y podrás cambiarlo después.
                   </DialogDescription>
                 </DialogHeader>
 
                 {createError && (
-                  <div className="bg-rose-500/10 border border-rose-500/30 text-rose-300 p-3 rounded-lg flex items-start space-x-2 text-xs">
-                    <AlertCircle className="h-4 w-4 shrink-0 text-rose-400" />
+                  <div className="bg-rose-500/10 border border-rose-500/30 text-rose-300 p-3 rounded-none flex items-start space-x-2 text-xs">
+                    <AlertCircle className="h-4 w-4 shrink-0 text-rose-455" />
                     <span>{createError}</span>
                   </div>
                 )}
 
-                <form onSubmit={handleCreateEmployee} className="space-y-4 pt-3">
+                <form onSubmit={handleCreateEmployee} className="space-y-4 pt-3 text-left">
                   <div className="space-y-1">
-                    <Label className="text-zinc-550 dark:text-zinc-400 text-xs">Nombre Completo *</Label>
+                    <Label className="text-zinc-405 text-xs">Nombre Completo *</Label>
                     <Input
                       value={newName}
                       onChange={(e) => setNewName(e.target.value)}
                       placeholder="María García López"
-                      className="bg-white dark:bg-[#161618] border-zinc-200 dark:border-zinc-800 text-zinc-800 dark:text-white text-sm h-11"
+                      className="bg-zinc-900 border-zinc-700 text-white text-sm h-11 rounded-none"
                       autoFocus
                     />
                   </div>
 
                   <div className="space-y-1">
-                    <Label className="text-zinc-550 dark:text-zinc-400 text-xs flex items-center gap-1">
+                    <Label className="text-zinc-405 text-xs flex items-center gap-1">
                       <Mail className="h-3 w-3" /> Email Corporativo *
                     </Label>
                     <Input
@@ -405,28 +409,28 @@ export default function EmployeeManagementModule() {
                       onChange={(e) => setNewEmail(e.target.value)}
                       type="email"
                       placeholder="maria@solarhub.cl"
-                      className="bg-white dark:bg-[#161618] border-zinc-200 dark:border-zinc-800 text-zinc-800 dark:text-white text-sm h-11"
+                      className="bg-zinc-900 border-zinc-700 text-white text-sm h-11 rounded-none"
                     />
                   </div>
 
                   <div className="space-y-1">
-                    <Label className="text-zinc-550 dark:text-zinc-400 text-xs flex items-center gap-1">
+                    <Label className="text-zinc-405 text-xs flex items-center gap-1">
                       <Briefcase className="h-3 w-3" /> Ocupación (separar por comas)
                     </Label>
                     <Input
                       value={newOccupation}
                       onChange={(e) => setNewOccupation(e.target.value)}
                       placeholder="Almacén, Administración"
-                      className="bg-white dark:bg-[#161618] border-zinc-200 dark:border-zinc-800 text-zinc-800 dark:text-white text-sm h-11"
+                      className="bg-zinc-900 border-zinc-700 text-white text-sm h-11 rounded-none"
                       list="suggested-occupations-list"
                     />
-                    <p className="text-zinc-600 text-[10px]">Opcional. Define las áreas de responsabilidad del colaborador.</p>
+                    <p className="text-zinc-500 text-[10px]">Opcional. Define las áreas de responsabilidad del colaborador.</p>
                   </div>
 
                   <DialogFooter className="mt-6 flex gap-2">
                     <DialogClose
                       render={
-                        <Button type="button" variant="outline" className="bg-transparent border-zinc-200 dark:border-zinc-800 text-zinc-550 dark:text-zinc-400 hover:text-white hover:bg-zinc-850" />
+                        <Button type="button" variant="outline" className="bg-transparent border-zinc-700 text-zinc-400 hover:text-white hover:bg-zinc-700 rounded-none" />
                       }
                     >
                       Cancelar
@@ -434,7 +438,7 @@ export default function EmployeeManagementModule() {
                     <Button
                       type="submit"
                       disabled={createSubmitting}
-                      className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold"
+                      className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-none cursor-pointer"
                     >
                       {createSubmitting ? (
                         <span className="flex items-center gap-1.5">
@@ -452,8 +456,8 @@ export default function EmployeeManagementModule() {
 
         {/* Error panel */}
         {error && (
-          <div className="bg-rose-500/10 border border-rose-500/30 text-rose-300 p-4 rounded-xl flex items-center space-x-3 text-sm">
-            <AlertCircle className="h-5 w-5 text-rose-400" />
+          <div className="bg-rose-500/10 border border-rose-500/30 text-rose-350 p-4 rounded-none flex items-center space-x-3 text-sm">
+            <AlertCircle className="h-5 w-5 text-rose-455" />
             <span>{error}</span>
           </div>
         )}
@@ -467,10 +471,10 @@ export default function EmployeeManagementModule() {
         ) : (
           <>
             {/* PC Table */}
-            <div className="hidden md:block overflow-hidden bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl">
+            <div className="hidden md:block overflow-hidden bg-zinc-800 border border-zinc-700 rounded-none">
               <table className="w-full text-left border-collapse">
                 <thead>
-                  <tr className="bg-white dark:bg-[#161618] border-b border-zinc-200 dark:border-zinc-800 text-[10px] text-zinc-550 dark:text-zinc-400 font-bold uppercase tracking-wider">
+                  <tr className="bg-zinc-900 border-b border-zinc-700 text-[10px] text-zinc-500 font-bold uppercase tracking-wider">
                     <th className="p-4">Colaborador</th>
                     <th className="p-4">Email</th>
                     <th className="p-4">Rol</th>
@@ -479,35 +483,35 @@ export default function EmployeeManagementModule() {
                     <th className="p-4 text-center">Acciones</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-zinc-800/60 text-sm text-zinc-700 dark:text-zinc-300">
-                  {employees.map((emp) => (
-                    <tr key={emp.id} className={`transition-colors${emp.is_active ? 'hover:bg-zinc-850/30' : 'opacity-50 bg-[#161618]/30'}`}>
+                <tbody className="divide-y divide-zinc-700 text-sm text-zinc-300">
+                  {filteredEmployees.map((emp) => (
+                    <tr key={emp.id} className={`transition-colors ${emp.is_active ? 'hover:bg-zinc-900/40' : 'opacity-50 bg-zinc-900/20'}`}>
                       <td className="p-4">
                         <div className="flex items-center gap-3">
-                          <div className="h-9 w-9 rounded-xl bg-emerald-700/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400 font-bold text-sm">
+                          <div className="h-9 w-9 rounded-none bg-emerald-950/40 border border-emerald-500/20 flex items-center justify-center text-emerald-400 font-bold text-sm">
                             {emp.full_name?.charAt(0).toUpperCase() || emp.email.charAt(0).toUpperCase()}
                           </div>
-                          <span className="font-bold text-zinc-800 dark:text-white">{emp.full_name || 'Sin Nombre'}</span>
+                          <span className="font-bold text-white">{emp.full_name || 'Sin Nombre'}</span>
                         </div>
                       </td>
-                      <td className="p-4 text-zinc-550 dark:text-zinc-400 font-mono text-xs">{emp.email}</td>
+                      <td className="p-4 text-zinc-400 font-mono text-xs">{emp.email}</td>
                       <td className="p-4">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase${
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-none text-[10px] font-bold uppercase ${
                           emp.roleName === 'Administrador' 
                             ? 'bg-purple-950/50 text-purple-400 border border-purple-500/20' 
                             : emp.roleName === 'Técnico de Campo'
                             ? 'bg-amber-950/50 text-amber-400 border border-amber-500/20'
-                            : 'bg-zinc-850 text-zinc-400 border border-zinc-750'
+                            : 'bg-zinc-900 text-zinc-400 border border-zinc-700'
                         }`}>
                           {emp.roleName}
                         </span>
                       </td>
                       <td className="p-4">{occupationBadges(emp.occupation)}</td>
                       <td className="p-4">
-                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold uppercase ${
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-none text-[9px] font-bold uppercase ${
                           emp.is_active
                             ? 'bg-emerald-950/50 text-emerald-400 border border-emerald-500/20'
-                            : 'bg-rose-950/50 text-rose-400 border border-rose-500/20'
+                            : 'bg-rose-950/50 text-rose-455 border border-rose-500/20'
                         }`}>
                           {emp.is_active ? 'Activo' : 'Archivado'}
                         </span>
@@ -516,17 +520,17 @@ export default function EmployeeManagementModule() {
                         <div className="flex items-center justify-center gap-1">
                           <Button
                             onClick={() => handleOpenEdit(emp)}
-                            className="bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-700 hover:text-white text-zinc-700 dark:text-zinc-300 text-xs px-2.5 py-1 rounded-lg flex items-center gap-1"
+                            className="bg-zinc-900 border border-zinc-700 hover:bg-zinc-800 text-zinc-300 hover:text-white text-xs px-2.5 py-1 rounded-none flex items-center gap-1 cursor-pointer"
                           >
                             <Pencil className="h-3 w-3" />
                             Editar
                           </Button>
                           <Button
                             onClick={() => handleArchiveToggle(emp)}
-                            className={`text-xs px-2.5 py-1 rounded-lg flex items-center gap-1${
+                            className={`text-xs px-2.5 py-1 rounded-none flex items-center gap-1 cursor-pointer ${
                               emp.is_active
-                                ? 'bg-zinc-800 hover:bg-rose-950/40 text-zinc-400 hover:text-rose-300'
-                                : 'bg-zinc-800 hover:bg-emerald-950/40 text-zinc-400 hover:text-emerald-300'
+                                ? 'bg-zinc-900 border border-zinc-700 hover:bg-rose-950/40 text-zinc-400 hover:text-rose-350'
+                                : 'bg-zinc-900 border border-zinc-700 hover:bg-emerald-950/40 text-zinc-400 hover:text-emerald-350'
                             }`}
                           >
                             {emp.is_active ? (
@@ -545,26 +549,26 @@ export default function EmployeeManagementModule() {
 
             {/* Mobile Cards View */}
             <div className="grid grid-cols-1 gap-4 md:hidden">
-              {employees.map((emp) => (
-                <div key={emp.id} className={`bg-white dark:bg-zinc-900 border-2 border-zinc-200 dark:border-zinc-800 rounded-xl p-5 space-y-4${!emp.is_active ? 'opacity-60' : ''}`}>
+              {filteredEmployees.map((emp) => (
+                <div key={emp.id} className={`bg-zinc-800 border border-zinc-700 rounded-none p-5 space-y-4 text-left ${!emp.is_active ? 'opacity-60' : ''}`}>
                   <div className="flex justify-between items-center">
                     <div className="flex items-center gap-2.5">
-                      <div className="h-10 w-10 rounded-xl bg-emerald-700/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400 font-bold text-sm">
+                      <div className="h-10 w-10 rounded-none bg-emerald-950/40 border border-emerald-500/20 flex items-center justify-center text-emerald-400 font-bold text-sm">
                         {emp.full_name?.charAt(0).toUpperCase() || emp.email.charAt(0).toUpperCase()}
                       </div>
                       <div>
-                        <h4 className="font-bold text-zinc-800 dark:text-white text-sm">{emp.full_name || 'Sin Nombre'}</h4>
+                        <h4 className="font-bold text-white text-sm">{emp.full_name || 'Sin Nombre'}</h4>
                         <p className="text-[10px] text-zinc-500 font-mono">{emp.email}</p>
                       </div>
                     </div>
                     <div className="flex flex-col items-end gap-1">
-                      <span className="text-[9px] font-bold uppercase px-2 py-0.5 bg-zinc-100 dark:bg-zinc-850 text-zinc-550 dark:text-zinc-400 rounded border border-zinc-200 dark:border-zinc-750">
+                      <span className="text-[9px] font-bold uppercase px-2 py-0.5 bg-zinc-900 text-zinc-400 rounded-none border border-zinc-700">
                         {emp.roleName}
                       </span>
-                      <span className={`text-[9px] font-bold uppercase px-2 py-0.5 rounded border ${
+                      <span className={`text-[9px] font-bold uppercase px-2 py-0.5 rounded-none border ${
                         emp.is_active
                           ? 'bg-emerald-950/50 text-emerald-400 border-emerald-500/20'
-                          : 'bg-rose-950/50 text-rose-400 border-rose-500/20'
+                          : 'bg-rose-950/50 text-rose-455 border border-rose-500/20'
                       }`}>
                         {emp.is_active ? 'Activo' : 'Archivado'}
                       </span>
@@ -572,7 +576,7 @@ export default function EmployeeManagementModule() {
                   </div>
 
                   {(emp.occupation && emp.occupation.length > 0) && (
-                    <div className="pt-2 border-t border-zinc-200 dark:border-zinc-850">
+                    <div className="pt-2 border-t border-zinc-700">
                       <span className="text-[9px] text-zinc-500 uppercase font-mono block mb-1">Ocupación</span>
                       {occupationBadges(emp.occupation)}
                     </div>
@@ -581,7 +585,7 @@ export default function EmployeeManagementModule() {
                   <div className="grid grid-cols-2 gap-2 pt-2">
                     <button
                       onClick={() => handleOpenEdit(emp)}
-                      className="flex items-center justify-center gap-1.5 py-3 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 text-xs font-bold rounded-lg border border-zinc-200 dark:border-zinc-700"
+                      className="flex items-center justify-center gap-1.5 py-3 bg-zinc-900 hover:bg-zinc-800 text-zinc-300 hover:text-white text-xs font-bold rounded-none border border-zinc-700 cursor-pointer"
                       style={{ minHeight: '48px' }}
                     >
                       <Pencil className="h-4 w-4" />
@@ -589,10 +593,10 @@ export default function EmployeeManagementModule() {
                     </button>
                     <button
                       onClick={() => handleArchiveToggle(emp)}
-                      className={`flex items-center justify-center gap-1.5 py-3 text-xs font-bold rounded-lg border${
+                      className={`flex items-center justify-center gap-1.5 py-3 text-xs font-bold rounded-none border cursor-pointer ${
                         emp.is_active
-                          ? 'bg-zinc-800 hover:bg-rose-950/40 text-rose-400 border-zinc-700'
-                          : 'bg-zinc-800 hover:bg-emerald-950/40 text-emerald-400 border-zinc-700'
+                          ? 'bg-zinc-900 hover:bg-rose-950/40 text-rose-405 border-zinc-700'
+                          : 'bg-zinc-900 hover:bg-emerald-950/40 text-emerald-405 border-zinc-700'
                       }`}
                       style={{ minHeight: '48px' }}
                     >
@@ -612,51 +616,51 @@ export default function EmployeeManagementModule() {
         {/* Edit Modal (Dialog) */}
         {selectedUser && (
           <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-            <DialogContent className="max-w-md bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-800 dark:text-white p-6 rounded-2xl">
+            <DialogContent className="max-w-md bg-zinc-800 border border-zinc-700 text-white p-6 rounded-none text-left">
               <DialogHeader>
-                <DialogTitle className="text-lg font-bold text-zinc-800 dark:text-white flex items-center gap-2">
+                <DialogTitle className="text-lg font-bold text-white flex items-center gap-2">
                   <UserCog className="h-5 w-5 text-emerald-400" />
                   Editar: {selectedUser.full_name || selectedUser.email}
                 </DialogTitle>
               </DialogHeader>
 
               {modalError && (
-                <div className="bg-rose-500/10 border border-rose-500/30 text-rose-300 p-3 rounded-lg flex items-start space-x-2 text-xs my-2">
-                  <AlertCircle className="h-4 w-4 shrink-0 text-rose-400" />
+                <div className="bg-rose-500/10 border border-rose-500/30 text-rose-300 p-3 rounded-none flex items-start space-x-2 text-xs my-2">
+                  <AlertCircle className="h-4 w-4 shrink-0 text-rose-455" />
                   <span>{modalError}</span>
                 </div>
               )}
 
-              <form onSubmit={handleSaveConfigSubmit} className="space-y-4 pt-3">
+              <form onSubmit={handleSaveConfigSubmit} className="space-y-4 pt-3 text-left">
                 <div className="space-y-1">
-                  <Label className="text-zinc-550 dark:text-zinc-400 text-xs font-bold">Nombre</Label>
+                  <Label className="text-zinc-405 text-xs font-bold">Nombre</Label>
                   <Input
                     value={editName}
                     onChange={(e) => setEditName(e.target.value)}
-                    className="bg-white dark:bg-[#161618] border-zinc-200 dark:border-zinc-800 text-zinc-800 dark:text-white text-sm h-10"
+                    className="bg-zinc-900 border-zinc-700 text-white text-sm h-10 rounded-none"
                   />
                 </div>
 
                 <div className="space-y-1">
-                  <Label className="text-zinc-550 dark:text-zinc-400 text-xs font-bold flex items-center gap-1">
+                  <Label className="text-zinc-405 text-xs font-bold flex items-center gap-1">
                     <Briefcase className="h-3 w-3" /> Ocupación (separar por comas)
                   </Label>
                   <Input
                     value={editOccupation}
                     onChange={(e) => setEditOccupation(e.target.value)}
                     placeholder="Ingeniería, Ventas"
-                    className="bg-white dark:bg-[#161618] border-zinc-200 dark:border-zinc-800 text-zinc-800 dark:text-white text-sm h-10"
+                    className="bg-zinc-900 border-zinc-700 text-white text-sm h-10 rounded-none"
                     list="suggested-occupations-list"
                   />
                 </div>
 
                 {/* Role dropdown */}
                 <div className="space-y-1">
-                  <Label className="text-zinc-550 dark:text-zinc-400 text-xs font-bold">Rol del Sistema</Label>
+                  <Label className="text-zinc-405 text-xs font-bold">Rol del Sistema</Label>
                   <select
                     value={selectedRoleId}
                     onChange={(e) => handleRoleSelectChange(e.target.value)}
-                    className="w-full bg-white dark:bg-[#161618] border border-zinc-200 dark:border-zinc-800 rounded-lg text-sm p-2 text-zinc-800 dark:text-white h-9 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+                    className="w-full bg-zinc-900 border border-zinc-700 rounded-none text-sm p-2 text-white h-9 focus:border-emerald-500 outline-none"
                   >
                     <option value="">Ningún Rol (Sin acceso)</option>
                     {roles.map((r) => (
@@ -668,11 +672,11 @@ export default function EmployeeManagementModule() {
                 {/* Permissions checkboxes */}
                 {selectedRoleId && (
                   <div className="space-y-2">
-                    <Label className="text-zinc-550 dark:text-zinc-400 text-xs font-bold block pb-1 border-b border-zinc-200/60 dark:border-zinc-800/60">
+                    <Label className="text-zinc-405 text-xs font-bold block pb-1 border-b border-zinc-700">
                       Permisos del Rol
                     </Label>
                     
-                    <div className="max-h-52 overflow-y-auto space-y-1.5 pr-2">
+                    <div className="max-h-52 overflow-y-auto space-y-1.5 pr-2 scrollbar-thin">
                       {allPermissions.map((perm) => {
                         const isActive = activePermissionIds.has(perm.id);
                         return (
@@ -680,17 +684,17 @@ export default function EmployeeManagementModule() {
                             key={perm.id}
                             type="button"
                             onClick={() => handleTogglePermission(perm.id)}
-                            className="w-full flex items-start text-left gap-3 p-2 hover:bg-zinc-100/40 dark:hover:bg-zinc-850/40 rounded-lg transition-colors border border-transparent hover:border-zinc-200 dark:hover:border-zinc-800"
+                            className="w-full flex items-start text-left gap-3 p-2 bg-zinc-900 border border-zinc-700 hover:border-zinc-550 rounded-none transition-colors"
                           >
                             <span className="mt-0.5 shrink-0">
                               {isActive ? (
                                 <CheckSquare className="h-4 w-4 text-emerald-400" />
                               ) : (
-                                <Square className="h-4 w-4 text-zinc-650" />
+                                <Square className="h-4 w-4 text-zinc-500" />
                               )}
                             </span>
                             <div>
-                              <span className="block text-xs font-bold text-zinc-800 dark:text-white font-mono">{perm.action}</span>
+                              <span className="block text-xs font-bold text-white font-mono">{perm.action}</span>
                               {perm.description && (
                                 <span className="block text-[10px] text-zinc-500 leading-tight mt-0.5">{perm.description}</span>
                               )}
@@ -703,15 +707,15 @@ export default function EmployeeManagementModule() {
                 )}
 
                 {/* Password Reset Section */}
-                <div className="space-y-2 pt-4 border-t border-zinc-200/80 dark:border-zinc-800/80">
-                  <Label className="text-zinc-550 dark:text-zinc-400 text-xs font-bold block">Restablecer Contraseña</Label>
+                <div className="space-y-2 pt-4 border-t border-zinc-700">
+                  <Label className="text-zinc-405 text-xs font-bold block">Restablecer Contraseña</Label>
                   <div className="flex gap-2">
                     <Input
                       type="password"
                       placeholder="Nueva contraseña temporal"
                       value={resetPasswordVal}
                       onChange={(e) => setResetPasswordVal(e.target.value)}
-                      className="bg-white dark:bg-[#161618] border-zinc-200 dark:border-zinc-800 text-zinc-800 dark:text-white text-sm h-10 flex-1"
+                      className="bg-zinc-900 border-zinc-700 text-white text-sm h-10 flex-1 rounded-none"
                     />
                     <Button
                       type="button"
@@ -730,18 +734,18 @@ export default function EmployeeManagementModule() {
                           setResetPasswordSubmitting(false);
                         }
                       }}
-                      className="bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-700 text-zinc-800 dark:text-white text-xs px-3 font-semibold h-10 rounded-lg"
+                      className="bg-zinc-900 border border-zinc-700 hover:bg-zinc-800 text-white text-xs px-3 font-semibold h-10 rounded-none cursor-pointer"
                     >
                       {resetPasswordSubmitting ? 'Procesando...' : resetPasswordSuccess ? '¡Listo!' : 'Cambiar'}
                     </Button>
                   </div>
-                  <p className="text-zinc-650 text-[10px]">Permite soporte técnico inmediato en campo para el usuario.</p>
+                  <p className="text-zinc-500 text-[10px]">Permite soporte técnico inmediato en campo para el usuario.</p>
                 </div>
 
                 <DialogFooter className="mt-6 flex gap-2">
                   <DialogClose
                     render={
-                      <Button type="button" variant="outline" className="bg-transparent border-zinc-200 dark:border-zinc-800 text-zinc-550 dark:text-zinc-400 hover:text-white hover:bg-zinc-850" />
+                      <Button type="button" variant="outline" className="bg-transparent border-zinc-700 text-zinc-400 hover:text-white hover:bg-zinc-700 rounded-none" />
                     }
                   >
                     Cancelar
@@ -749,7 +753,7 @@ export default function EmployeeManagementModule() {
                   <Button 
                     type="submit" 
                     disabled={modalSubmitting}
-                    className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold"
+                    className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-none cursor-pointer"
                   >
                     {modalSubmitting ? (
                       <span className="flex items-center gap-1.5">
