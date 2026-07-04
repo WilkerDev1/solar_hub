@@ -9,7 +9,8 @@ import {
   FolderKanban, 
   ArrowRight,
   Sun,
-  ShieldAlert
+  ShieldAlert,
+  Bot
 } from 'lucide-react';
 
 export default function MobileDashboard({ user, stats, myTasks, activities }: any) {
@@ -55,6 +56,23 @@ export default function MobileDashboard({ user, stats, myTasks, activities }: an
           <p className="text-[10px] text-zinc-500 dark:text-zinc-400 font-bold uppercase tracking-wider mb-1">Stock Crítico</p>
           <p className="text-lg font-black text-zinc-800 dark:text-zinc-50">{stats.lowStockCount}</p>
         </div>
+      </div>
+
+      {/* Access shortcut to Caleb AI Assistant */}
+      <div 
+        onClick={() => window.location.href = '/?tab=caleb'}
+        className="bg-emerald-600/10 border border-emerald-500/20 p-4 rounded-none flex items-center justify-between cursor-pointer hover:bg-emerald-600/15 transition-all"
+      >
+        <div className="flex items-center space-x-3.5">
+          <div className="p-2 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-none shrink-0">
+            <Bot className="h-5 w-5 animate-pulse" />
+          </div>
+          <div className="text-left">
+            <h3 className="text-xs font-bold text-emerald-400 uppercase tracking-wider">Asistente Virtual Caleb AI</h3>
+            <p className="text-[10px] text-zinc-400 mt-0.5 font-medium">Audita stock, gestiona tareas e inspecciona obras en vivo.</p>
+          </div>
+        </div>
+        <ArrowRight className="h-4 w-4 text-emerald-400 shrink-0" />
       </div>
 
       {/* Mis Tareas Destacadas (Card based for easy tap) */}
