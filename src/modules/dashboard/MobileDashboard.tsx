@@ -14,9 +14,9 @@ import {
 
 export default function MobileDashboard({ user, stats, myTasks, activities }: any) {
   return (
-    <div className="space-y-6 pb-20">
+    <div className="space-y-6 pb-20 text-left">
       {/* Header */}
-      <header className="flex justify-between items-center bg-zinc-900/10 dark:bg-zinc-800/20 p-4 rounded-2xl border border-zinc-200 dark:border-zinc-800">
+      <header className="flex justify-between items-center bg-zinc-900/10 dark:bg-[#1e1e24] p-4 rounded-none border border-zinc-200 dark:border-[#2c2d34]/60">
         <div>
           <h1 className="text-xl font-bold tracking-tight text-zinc-800 dark:text-zinc-50">
             Hola, {user?.fullName?.split(' ')[0] || 'Técnico'}
@@ -25,32 +25,32 @@ export default function MobileDashboard({ user, stats, myTasks, activities }: an
             Plantas Solares Operativas
           </p>
         </div>
-        <div className="h-10 w-10 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center text-emerald-600 dark:text-emerald-400 font-bold">
+        <div className="h-10 w-10 rounded-none bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center text-emerald-600 dark:text-emerald-400 font-bold shrink-0">
           {user?.fullName?.charAt(0).toUpperCase()}
         </div>
       </header>
 
       {/* Quick Metrics (Mobile 2x2 Grid) */}
       <div className="grid grid-cols-2 gap-3">
-        <div className="bg-white dark:bg-zinc-900 p-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 flex flex-col items-center text-center">
+        <div className="bg-white dark:bg-[#1e1e24] p-4 rounded-none border border-zinc-200 dark:border-[#2c2d34]/60 flex flex-col items-center text-center justify-center min-h-[110px]">
           <CheckCircle className="h-6 w-6 text-emerald-500 mb-2" />
           <p className="text-[10px] text-zinc-500 dark:text-zinc-400 font-bold uppercase tracking-wider mb-1">Obras Activas</p>
           <p className="text-lg font-black text-zinc-800 dark:text-zinc-50">{stats.projectsCount}</p>
         </div>
         
-        <div className="bg-white dark:bg-zinc-900 p-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 flex flex-col items-center text-center">
+        <div className="bg-white dark:bg-[#1e1e24] p-4 rounded-none border border-zinc-200 dark:border-[#2c2d34]/60 flex flex-col items-center text-center justify-center min-h-[110px]">
           <ClipboardList className="h-6 w-6 text-blue-500 mb-2" />
           <p className="text-[10px] text-zinc-500 dark:text-zinc-400 font-bold uppercase tracking-wider mb-1">Mis Tareas</p>
           <p className="text-lg font-black text-zinc-800 dark:text-zinc-50">{myTasks.length}</p>
         </div>
 
-        <div className="bg-white dark:bg-zinc-900 p-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 flex flex-col items-center text-center">
+        <div className="bg-white dark:bg-[#1e1e24] p-4 rounded-none border border-zinc-200 dark:border-[#2c2d34]/60 flex flex-col items-center text-center justify-center min-h-[110px]">
           <Sun className="h-6 w-6 text-amber-500 mb-2" />
           <p className="text-[10px] text-zinc-500 dark:text-zinc-400 font-bold uppercase tracking-wider mb-1">KWh Hoy</p>
           <p className="text-lg font-black text-zinc-800 dark:text-zinc-50">{stats.generationToday}</p>
         </div>
 
-        <div className="bg-white dark:bg-zinc-900 p-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 flex flex-col items-center text-center">
+        <div className="bg-white dark:bg-[#1e1e24] p-4 rounded-none border border-zinc-200 dark:border-[#2c2d34]/60 flex flex-col items-center text-center justify-center min-h-[110px]">
           <ShieldAlert className="h-6 w-6 text-rose-500 mb-2" />
           <p className="text-[10px] text-zinc-500 dark:text-zinc-400 font-bold uppercase tracking-wider mb-1">Stock Crítico</p>
           <p className="text-lg font-black text-zinc-800 dark:text-zinc-50">{stats.lowStockCount}</p>
@@ -59,30 +59,30 @@ export default function MobileDashboard({ user, stats, myTasks, activities }: an
 
       {/* Mis Tareas Destacadas (Card based for easy tap) */}
       <div className="space-y-3">
-        <h2 className="text-sm font-bold text-zinc-800 dark:text-zinc-100 flex items-center justify-between">
+        <h2 className="text-sm font-bold text-zinc-800 dark:text-zinc-105 flex items-center justify-between">
           Tareas Prioritarias
-          <ArrowRight className="h-4 w-4 text-zinc-400" />
+          <ArrowRight className="h-4 w-4 text-zinc-500" />
         </h2>
         
         {myTasks.slice(0, 3).length === 0 ? (
-          <div className="text-center py-6 bg-zinc-50 dark:bg-zinc-900/50 rounded-2xl border border-dashed border-zinc-200 dark:border-zinc-800">
+          <div className="text-center py-6 bg-zinc-50 dark:bg-[#121315]/40 rounded-none border border-dashed border-zinc-200 dark:border-[#2c2d34]/60">
             <p className="text-xs text-zinc-500">No hay tareas pendientes.</p>
           </div>
         ) : (
           <div className="space-y-2">
             {myTasks.slice(0, 3).map((task: any) => (
-              <div key={task.id} className="bg-white dark:bg-zinc-900 p-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 flex flex-col gap-2">
+              <div key={task.id} className="bg-white dark:bg-[#1e1e24] p-4 rounded-none border border-zinc-200 dark:border-[#2c2d34]/60 flex flex-col gap-2 min-h-[110px] justify-between">
                 <div className="flex justify-between items-start">
                   <h3 className="font-bold text-sm text-zinc-800 dark:text-zinc-200 pr-2 leading-tight">{task.title}</h3>
-                  <span className={`shrink-0 text-[9px] font-bold uppercase px-2 py-0.5 rounded-md ${
-                    task.priority === 'alta' ? 'bg-rose-50 text-rose-700 dark:bg-rose-950/50 dark:text-rose-400' : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400'
+                  <span className={`shrink-0 text-[9px] font-bold uppercase px-2.5 py-1 rounded-none ${
+                    task.priority === 'alta' ? 'bg-rose-500/20 text-rose-350 border border-rose-500/30' : 'bg-emerald-500/20 text-emerald-350 border border-emerald-500/30'
                   }`}>
                     {task.priority}
                   </span>
                 </div>
                 <div className="flex justify-between items-center mt-1">
-                  <span className="text-xs font-semibold text-zinc-500 bg-zinc-100 dark:bg-zinc-800 px-2 py-1 rounded-md">{task.area}</span>
-                  <span className="text-xs text-zinc-400">{task.due_date ? new Date(task.due_date).toLocaleDateString() : 'Sin fecha'}</span>
+                  <span className="text-xs font-semibold text-zinc-500 bg-zinc-100 dark:bg-[#121315] px-2.5 py-1.5 rounded-none border dark:border-[#2c2d34]/60">{task.area}</span>
+                  <span className="text-xs text-zinc-400 font-mono">{task.due_date ? new Date(task.due_date).toLocaleDateString() : 'Sin fecha'}</span>
                 </div>
               </div>
             ))}
@@ -92,14 +92,14 @@ export default function MobileDashboard({ user, stats, myTasks, activities }: an
 
       {/* Actividad Reciente */}
       <div className="space-y-3">
-        <h2 className="text-sm font-bold text-zinc-800 dark:text-zinc-100 flex items-center justify-between">
+        <h2 className="text-sm font-bold text-zinc-800 dark:text-zinc-105 flex items-center justify-between">
           Última Actividad
         </h2>
-        <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 overflow-hidden">
-          <div className="divide-y divide-zinc-100 dark:divide-zinc-800/60">
+        <div className="bg-white dark:bg-[#1e1e24] rounded-none border border-zinc-200 dark:border-[#2c2d34]/60 overflow-hidden">
+          <div className="divide-y divide-zinc-100 dark:divide-[#2c2d34]/60">
             {activities.slice(0, 4).map((act: any) => (
               <div key={act.id} className="p-3.5 flex items-start space-x-3">
-                <div className="shrink-0 p-2 bg-zinc-50 dark:bg-zinc-800 rounded-xl">
+                <div className="shrink-0 p-2.5 bg-zinc-50 dark:bg-[#121315] rounded-none border dark:border-[#2c2d34]/60">
                   {act.type === 'inventory' ? <Package className="h-4 w-4 text-amber-500" /> : 
                    act.type === 'task' ? <ClipboardList className="h-4 w-4 text-blue-500" /> : 
                    act.type === 'project' ? <FolderKanban className="h-4 w-4 text-emerald-500" /> :
