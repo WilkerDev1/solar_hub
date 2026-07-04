@@ -6,6 +6,7 @@ import ProjectDetailModule from '@/modules/projects/[id]/page';
 import { Plus, Folder, MapPin, Activity, CheckCircle2, ClipboardList, LayoutList, Loader2, AlertCircle, MoreVertical, Trash2, Archive, Search, LayoutGrid, Filter, X } from 'lucide-react';
 import { getProjects, createProject, deleteProject, archiveProject, ProjectFilters } from '@/core/services/projects';
 import { supabase } from '@/core/database/supabase';
+import { getApiUrl } from '@/core/utils/api';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from '@/core/components/ui/dropdown-menu';
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/core/components/ui/dialog';
 import { Button } from '@/core/components/ui/button';
@@ -35,6 +36,31 @@ export default function ProjectsModule() {
   const [projects, setProjects] = useState<ProjectWithStats[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const [token, setToken] = useState<string | null>(null);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setToken(session?.access_token || null);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setToken(session?.access_token || null);
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  const getDownloadUrl = (url: string | null | undefined) => {
+    if (!url) return '';
+    if (url.startsWith('/api/storage/file/')) {
+      const urlWithToken = token ? `${url}${url.includes('?') ? '&' : '?'}token=${token}` : url;
+      return getApiUrl(urlWithToken);
+    }
+    return url;
+  };
 
   // View & selection states for list view
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
@@ -371,7 +397,7 @@ export default function ProjectsModule() {
                 {/* Cover Banner Image */}
                 <div className="relative h-44 w-full bg-zinc-905 overflow-hidden shrink-0 border-b border-zinc-700/60">
                   {proj.banner_url ? (
-                    <img src={proj.banner_url} alt={proj.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-in-out" />
+                    <img src={getDownloadUrl(proj.banner_url)} alt={proj.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-in-out" />
                   ) : (
                     <div className="w-full h-full bg-gradient-to-br from-zinc-900 via-zinc-850 to-zinc-900 flex items-center justify-center">
                       <Folder className="h-10 w-10 text-zinc-500 opacity-50" />
