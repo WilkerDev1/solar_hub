@@ -23,7 +23,7 @@ export type TabType = 'overview' | 'kanban' | 'list' | 'calendar' | 'files' | 'm
 export function useProjectDetail(projectId: string) {
   // View states
   const [activeTab, setActiveTab] = useState<TabType>('overview');
-  const [isChatOpen, setIsChatOpen] = useState(true);
+  const [isChatOpen, setIsChatOpen] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
 
   // Core Data States

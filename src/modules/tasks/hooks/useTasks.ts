@@ -29,7 +29,7 @@ export function useTasks() {
   // Navigation / View state
   const [viewMode, setViewMode] = useState<ViewMode>('kanban');
   const [keepLayout, setKeepLayout] = useState<'grid' | 'list'>('grid');
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
 
   // Filter values
   const [filterProject, setFilterProject] = useState('todos');
