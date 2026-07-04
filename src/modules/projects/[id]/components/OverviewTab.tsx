@@ -6,28 +6,49 @@ import {
   ChevronLeft, ChevronRight, X, Image as ImageIcon
 } from 'lucide-react';
 import { ProjectDetailContext } from '../hooks/useProjectDetail';
+import { getApiUrl } from '@/core/utils/api';
 
 type Props = Pick<ProjectDetailContext,
   'project' | 'employees' | 'projectDocuments' | 'handleUploadBanner' | 'handleUploadGalleryImage' | 'uploadingFile'
->;
+> & {
+  projectFolders?: any[];
+  token?: string | null;
+};
 
 export default function OverviewTab({
   project, employees, projectDocuments = [],
-  handleUploadBanner, handleUploadGalleryImage, uploadingFile
+  handleUploadBanner, handleUploadGalleryImage, uploadingFile,
+  projectFolders = [], token
 }: Props) {
   const [zoomUrl, setZoomUrl] = useState<string | null>(null);
   const [zoomName, setZoomName] = useState<string>('');
   const [carouselIndex, setCarouselIndex] = useState(0);
 
-  // Filter project documents for images
+  const getDownloadUrl = (url: string) => {
+    if (!url) return '';
+    if (url.startsWith('/api/storage/file/')) {
+      const urlWithToken = token ? `${url}${url.includes('?') ? '&' : '?'}token=${token}` : url;
+      return getApiUrl(urlWithToken);
+    }
+    return url;
+  };
+
+  // Find the 'Galería' folder ID
+  const galleryFolder = projectFolders.find(
+    f => f.name.toLowerCase() === 'galería' || f.name.toLowerCase() === 'galeria'
+  );
+  const galleryFolderId = galleryFolder?.id;
+
+  // Filter project documents for images inside the Gallery folder only
   const images = projectDocuments.filter(doc => {
+    if (!galleryFolderId || doc.folder_id !== galleryFolderId) return false;
     const extension = doc.name.split('.').pop()?.toLowerCase() || '';
     const isImg = ['png', 'jpg', 'jpeg', 'webp', 'gif'].includes(extension) || (doc.mime_type && doc.mime_type.startsWith('image/'));
     return isImg;
   }).map(doc => ({
     id: doc.id,
     name: doc.name,
-    url: `/api/storage/file/${doc.id}?name=${encodeURIComponent(doc.name)}`
+    url: getDownloadUrl(`/api/storage/file/${doc.id}?name=${encodeURIComponent(doc.name)}`)
   }));
 
   const handleBannerChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -66,9 +87,9 @@ export default function OverviewTab({
         {/* Banner with Upload Bridge */}
         <div className="h-48 rounded-none overflow-hidden border border-zinc-700 relative group">
           {project.banner_url ? (
-            <img src={project.banner_url} alt="Project banner" className="w-full h-full object-cover" />
+            <img src={getDownloadUrl(project.banner_url)} alt="Project banner" className="w-full h-full object-cover" />
           ) : (
-            <div className="w-full h-full bg-zinc-900 flex items-center justify-center text-zinc-600">
+            <div className="w-full h-full bg-zinc-900 flex items-center justify-center text-zinc-650">
               <ImageIcon className="h-10 w-10 opacity-30" />
             </div>
           )}
@@ -94,7 +115,7 @@ export default function OverviewTab({
         {/* Ficha Descriptiva */}
         <div className="bg-zinc-800 border border-zinc-700 p-6 rounded-none space-y-3">
           <h3 className="text-xs font-bold uppercase tracking-widest text-zinc-400 font-mono">Ficha Descriptiva</h3>
-          <p className="text-zinc-300 text-sm leading-relaxed whitespace-pre-line">
+          <p className="text-zinc-300 text-sm leading-relaxed whitespace-pre-line text-left">
             {project.description || 'Sin descripción detallada registrada para esta obra.'}
           </p>
         </div>
@@ -110,7 +131,7 @@ export default function OverviewTab({
             </div>
             
             {/* Direct Image Upload */}
-            <label className="bg-zinc-900 border border-zinc-700 hover:bg-zinc-800 hover:text-white text-zinc-300 text-[10px] font-bold h-8 px-3 rounded-none flex items-center justify-center gap-1.5 cursor-pointer transition-colors">
+            <label className="bg-zinc-900 border border-zinc-700 hover:bg-zinc-800 hover:text-white text-zinc-300 text-[10px] font-bold h-8 px-3 rounded-none flex items-center justify-center gap-1.5 cursor-pointer transition-colors select-none">
               <input type="file" onChange={handleGalleryUpload} className="hidden" disabled={uploadingFile} />
               {uploadingFile ? (
                 <>
@@ -137,7 +158,7 @@ export default function OverviewTab({
               <button
                 onClick={prevSlide}
                 disabled={carouselIndex === 0}
-                className="h-8 w-8 bg-zinc-900 border border-zinc-700 rounded-none flex items-center justify-center text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors disabled:opacity-30 disabled:pointer-events-none"
+                className="h-8 w-8 bg-zinc-900 border border-zinc-700 rounded-none flex items-center justify-center text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors disabled:opacity-30 disabled:pointer-events-none cursor-pointer"
               >
                 <ChevronLeft className="h-4.5 w-4.5" />
               </button>
@@ -159,7 +180,7 @@ export default function OverviewTab({
                 
                 {/* Pad columns if less than 3 image slots */}
                 {Array.from({ length: Math.max(0, 3 - visibleImages.length) }).map((_, idx) => (
-                  <div key={idx} className="h-28 border border-dashed border-zinc-700 rounded-none flex items-center justify-center text-zinc-600 bg-zinc-900/10">
+                  <div key={idx} className="h-28 border border-dashed border-zinc-700 rounded-none flex items-center justify-center text-zinc-650 bg-zinc-900/10">
                     <ImageIcon className="h-6 w-6 opacity-10" />
                   </div>
                 ))}
@@ -169,7 +190,7 @@ export default function OverviewTab({
               <button
                 onClick={nextSlide}
                 disabled={carouselIndex + 3 >= images.length}
-                className="h-8 w-8 bg-zinc-900 border border-zinc-700 rounded-none flex items-center justify-center text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors disabled:opacity-30 disabled:pointer-events-none"
+                className="h-8 w-8 bg-zinc-900 border border-zinc-700 rounded-none flex items-center justify-center text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors disabled:opacity-30 disabled:pointer-events-none cursor-pointer"
               >
                 <ChevronRight className="h-4.5 w-4.5" />
               </button>
@@ -251,11 +272,11 @@ export default function OverviewTab({
                 const emp = employees.find(e => e.id === id);
                 if (!emp) return null;
                 return (
-                  <div key={id} className="flex items-center gap-2.5 bg-zinc-905 p-2 rounded-none border border-zinc-700">
-                    <div className="h-6 w-6 rounded-none bg-zinc-900 border border-zinc-700 flex items-center justify-center text-[9px] font-bold text-zinc-300">
+                  <div key={id} className="flex items-center gap-2.5 bg-zinc-905 p-2 rounded-none border border-zinc-700 text-left">
+                    <div className="h-6 w-6 rounded-none bg-zinc-900 border border-zinc-700 flex items-center justify-center text-[9px] font-bold text-zinc-350 shrink-0">
                       {emp.full_name.charAt(0).toUpperCase()}
                     </div>
-                    <span className="text-xs text-zinc-200 font-bold">{emp.full_name}</span>
+                    <span className="text-xs text-zinc-200 font-bold truncate">{emp.full_name}</span>
                   </div>
                 );
               })

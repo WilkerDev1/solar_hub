@@ -63,10 +63,12 @@ export default function ProjectDetailModule({ projectId }: Props) {
           <OverviewTab
             project={ctx.project}
             employees={ctx.employees}
+            projectFolders={ctx.projectFolders}
             projectDocuments={ctx.projectDocuments}
             handleUploadBanner={ctx.handleUploadBanner}
             handleUploadGalleryImage={ctx.handleUploadGalleryImage}
             uploadingFile={ctx.uploadingFile}
+            token={ctx.token}
           />
         )}
 
