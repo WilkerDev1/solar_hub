@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useTasks } from './hooks/useTasks';
 import TaskSidebar from './components/TaskSidebar';
 import KanbanView from './components/KanbanView';
@@ -10,12 +10,16 @@ import KeepView from './components/KeepView';
 import CreateTaskModal from './components/CreateTaskModal';
 import TaskDetailDrawer from '@/core/components/TaskDetailDrawer';
 import { 
-  ClipboardList, LayoutGrid, List, Calendar, StickyNote, Plus, Loader2, AlertCircle
+  ClipboardList, LayoutGrid, List, Calendar, StickyNote, Plus, Loader2, AlertCircle, SlidersHorizontal
 } from 'lucide-react';
 import { Button } from '@/core/components/ui/button';
 
 export default function TasksModule() {
   const t = useTasks();
+
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [showHeader, setShowHeader] = useState(true);
+  const lastScrollTop = useRef(0);
 
   // Load friendly Keep-style font dynamically for testing
   useEffect(() => {
@@ -28,21 +32,58 @@ export default function TasksModule() {
     };
   }, []);
 
+  // Listen to scroll events in the inner viewport to dynamically shrink/hide header on scroll
+  useEffect(() => {
+    const container = scrollRef.current;
+    if (!container) return;
+
+    const handleScroll = () => {
+      const currentScroll = container.scrollTop;
+      if (currentScroll <= 15) {
+        setShowHeader(true);
+      } else if (currentScroll > lastScrollTop.current) {
+        // Scrolling down -> hide header
+        setShowHeader(false);
+      } else {
+        // Scrolling up -> show header
+        setShowHeader(true);
+      }
+      lastScrollTop.current = currentScroll;
+    };
+
+    container.addEventListener('scroll', handleScroll, { passive: true });
+    return () => container.removeEventListener('scroll', handleScroll);
+  }, []);
+
   return (
     <div 
-      className="flex h-[calc(100vh-5.5rem)] -m-6 overflow-hidden"
+      className="flex h-[calc(100vh-5.5rem)] -m-6 overflow-hidden relative"
       style={{ fontFamily: "'Outfit', sans-serif" }}
     >
+      {/* Dimmed backdrop overlay when mobile sidebar is open */}
+      {!t.sidebarCollapsed && (
+        <div 
+          className="lg:hidden fixed inset-0 bg-black/60 z-45 transition-opacity duration-300"
+          onClick={() => t.setSidebarCollapsed(true)}
+        />
+      )}
+
       {/* 1. Main Content Area */}
       <main className="flex-1 flex flex-col min-w-0 bg-[#0c0c0e] overflow-hidden p-6 space-y-6">
-        {/* Top Header Banner */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-zinc-800 pb-5 shrink-0">
+        {/* Top Header Banner — shrinks and expands dynamically on scroll */}
+        <div 
+          className={`transition-all duration-300 ease-in-out flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-zinc-800 pb-5 shrink-0 ${
+            showHeader 
+              ? 'opacity-100 max-h-[140px]' 
+              : 'opacity-0 max-h-0 pb-0 border-b-0 overflow-hidden pointer-events-none'
+          }`}
+        >
           <div>
             <h1 className="text-2xl font-bold text-white tracking-wide flex items-center gap-2">
               <ClipboardList className="h-6 w-6 text-emerald-400" />
               Consola Operativa de Tareas
             </h1>
-            <p className="text-zinc-450 text-xs mt-1">
+            <p className="hidden md:block text-zinc-450 text-xs mt-1">
               Tablero interactivo de seguimiento, control de revisiones e historial de tareas del equipo.
             </p>
           </div>
@@ -63,7 +104,7 @@ export default function TasksModule() {
               </button>
               <button
                 onClick={() => t.setViewMode('kanban')}
-                className={`p-2 rounded-lg text-xs font-bold transition-all ${
+                className={`hidden lg:flex p-2 rounded-lg text-xs font-bold transition-all items-center justify-center ${
                   t.viewMode === 'kanban' 
                     ? 'bg-zinc-800 text-white shadow-inner' 
                     : 'text-zinc-500 hover:text-zinc-300'
@@ -74,7 +115,7 @@ export default function TasksModule() {
               </button>
               <button
                 onClick={() => t.setViewMode('list')}
-                className={`p-2 rounded-lg text-xs font-bold transition-all ${
+                className={`hidden lg:flex p-2 rounded-lg text-xs font-bold transition-all items-center justify-center ${
                   t.viewMode === 'list' 
                     ? 'bg-zinc-800 text-white shadow-inner' 
                     : 'text-zinc-500 hover:text-zinc-300'
@@ -107,14 +148,26 @@ export default function TasksModule() {
               </button>
             )}
 
-            <Button onClick={() => t.setIsCreateOpen(true)} className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs h-10 px-4 rounded-xl">
+            {/* Menu Button to toggle filters on Mobile */}
+            <button
+              onClick={() => t.setSidebarCollapsed(!t.sidebarCollapsed)}
+              className="lg:hidden p-2 bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white rounded-xl transition-all h-10 w-10 flex items-center justify-center shrink-0"
+              title="Filtros"
+            >
+              <SlidersHorizontal className="h-4 w-4" />
+            </button>
+
+            <Button onClick={() => t.setIsCreateOpen(true)} className="hidden lg:flex bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs h-10 px-4 rounded-xl">
               <Plus className="h-4 w-4 mr-1.5" /> Nueva Tarea
             </Button>
           </div>
         </div>
 
         {/* Dynamic Inner Viewport */}
-        <div className="flex-1 overflow-y-auto min-h-0 pr-1 scrollbar-thin scrollbar-thumb-zinc-900">
+        <div 
+          ref={scrollRef}
+          className="flex-1 overflow-y-auto min-h-0 pr-1 scrollbar-thin scrollbar-thumb-zinc-900"
+        >
           {t.loading ? (
             <div className="py-20 flex flex-col items-center justify-center space-y-3 bg-zinc-900/10 border border-zinc-850 rounded-2xl">
               <Loader2 className="h-8 w-8 text-emerald-500 animate-spin" />
@@ -180,6 +233,15 @@ export default function TasksModule() {
           )}
         </div>
       </main>
+
+      {/* Mobile Floating Action Button (FAB) for New Task - Top Right */}
+      <button
+        onClick={() => t.setIsCreateOpen(true)}
+        className="lg:hidden fixed top-20 right-4 z-40 bg-emerald-600 hover:bg-emerald-500 text-white p-3 rounded-full shadow-2xl border border-emerald-500/30 hover:scale-105 active:scale-95 transition-all flex items-center justify-center"
+        title="Nueva Tarea"
+      >
+        <Plus className="h-5.5 w-5.5" />
+      </button>
 
       {/* 2. Right sidebar (Filtros) */}
       <TaskSidebar

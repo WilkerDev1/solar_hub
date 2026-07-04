@@ -27,7 +27,7 @@ export function useTasks() {
   const [projects, setProjects] = useState<any[]>([]);
 
   // Navigation / View state
-  const [viewMode, setViewMode] = useState<ViewMode>('kanban');
+  const [viewMode, setViewMode] = useState<ViewMode>('keep');
   const [keepLayout, setKeepLayout] = useState<'grid' | 'list'>('grid');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
 

@@ -48,9 +48,12 @@ export default function TaskSidebar({
 
   return (
     <aside 
-      className={`border-l border-zinc-800 bg-[#121214]/65 transition-all duration-300 flex flex-col h-full shrink-0 ${
-        sidebarCollapsed ? 'w-16' : 'w-64'
-      }`}
+      className={`border-l border-zinc-800 bg-[#121214]/95 lg:bg-[#121214]/65 transition-all duration-300 flex flex-col h-full shrink-0
+        ${sidebarCollapsed 
+          ? 'max-lg:hidden w-16' 
+          : 'max-lg:fixed max-lg:top-0 max-lg:right-0 max-lg:h-full max-lg:z-50 max-lg:w-64 max-lg:shadow-2xl w-64'
+        }
+      `}
     >
       {/* Sidebar Header / Collapse toggle (reversing icons because it's now on the right side) */}
       <div className="p-4 border-b border-zinc-900 flex items-center justify-between">
