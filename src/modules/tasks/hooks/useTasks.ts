@@ -146,6 +146,26 @@ export function useTasks() {
     loadTasks();
   }, [user]);
 
+  // Open task if taskId is provided in the URL query parameters
+  useEffect(() => {
+    if (tasks.length === 0) return;
+    const searchParams = new URLSearchParams(window.location.search);
+    const taskId = searchParams.get('taskId');
+    if (taskId) {
+      const task = tasks.find(t => t.id === taskId);
+      if (task) {
+        setSelectedTask(task);
+        setIsDrawerOpen(true);
+        setDrawerEditMode(false);
+        
+        // Clean the taskId query parameter quietly from the URL
+        const cleanedSearch = window.location.search.replace(/([\?&])taskId=[a-f0-9-]+&?/, '$1').replace(/[\?&]$/, '');
+        const newUrl = window.location.pathname + cleanedSearch;
+        window.history.replaceState(null, '', newUrl);
+      }
+    }
+  }, [tasks]);
+
   // Open task drawer
   const handleOpenTask = (task: TaskRow) => {
     setSelectedTask(task);

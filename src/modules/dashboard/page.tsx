@@ -315,7 +315,8 @@ export default function DashboardModule() {
               myTasks.map((task) => (
                 <div 
                   key={task.id} 
-                  className="flex justify-between items-center p-3.5 hover:bg-zinc-50 dark:hover:bg-zinc-800/40 rounded-xl border border-zinc-100 dark:border-zinc-800/60 transition-all duration-150"
+                  onClick={() => window.location.href = `/?tab=tasks&taskId=${task.id}`}
+                  className="flex justify-between items-center p-3.5 hover:bg-zinc-50 dark:hover:bg-zinc-800/40 rounded-xl border border-zinc-100 dark:border-zinc-800/60 transition-all duration-150 cursor-pointer hover:border-emerald-500/40 hover:shadow-sm"
                 >
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 mb-1.5">

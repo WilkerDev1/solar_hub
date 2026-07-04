@@ -61,7 +61,13 @@ export default function MobileDashboard({ user, stats, myTasks, activities }: an
       <div className="space-y-3">
         <h2 className="text-sm font-bold text-zinc-800 dark:text-zinc-105 flex items-center justify-between">
           Tareas Prioritarias
-          <ArrowRight className="h-4 w-4 text-zinc-500" />
+          <button 
+            onClick={() => window.location.href = '/?tab=tasks'}
+            className="p-1 hover:bg-zinc-800/30 rounded transition-colors text-zinc-550 hover:text-white"
+            title="Ir a Tareas"
+          >
+            <ArrowRight className="h-4 w-4" />
+          </button>
         </h2>
         
         {myTasks.slice(0, 3).length === 0 ? (
@@ -71,9 +77,13 @@ export default function MobileDashboard({ user, stats, myTasks, activities }: an
         ) : (
           <div className="space-y-2">
             {myTasks.slice(0, 3).map((task: any) => (
-              <div key={task.id} className="bg-white dark:bg-[#1e1e24] p-4 rounded-none border border-zinc-200 dark:border-[#2c2d34]/60 flex flex-col gap-2 min-h-[110px] justify-between">
+              <div 
+                key={task.id} 
+                onClick={() => window.location.href = `/?tab=tasks&taskId=${task.id}`}
+                className="bg-white dark:bg-[#1e1e24] p-4 rounded-none border border-zinc-200 dark:border-[#2c2d34]/60 flex flex-col gap-2 min-h-[110px] justify-between cursor-pointer hover:border-emerald-500 transition-colors"
+              >
                 <div className="flex justify-between items-start">
-                  <h3 className="font-bold text-sm text-zinc-800 dark:text-zinc-200 pr-2 leading-tight">{task.title}</h3>
+                  <h3 className="font-bold text-sm text-zinc-800 dark:text-zinc-200 pr-2 leading-tight hover:text-emerald-450 transition-colors">{task.title}</h3>
                   <span className={`shrink-0 text-[9px] font-bold uppercase px-2.5 py-1 rounded-none ${
                     task.priority === 'alta' ? 'bg-rose-500/20 text-rose-350 border border-rose-500/30' : 'bg-emerald-500/20 text-emerald-350 border border-emerald-500/30'
                   }`}>
