@@ -307,52 +307,61 @@ export default function AdminModule() {
 
           {/* Groups of Cards */}
           <div className="space-y-8">
-            {adminModules.map((group) => (
-              <div key={group.category} className="space-y-3">
-                {/* Group Title */}
-                <span className="text-[11px] font-mono tracking-widest text-zinc-550 uppercase block text-left">
-                  {group.tag}
-                </span>
+            {adminModules.map((group) => {
+              const categoryColor =
+                group.category === 'CRM' ? 'text-amber-400 bg-amber-500/10 border-amber-500/20' :
+                group.category === 'PRODUCCIÓN' ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20' :
+                group.category === 'INVENTARIO' ? 'text-purple-400 bg-purple-500/10 border-purple-500/20' :
+                group.category === 'DATOS & SISTEMA' ? 'text-cyan-400 bg-cyan-500/10 border-cyan-500/20' :
+                'text-rose-455 bg-rose-500/10 border-rose-500/20'; // ADMINISTRACIÓN
 
-                {/* Cards Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {group.items.map((item) => {
-                    const Icon = item.icon;
-                    return (
-                      <div
-                        key={item.id}
-                        onClick={item.action}
-                        className="bg-zinc-850 border border-zinc-700/80 rounded-none p-5 hover:border-emerald-500 hover:bg-zinc-800 transition-all duration-300 cursor-pointer flex flex-col justify-between min-h-[120px] group relative overflow-hidden text-left"
-                      >
-                        {/* Subtle top glow line */}
-                        <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-emerald-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                        
-                        <div className="flex justify-between items-start gap-4">
-                          <div className="space-y-1">
-                            <span className="text-[10px] font-mono font-bold tracking-wider text-emerald-450 block">
-                              {item.badge}
-                            </span>
-                            <h3 className="text-base font-bold text-white group-hover:text-emerald-400 transition-colors duration-250">
-                              {item.label}
-                            </h3>
-                            <p className="text-xs text-zinc-400 leading-normal">
-                              {item.sublabel}
-                            </p>
-                          </div>
-                          <div className="h-8 w-8 rounded-none bg-zinc-900 border border-zinc-700 flex items-center justify-center text-zinc-400 group-hover:text-white group-hover:border-zinc-500 transition-colors shrink-0">
-                            <Icon className="h-4.5 w-4.5" />
+              return (
+                <div key={group.category} className="space-y-3">
+                  {/* Group Title */}
+                  <span className={`text-[10px] font-mono tracking-widest font-bold px-2.5 py-0.5 border rounded-none uppercase inline-block text-left ${categoryColor}`}>
+                    {group.tag}
+                  </span>
+
+                  {/* Cards Grid */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {group.items.map((item) => {
+                      const Icon = item.icon;
+                      return (
+                        <div
+                          key={item.id}
+                          onClick={item.action}
+                          className="bg-[#24252a] border border-[#2c2d34]/60 rounded-none p-5 hover:border-emerald-500/50 hover:bg-[#2c2d34] transition-all duration-300 cursor-pointer flex flex-col justify-between min-h-[120px] group relative overflow-hidden text-left"
+                        >
+                          {/* Subtle top glow line */}
+                          <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-emerald-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                          
+                          <div className="flex justify-between items-start gap-4">
+                            <div className="space-y-1">
+                              <span className="text-[10px] font-mono font-bold tracking-wider text-emerald-450 block">
+                                {item.badge}
+                              </span>
+                              <h3 className="text-base font-bold text-white group-hover:text-emerald-400 transition-colors duration-250">
+                                {item.label}
+                              </h3>
+                              <p className="text-xs text-zinc-400 leading-normal">
+                                {item.sublabel}
+                              </p>
+                            </div>
+                            <div className="h-8 w-8 rounded-none bg-[#1e1e24] border border-[#2c2d34]/60 flex items-center justify-center text-zinc-400 group-hover:text-white group-hover:border-zinc-500 transition-colors shrink-0">
+                              <Icon className="h-4.5 w-4.5" />
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           {/* Host Status bar */}
-          <div className="bg-[#1e1e24] border border-zinc-700 p-4 rounded-none flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 text-xs text-zinc-400 mt-8">
+          <div className="bg-[#24252a] border border-[#2c2d34]/60 p-4 rounded-none flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 text-xs text-zinc-400 mt-8">
             <div className="flex items-center gap-2">
               <Server className="h-4 w-4 text-emerald-400 animate-pulse" />
               <span>Servidor local: <strong>Supabase CLI v2.102.0 (Docker)</strong></span>

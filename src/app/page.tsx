@@ -154,7 +154,7 @@ export function DashboardShell({ children, defaultTab = 'dashboard' }: Dashboard
   ] as const;
 
   return (
-    <div className="flex h-screen overflow-hidden bg-zinc-50 dark:bg-zinc-950 text-zinc-800 dark:text-zinc-100 font-sans selection:bg-emerald-500 selection:text-black transition-colors duration-200">
+    <div className="flex h-screen overflow-hidden bg-zinc-50 dark:bg-[#1e2026] text-zinc-800 dark:text-zinc-100 font-sans selection:bg-emerald-500 selection:text-black transition-colors duration-200">
       {/* Decorative top-right glow */}
       <div className="absolute top-0 right-0 w-[30%] h-[30%] bg-emerald-500/5 rounded-full blur-[100px] pointer-events-none" />
 
@@ -162,7 +162,7 @@ export function DashboardShell({ children, defaultTab = 'dashboard' }: Dashboard
       {sidebarVisible && (
         <aside 
           style={{ width: sidebarCollapsed ? '72px' : `${sidebarWidth}px` }}
-          className="relative bg-zinc-100 dark:bg-zinc-900 border-r border-zinc-200 dark:border-zinc-800 flex flex-col justify-between hidden md:flex shrink-0 z-30 transition-colors duration-200 h-full select-none"
+          className="relative bg-zinc-100 dark:bg-[#1e2026] border-r border-zinc-205 dark:border-[#2c2d34]/60 flex flex-col justify-between hidden md:flex shrink-0 z-30 transition-colors duration-200 h-full select-none"
         >
           <div className="overflow-x-hidden">
             {/* Header Brand */}
@@ -365,7 +365,7 @@ export function DashboardShell({ children, defaultTab = 'dashboard' }: Dashboard
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-h-0 min-w-0 relative overflow-hidden">
-        <header className="h-16 shrink-0 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-md border-b border-zinc-200 dark:border-zinc-800 px-6 flex items-center justify-between z-20 transition-colors duration-200">
+        <header className="h-16 shrink-0 bg-white/80 dark:bg-[#24252a]/90 backdrop-blur-md border-b border-zinc-200 dark:border-[#2c2d34]/60 px-6 flex items-center justify-between z-20 transition-colors duration-200">
           {/* Header Mobile Brand & Burger */}
           <div className="flex items-center space-x-3 md:hidden">
             <button
