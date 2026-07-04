@@ -327,3 +327,76 @@ export function isPdfMime(mime: string | null): boolean {
 export function getExtension(name: string): string {
   return name.split('.').pop()?.toLowerCase() || '';
 }
+
+/**
+ * Ensures that the project has its folders structure initialized:
+ * - A project root folder (named after the project) under the 'proyectos' root folder.
+ * - A 'General' subfolder inside it.
+ * Returns the ID of the 'General' subfolder.
+ */
+export async function ensureProjectFolders(projectId: string, projectName: string): Promise<string> {
+  // 1. Get all folders for this project
+  const folders = await getFolders({ projectId });
+  
+  // 2. Check if the 'General' folder already exists
+  const generalFolder = folders.find(f => f.name.toLowerCase() === 'general');
+  if (generalFolder) {
+    return generalFolder.id;
+  }
+
+  // 3. Otherwise, check if the project root folder exists
+  let projectRootFolder = folders.find(f => f.name === projectName);
+  
+  // 4. Find the 'proyectos' root folder
+  const { data: rootFolders, error: rootErr } = await supabase
+    .from('folders')
+    .select('*')
+    .eq('name', 'proyectos')
+    .is('parent_id', null)
+    .is('project_id', null);
+  
+  let rootFolderId = rootFolders?.[0]?.id;
+  if (!rootFolderId) {
+    // Create 'proyectos' root folder
+    const { data: user } = await supabase.auth.getUser();
+    if (!user.user) throw new Error('No active session');
+    
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('company_id')
+      .eq('id', user.user.id)
+      .single();
+    if (!profile?.company_id) throw new Error('Company not found');
+
+    const { data: newRoot, error: createRootErr } = await supabase
+      .from('folders')
+      .insert({
+        name: 'proyectos',
+        company_id: profile.company_id,
+        parent_id: null,
+        project_id: null
+      })
+      .select()
+      .single();
+    if (createRootErr) throw createRootErr;
+    rootFolderId = newRoot.id;
+  }
+
+  if (!projectRootFolder) {
+    // Create project root folder
+    projectRootFolder = await createFolder({
+      name: projectName,
+      parentId: rootFolderId,
+      projectId: projectId
+    });
+  }
+
+  // Create 'General' folder
+  const newGenFolder = await createFolder({
+    name: 'General',
+    parentId: projectRootFolder.id,
+    projectId: projectId
+  });
+
+  return newGenFolder.id;
+}

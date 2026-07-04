@@ -15,7 +15,7 @@ import {
   ProjectDispatchTransaction
 } from '@/core/services/inventory';
 import { updateProject } from '@/core/services/projects';
-import { getFolders, getDocumentsByProject, uploadDocument, createFolder, DocumentRow } from '@/core/services/documents';
+import { getFolders, getDocumentsByProject, uploadDocument, createFolder, ensureProjectFolders, DocumentRow } from '@/core/services/documents';
 import { getApiUrl } from '@/core/utils/api';
 
 export type TabType = 'overview' | 'kanban' | 'list' | 'calendar' | 'files' | 'materials' | 'activity';
@@ -340,7 +340,8 @@ export function useProjectDetail(projectId: string) {
   const handleUploadBanner = async (file: File) => {
     setUploadingFile(true);
     try {
-      const doc = await uploadDocument(file, null, projectId, 'general');
+      const generalFolderId = await ensureProjectFolders(projectId, project.name);
+      const doc = await uploadDocument(file, generalFolderId, projectId, 'general');
       const bannerUrl = `/api/storage/file/${doc.id}?name=${encodeURIComponent(doc.name)}`;
       await updateProject(projectId, { banner_url: bannerUrl });
       await loadProjectData();
@@ -358,13 +359,19 @@ export function useProjectDetail(projectId: string) {
       let galleryFolder = projectFolders.find(f => f.name.toLowerCase() === 'galería' || f.name.toLowerCase() === 'galeria');
       let folderId = galleryFolder?.id;
       if (!folderId) {
+        // Ensure project folders exist first to resolve root project folder
+        await ensureProjectFolders(projectId, project.name);
+        const folders = await getFolders({ projectId });
+        const projRoot = folders.find(f => f.name === project.name);
+
         const newFolder = await createFolder({
           name: 'Galería',
+          parentId: projRoot?.id || null,
           projectId: projectId
         });
         folderId = newFolder.id;
-        const folders = await getFolders({ projectId });
-        setProjectFolders(folders);
+        const foldersList = await getFolders({ projectId });
+        setProjectFolders(foldersList);
       }
       await uploadDocument(file, folderId, projectId, 'general');
       await loadProjectTasks();
