@@ -44,7 +44,7 @@ export default function ProjectDetailModule({ projectId }: Props) {
   }
 
   return (
-    <div className="flex h-[calc(100vh-8rem)] bg-zinc-950">
+    <div className="flex h-[calc(100vh-8rem)] bg-[#121315]">
       {/* ─── MAIN CONTENT PANEL ─── */}
       <div className="flex-1 overflow-y-auto space-y-6 p-6 text-center scrollbar-thin scrollbar-thumb-zinc-900">
 

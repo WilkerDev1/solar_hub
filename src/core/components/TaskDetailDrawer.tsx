@@ -425,10 +425,10 @@ export default function TaskDetailDrawer({
       />
 
       {/* SIDEBAR PANEL SLIDE-OVER */}
-      <div className="fixed inset-y-0 right-0 w-full max-w-2xl bg-white dark:bg-zinc-950 border-l border-zinc-200 dark:border-zinc-900 shadow-2xl flex flex-col z-50 transform transition-transform duration-300 ease-in-out translate-x-0">
+      <div className="fixed inset-y-0 right-0 w-full max-w-2xl bg-white dark:bg-[#1e1e24] border-l border-zinc-200 dark:border-[#2c2d34]/60 shadow-2xl flex flex-col z-50 transform transition-transform duration-300 ease-in-out translate-x-0">
         
         {/* PANEL HEADER */}
-        <div className="p-4 border-b border-zinc-200 dark:border-zinc-900 flex justify-between items-center bg-zinc-900/20 shrink-0">
+        <div className="p-4 border-b border-zinc-200 dark:border-[#2c2d34]/60 flex justify-between items-center bg-zinc-900/20 shrink-0">
           <div className="flex items-center gap-2">
             <ClipboardList className="h-5 w-5 text-emerald-400" />
             <span className="text-xs font-mono font-bold uppercase tracking-wider text-zinc-500">Detalles de Tarea</span>
@@ -436,17 +436,17 @@ export default function TaskDetailDrawer({
           <div className="flex items-center gap-2">
             <button 
               onClick={() => setEditMode(!editMode)} 
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all border${
+              className={`px-3 py-1.5 rounded-none text-xs font-bold transition-all border ${
                 editMode 
                   ? 'bg-emerald-600/10 text-emerald-400 border-emerald-500/20' 
-                  : 'bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 text-zinc-550 dark:text-zinc-400 hover:text-white'
+                  : 'bg-white dark:bg-[#121315] border-zinc-200 dark:border-[#2c2d34]/60 text-zinc-550 dark:text-zinc-400 hover:text-white'
               }`}
             >
               {editMode ? 'Ver Modo Lectura' : 'Editar Tarea'}
             </button>
             <button 
               onClick={onClose} 
-              className="p-1.5 hover:bg-zinc-150 dark:hover:bg-zinc-900 rounded-lg text-zinc-500 hover:text-white transition-colors"
+              className="p-1.5 hover:bg-zinc-150 dark:hover:bg-[#121315] rounded-none text-zinc-500 hover:text-white transition-colors cursor-pointer"
             >
               <X className="h-5 w-5" />
             </button>
@@ -880,10 +880,10 @@ export default function TaskDetailDrawer({
         </div>
 
         {/* DETAILS SECTION INTERACTIVE TABS */}
-        <div className="border-t border-zinc-200 dark:border-zinc-900 flex-1 flex flex-col min-h-[350px]">
+        <div className="border-t border-zinc-205 dark:border-[#2c2d34]/60 flex-1 flex flex-col min-h-[350px]">
           
           {/* Tab Selector */}
-          <div className="flex border-b border-zinc-200 dark:border-zinc-900 bg-zinc-50/50 dark:bg-zinc-900/10 px-4 shrink-0 overflow-x-auto gap-2">
+          <div className="flex border-b border-zinc-205 dark:border-[#2c2d34]/60 bg-zinc-50/50 dark:bg-[#121315]/40 px-4 shrink-0 overflow-x-auto gap-2">
             {[
               { id: 'comentarios', label: 'Comentarios', icon: MessageSquare },
               { id: 'requisitos', label: 'Materiales (Requisitos)', icon: Briefcase },
@@ -896,10 +896,10 @@ export default function TaskDetailDrawer({
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id as any)}
-                  className={`flex items-center gap-1.5 py-3 px-3 text-xs font-bold transition-all border-b-2 uppercase whitespace-nowrap${
+                  className={`flex items-center gap-1.5 py-3 px-3 text-xs font-bold transition-all border-b-2 uppercase whitespace-nowrap rounded-none cursor-pointer ${
                     activeTab === tab.id
                       ? 'border-emerald-500 text-emerald-400'
-                      : 'border-transparent text-zinc-500 hover:text-zinc-300'
+                      : 'border-transparent text-zinc-500 hover:text-zinc-350 hover:bg-zinc-800/10'
                   }`}
                 >
                   <Icon className="h-3.5 w-3.5" />
@@ -910,14 +910,14 @@ export default function TaskDetailDrawer({
           </div>
 
           {/* TAB CONTENTS VIEWPORT */}
-          <div className="flex-1 p-6 overflow-y-auto bg-zinc-50 dark:bg-zinc-950/20">
+          <div className="flex-1 p-6 overflow-y-auto bg-zinc-50 dark:bg-[#121315]/30">
             
             {/* Tab: Comentarios */}
             {activeTab === 'comentarios' && (
               <div className="space-y-4 h-full flex flex-col justify-between">
                 
                 {/* Form comments */}
-                <form onSubmit={handleAddComment} className="flex gap-2 items-center bg-zinc-50/60 dark:bg-zinc-900/60 p-2 rounded-xl border border-zinc-200 dark:border-zinc-800">
+                <form onSubmit={handleAddComment} className="flex gap-2 items-center bg-zinc-50/60 dark:bg-[#121315] p-2 rounded-none border border-zinc-200 dark:border-[#2c2d34]/60">
                   <input
                     type="text"
                     value={newComment}
@@ -925,7 +925,7 @@ export default function TaskDetailDrawer({
                     placeholder="Escribe un comentario o actualización..."
                     className="flex-1 bg-transparent text-sm focus:outline-none text-zinc-800 dark:text-zinc-200 px-2"
                   />
-                  <button type="submit" className="p-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold transition-colors">
+                  <button type="submit" className="p-2 rounded-none bg-emerald-600 hover:bg-emerald-500 text-white font-bold transition-colors cursor-pointer">
                     <Send className="h-4 w-4" />
                   </button>
                 </form>

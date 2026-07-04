@@ -56,47 +56,49 @@ export default function ProjectHeader({ project, isAdmin, isChatOpen, setIsChatO
         </div>
       </div>
 
-      {/* Header Metadata Quick Widgets */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="bg-zinc-800 border border-zinc-700 p-4 rounded-none flex items-center justify-between">
-          <div>
-            <span className="text-[9px] font-bold text-zinc-450 uppercase tracking-wider font-mono">Fase Actual</span>
-            <p className="text-sm font-bold text-emerald-400 mt-0.5">
-              {project.phase === 'Diseno' ? 'Diseño' :
-               project.phase === 'Construccion' ? 'Construcción' :
-               project.phase === 'Operacion' ? 'Operación' : project.phase}
-            </p>
+      {/* Header Metadata Quick Widgets - Only visible in overview tab */}
+      {activeTab === 'overview' && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="bg-zinc-800 border border-zinc-700 p-4 rounded-none flex items-center justify-between">
+            <div>
+              <span className="text-[9px] font-bold text-zinc-450 uppercase tracking-wider font-mono">Fase Actual</span>
+              <p className="text-sm font-bold text-emerald-400 mt-0.5">
+                {project.phase === 'Diseno' ? 'Diseño' :
+                 project.phase === 'Construccion' ? 'Construcción' :
+                 project.phase === 'Operacion' ? 'Operación' : project.phase}
+              </p>
+            </div>
+            <Layers className="h-4 w-4 text-emerald-400/60" />
           </div>
-          <Layers className="h-4 w-4 text-emerald-400/60" />
-        </div>
 
-        <div className="bg-zinc-800 border border-zinc-700 p-4 rounded-none flex items-center justify-between">
-          <div>
-            <span className="text-[9px] font-bold text-zinc-450 uppercase tracking-wider font-mono">Ubicación GPS</span>
-            <p className="text-xs font-mono font-bold text-white mt-0.5 select-all">{project.gps_coordinates || 'N/D'}</p>
+          <div className="bg-zinc-800 border border-zinc-700 p-4 rounded-none flex items-center justify-between">
+            <div>
+              <span className="text-[9px] font-bold text-zinc-450 uppercase tracking-wider font-mono">Ubicación GPS</span>
+              <p className="text-xs font-mono font-bold text-white mt-0.5 select-all">{project.gps_coordinates || 'N/D'}</p>
+            </div>
+            <MapPin className="h-4 w-4 text-zinc-500" />
           </div>
-          <MapPin className="h-4 w-4 text-zinc-500" />
-        </div>
 
-        <div className="bg-zinc-800 border border-zinc-700 p-4 rounded-none flex items-center justify-between">
-          <div>
-            <span className="text-[9px] font-bold text-zinc-455 uppercase tracking-wider font-mono">Capacidad MWp</span>
-            <p className="text-sm font-bold text-white mt-0.5">{project.capacity || 'N/D'}</p>
+          <div className="bg-zinc-800 border border-zinc-700 p-4 rounded-none flex items-center justify-between">
+            <div>
+              <span className="text-[9px] font-bold text-zinc-455 uppercase tracking-wider font-mono">Capacidad MWp</span>
+              <p className="text-sm font-bold text-white mt-0.5">{project.capacity || 'N/D'}</p>
+            </div>
+            <Zap className="h-4 w-4 text-amber-500/60" />
           </div>
-          <Zap className="h-4 w-4 text-amber-500/60" />
-        </div>
 
-        <div className="bg-zinc-800 border border-zinc-700 p-4 rounded-none flex items-center justify-between">
-          <div>
-            <span className="text-[9px] font-bold text-zinc-455 uppercase tracking-wider font-mono">Estado General</span>
-            <p className={`text-xs font-bold uppercase mt-0.5 ${
-              project.status === 'completado' ? 'text-emerald-400' :
-              project.status === 'en_progreso' ? 'text-amber-400' : 'text-rose-455'
-            }`}>{project.status.replace('_', ' ')}</p>
+          <div className="bg-zinc-800 border border-zinc-700 p-4 rounded-none flex items-center justify-between">
+            <div>
+              <span className="text-[9px] font-bold text-zinc-455 uppercase tracking-wider font-mono">Estado General</span>
+              <p className={`text-xs font-bold uppercase mt-0.5 ${
+                project.status === 'completado' ? 'text-emerald-400' :
+                project.status === 'en_progreso' ? 'text-amber-400' : 'text-rose-455'
+              }`}>{project.status.replace('_', ' ')}</p>
+            </div>
+            <CheckCircle className="h-4 w-4 text-zinc-500" />
           </div>
-          <CheckCircle className="h-4 w-4 text-zinc-500" />
         </div>
-      </div>
+      )}
 
       {/* Tab Selection Row */}
       <div className="flex border-b border-zinc-700 pb-px overflow-x-auto gap-1">
