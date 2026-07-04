@@ -148,40 +148,77 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   useEffect(() => {
-    // Check initial session
-    const checkSession = async () => {
+    let active = true;
+
+    const withTimeout = <T,>(promise: Promise<T>, timeoutMs: number): Promise<T> => {
+      return Promise.race([
+        promise,
+        new Promise<never>((_, reject) => 
+          setTimeout(() => reject(new Error('Timeout de conexión con el servidor (verifique su conexión o VPN/Tailscale)')), timeoutMs)
+        )
+      ]);
+    };
+
+    const initAuth = async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session?.user) {
-          await loadProfile(session.user);
-        } else {
+        const sessionPromise = (async () => {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session?.user) {
+            await loadProfile(session.user);
+          } else {
+            setUser(null);
+            setRoles([]);
+            setPermissions(new Set());
+          }
+        })();
+
+        await withTimeout(sessionPromise, 4000);
+      } catch (error: any) {
+        console.warn('Auth initialization timed out or failed:', error.message || error);
+        if (active) {
           setUser(null);
           setRoles([]);
           setPermissions(new Set());
         }
-      } catch (error) {
-        console.error('Initial session check failed:', error);
       } finally {
-        setLoading(false);
+        if (active) {
+          setLoading(false);
+        }
       }
     };
 
-    checkSession();
+    initAuth();
 
     // Listen to session changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      setLoading(true);
-      if (session?.user) {
-        await loadProfile(session.user);
-      } else {
-        setUser(null);
-        setRoles([]);
-        setPermissions(new Set());
+      if (!active) return;
+      
+      // Only trigger loader on explicit login/logout events to avoid startup redundancy
+      if (event === 'SIGNED_IN' || event === 'SIGNED_OUT') {
+        setLoading(true);
+        try {
+          if (session?.user) {
+            await withTimeout(loadProfile(session.user), 4500);
+          } else {
+            setUser(null);
+            setRoles([]);
+            setPermissions(new Set());
+          }
+        } catch (error) {
+          console.error('Auth state change failed:', error);
+          setUser(null);
+          setRoles([]);
+          setPermissions(new Set());
+        } finally {
+          if (active) {
+            setLoading(false);
+          }
+        }
       }
-      setLoading(false);
     });
 
     return () => {
+      active = false;
       subscription.unsubscribe();
     };
   }, []);
