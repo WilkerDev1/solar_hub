@@ -471,10 +471,10 @@ export default function EmployeeManagementModule() {
         ) : (
           <>
             {/* PC Table */}
-            <div className="hidden md:block overflow-hidden bg-[#24252a] border border-[#2c2d34]/60 rounded-none">
+            <div className="hidden md:block overflow-hidden bg-[#1e1e24] border border-[#2c2d34]/60 rounded-none">
               <table className="w-full text-left border-collapse">
                 <thead>
-                  <tr className="bg-[#1e1e24] border-b border-[#2c2d34]/60 text-[10px] text-zinc-500 font-bold uppercase tracking-wider">
+                  <tr className="bg-[#121315] border-b border-[#2c2d34]/60 text-[10px] text-zinc-500 font-bold uppercase tracking-wider">
                     <th className="p-4">Colaborador</th>
                     <th className="p-4">Email</th>
                     <th className="p-4">Rol</th>
@@ -485,7 +485,7 @@ export default function EmployeeManagementModule() {
                 </thead>
                 <tbody className="divide-y divide-[#2c2d34]/40 text-sm text-zinc-300">
                   {filteredEmployees.map((emp) => (
-                    <tr key={emp.id} className={`transition-colors ${emp.is_active ? 'hover:bg-[#2c2d34]/40' : 'opacity-50 bg-[#1e1e24]/20'}`}>
+                    <tr key={emp.id} className={`transition-colors ${emp.is_active ? 'hover:bg-[#24252a]/40' : 'opacity-50 bg-[#121315]/30'}`}>
                       <td className="p-4">
                         <div className="flex items-center gap-3">
                           <div className="h-9 w-9 rounded-none bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 font-bold text-sm">
@@ -550,7 +550,7 @@ export default function EmployeeManagementModule() {
             {/* Mobile Cards View */}
             <div className="grid grid-cols-1 gap-4 md:hidden">
               {filteredEmployees.map((emp) => (
-                <div key={emp.id} className={`bg-[#24252a] border border-[#2c2d34]/60 rounded-none p-5 space-y-4 text-left ${!emp.is_active ? 'opacity-60' : ''}`}>
+                <div key={emp.id} className={`bg-[#1e1e24] border border-[#2c2d34]/60 rounded-none p-5 space-y-4 text-left ${!emp.is_active ? 'opacity-60' : ''}`}>
                   <div className="flex justify-between items-center">
                     <div className="flex items-center gap-2.5">
                       <div className="h-10 w-10 rounded-none bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 font-bold text-sm">
@@ -562,7 +562,7 @@ export default function EmployeeManagementModule() {
                       </div>
                     </div>
                     <div className="flex flex-col items-end gap-1">
-                      <span className="text-[9px] font-bold uppercase px-2 py-0.5 bg-[#1e1e24] text-zinc-400 rounded-none border border-[#2c2d34]/60">
+                      <span className="text-[9px] font-bold uppercase px-2 py-0.5 bg-[#121315] text-zinc-400 rounded-none border border-[#2c2d34]/60">
                         {emp.roleName}
                       </span>
                       <span className={`text-[9px] font-bold uppercase px-2 py-0.5 rounded-none border ${
@@ -585,7 +585,7 @@ export default function EmployeeManagementModule() {
                   <div className="grid grid-cols-2 gap-2 pt-2">
                     <button
                       onClick={() => handleOpenEdit(emp)}
-                      className="flex items-center justify-center gap-1.5 py-3 bg-[#1e1e24] hover:bg-[#2c2d34] text-zinc-300 hover:text-white text-xs font-bold rounded-none border border-[#2c2d34]/60 cursor-pointer"
+                      className="flex items-center justify-center gap-1.5 py-3 bg-[#121315] hover:bg-[#24252a] text-zinc-300 hover:text-white text-xs font-bold rounded-none border border-[#2c2d34]/60 cursor-pointer"
                       style={{ minHeight: '48px' }}
                     >
                       <Pencil className="h-4 w-4" />
@@ -595,8 +595,8 @@ export default function EmployeeManagementModule() {
                       onClick={() => handleArchiveToggle(emp)}
                       className={`flex items-center justify-center gap-1.5 py-3 text-xs font-bold rounded-none border cursor-pointer ${
                         emp.is_active
-                          ? 'bg-[#1e1e24] hover:bg-rose-950/40 text-rose-405 border-[#2c2d34]/60'
-                          : 'bg-[#1e1e24] hover:bg-emerald-950/40 text-emerald-405 border-[#2c2d34]/60'
+                          ? 'bg-[#121315] hover:bg-rose-950/40 text-rose-405 border-[#2c2d34]/60'
+                          : 'bg-[#121315] hover:bg-emerald-950/40 text-emerald-405 border-[#2c2d34]/60'
                       }`}
                       style={{ minHeight: '48px' }}
                     >
@@ -616,7 +616,7 @@ export default function EmployeeManagementModule() {
         {/* Edit Modal (Dialog) */}
         {selectedUser && (
           <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-            <DialogContent className="max-w-md bg-[#24252a] border border-[#2c2d34]/80 text-white p-6 rounded-none text-left">
+            <DialogContent className="max-w-md bg-[#1e1e24] border border-[#2c2d34]/80 text-white p-6 rounded-none text-left">
               <DialogHeader>
                 <DialogTitle className="text-lg font-bold text-white flex items-center gap-2">
                   <UserCog className="h-5 w-5 text-emerald-400" />
@@ -637,7 +637,7 @@ export default function EmployeeManagementModule() {
                   <Input
                     value={editName}
                     onChange={(e) => setEditName(e.target.value)}
-                    className="bg-[#1e1e24] border-[#2c2d34]/60 text-white text-sm h-10 rounded-none focus-visible:ring-1 focus-visible:ring-emerald-500"
+                    className="bg-[#121315] border-[#2c2d34]/60 text-white text-sm h-10 rounded-none focus-visible:ring-1 focus-visible:ring-emerald-500"
                   />
                 </div>
 
@@ -649,7 +649,7 @@ export default function EmployeeManagementModule() {
                     value={editOccupation}
                     onChange={(e) => setEditOccupation(e.target.value)}
                     placeholder="Ingeniería, Ventas"
-                    className="bg-[#1e1e24] border-[#2c2d34]/60 text-white text-sm h-10 rounded-none focus-visible:ring-1 focus-visible:ring-emerald-500"
+                    className="bg-[#121315] border-[#2c2d34]/60 text-white text-sm h-10 rounded-none focus-visible:ring-1 focus-visible:ring-emerald-500"
                     list="suggested-occupations-list"
                   />
                 </div>
@@ -660,7 +660,7 @@ export default function EmployeeManagementModule() {
                   <select
                     value={selectedRoleId}
                     onChange={(e) => handleRoleSelectChange(e.target.value)}
-                    className="w-full bg-[#1e1e24] border border-[#2c2d34]/60 rounded-none text-sm p-2 text-white h-9 focus:border-emerald-500 outline-none"
+                    className="w-full bg-[#121315] border border-[#2c2d34]/60 rounded-none text-sm p-2 text-white h-9 focus:border-emerald-500 outline-none"
                   >
                     <option value="">Ningún Rol (Sin acceso)</option>
                     {roles.map((r) => (
@@ -684,7 +684,7 @@ export default function EmployeeManagementModule() {
                             key={perm.id}
                             type="button"
                             onClick={() => handleTogglePermission(perm.id)}
-                            className="w-full flex items-start text-left gap-3 p-2 bg-[#1e1e24] border border-[#2c2d34]/60 hover:border-zinc-550 rounded-none transition-colors"
+                            className="w-full flex items-start text-left gap-3 p-2 bg-[#121315] border border-[#2c2d34]/60 hover:border-zinc-550 rounded-none transition-colors"
                           >
                             <span className="mt-0.5 shrink-0">
                               {isActive ? (
@@ -715,7 +715,7 @@ export default function EmployeeManagementModule() {
                       placeholder="Nueva contraseña temporal"
                       value={resetPasswordVal}
                       onChange={(e) => setResetPasswordVal(e.target.value)}
-                      className="bg-[#1e1e24] border-[#2c2d34]/60 text-white text-sm h-10 flex-1 rounded-none focus-visible:ring-1 focus-visible:ring-emerald-500"
+                      className="bg-[#121315] border-[#2c2d34]/60 text-white text-sm h-10 flex-1 rounded-none focus-visible:ring-1 focus-visible:ring-emerald-500"
                     />
                     <Button
                       type="button"
@@ -734,7 +734,7 @@ export default function EmployeeManagementModule() {
                           setResetPasswordSubmitting(false);
                         }
                       }}
-                      className="bg-[#1e1e24] border border-[#2c2d34]/60 hover:bg-[#2c2d34] text-white text-xs px-3 font-semibold h-10 rounded-none cursor-pointer"
+                      className="bg-[#121315] border border-[#2c2d34]/60 hover:bg-[#24252a] text-white text-xs px-3 font-semibold h-10 rounded-none cursor-pointer"
                     >
                       {resetPasswordSubmitting ? 'Procesando...' : resetPasswordSuccess ? '¡Listo!' : 'Cambiar'}
                     </Button>

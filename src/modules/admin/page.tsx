@@ -330,7 +330,7 @@ export default function AdminModule() {
                         <div
                           key={item.id}
                           onClick={item.action}
-                          className="bg-[#24252a] border border-[#2c2d34]/60 rounded-none p-5 hover:border-emerald-500/50 hover:bg-[#2c2d34] transition-all duration-300 cursor-pointer flex flex-col justify-between min-h-[120px] group relative overflow-hidden text-left"
+                          className="bg-[#1e1e24] border border-[#2c2d34]/60 rounded-none p-5 hover:border-emerald-500/50 hover:bg-[#24252a] transition-all duration-300 cursor-pointer flex flex-col justify-between min-h-[120px] group relative overflow-hidden text-left"
                         >
                           {/* Subtle top glow line */}
                           <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-emerald-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
@@ -347,7 +347,7 @@ export default function AdminModule() {
                                 {item.sublabel}
                               </p>
                             </div>
-                            <div className="h-8 w-8 rounded-none bg-[#1e1e24] border border-[#2c2d34]/60 flex items-center justify-center text-zinc-400 group-hover:text-white group-hover:border-zinc-500 transition-colors shrink-0">
+                            <div className="h-8 w-8 rounded-none bg-[#121315] border border-[#2c2d34]/60 flex items-center justify-center text-zinc-400 group-hover:text-white group-hover:border-zinc-500 transition-colors shrink-0">
                               <Icon className="h-4.5 w-4.5" />
                             </div>
                           </div>
@@ -361,7 +361,7 @@ export default function AdminModule() {
           </div>
 
           {/* Host Status bar */}
-          <div className="bg-[#24252a] border border-[#2c2d34]/60 p-4 rounded-none flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 text-xs text-zinc-400 mt-8">
+          <div className="bg-[#1e1e24] border border-[#2c2d34]/60 p-4 rounded-none flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 text-xs text-zinc-400 mt-8">
             <div className="flex items-center gap-2">
               <Server className="h-4 w-4 text-emerald-400 animate-pulse" />
               <span>Servidor local: <strong>Supabase CLI v2.102.0 (Docker)</strong></span>
