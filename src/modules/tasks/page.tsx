@@ -69,13 +69,13 @@ export default function TasksModule() {
       )}
 
       {/* 1. Main Content Area */}
-      <main className="flex-1 flex flex-col min-w-0 bg-[#0c0c0e] overflow-hidden p-6 space-y-6">
+      <main className="flex-1 flex flex-col min-w-0 bg-[#0c0c0e] overflow-hidden">
         {/* Top Header Banner — shrinks and expands dynamically on scroll */}
         <div 
-          className={`transition-all duration-300 ease-in-out flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-zinc-800 pb-5 shrink-0 ${
+          className={`transition-all duration-300 ease-in-out flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-zinc-800 pb-5 shrink-0 px-6 pt-6 ${
             showHeader 
-              ? 'opacity-100 max-h-[140px]' 
-              : 'opacity-0 max-h-0 pb-0 border-b-0 overflow-hidden pointer-events-none'
+              ? 'opacity-100 max-h-[160px] mb-6' 
+              : 'opacity-0 max-h-0 pb-0 mb-0 border-b-0 overflow-hidden pointer-events-none'
           }`}
         >
           <div>
@@ -166,7 +166,7 @@ export default function TasksModule() {
         {/* Dynamic Inner Viewport */}
         <div 
           ref={scrollRef}
-          className="flex-1 overflow-y-auto min-h-0 pr-1 scrollbar-thin scrollbar-thumb-zinc-900"
+          className="flex-1 overflow-y-auto min-h-0 px-6 pb-6 pr-5 scrollbar-thin scrollbar-thumb-zinc-900"
         >
           {t.loading ? (
             <div className="py-20 flex flex-col items-center justify-center space-y-3 bg-zinc-900/10 border border-zinc-850 rounded-2xl">
