@@ -48,7 +48,6 @@ export default function KanbanCard({ task, index, onClick, handleToggleCheck, em
         task.project_id || undefined,
         task.area || undefined
       );
-      alert('Archivo subido con éxito a la tarea.');
       if (onUploadSuccess) {
         onUploadSuccess();
       }
@@ -71,11 +70,11 @@ export default function KanbanCard({ task, index, onClick, handleToggleCheck, em
   const [zoomName, setZoomName] = useState<string>('');
 
   const borderAccentColor =
-    task.area === 'legal' ? 'border-l-purple-500' :
-    task.area === 'almacen' ? 'border-l-blue-500' :
-    task.area === 'operaciones' ? 'border-l-cyan-500' :
-    task.area === 'administracion' ? 'border-l-amber-500' :
-    'border-l-emerald-500'; // general
+    task.area === 'legal' ? 'border-t-purple-500' :
+    task.area === 'almacen' ? 'border-t-blue-500' :
+    task.area === 'operaciones' ? 'border-t-cyan-500' :
+    task.area === 'administracion' ? 'border-t-amber-500' :
+    'border-t-emerald-500'; // general
 
   return (
     <Draggable draggableId={task.id} index={index}>
@@ -85,7 +84,7 @@ export default function KanbanCard({ task, index, onClick, handleToggleCheck, em
           {...provided.draggableProps}
           {...provided.dragHandleProps}
           onClick={onClick}
-          className={`bg-zinc-850 border-l-4 ${borderAccentColor} border-t border-r border-b border-zinc-700/80 p-4 rounded-none flex flex-col justify-between hover:border-zinc-500 transition-all select-none relative ${
+          className={`bg-zinc-850 border-t-4 ${borderAccentColor} border-l border-r border-b border-zinc-800 p-4 rounded-none flex flex-col justify-between hover:border-zinc-500 transition-all select-none relative ${
             snapshot.isDragging ? 'shadow-2xl border-emerald-500 bg-zinc-800 scale-[1.02]' : ''
           } ${isCompleted ? 'opacity-65' : ''}`}
         >

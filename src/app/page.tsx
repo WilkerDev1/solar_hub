@@ -148,7 +148,7 @@ export function DashboardShell({ children, defaultTab = 'dashboard' }: Dashboard
     { id: 'projects', label: 'Proyectos (Core)', icon: FolderKanban },
     { id: 'inventory', label: 'Inventario', icon: Package },
     { id: 'clients', label: 'Clientes CRM', icon: UsersRound },
-    { id: 'tasks', label: 'Mis Tareas', icon: ClipboardList },
+    { id: 'tasks', label: 'Tareas', icon: ClipboardList },
     { id: 'documents', label: 'Documentos', icon: FolderOpen },
     { id: 'caleb', label: 'Asistente Caleb', icon: Bot },
   ] as const;

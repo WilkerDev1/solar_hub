@@ -329,7 +329,6 @@ export function useProjectDetail(projectId: string) {
     try {
       await uploadDocument(file, null, projectId, selectedUploadDept);
       await loadProjectTasks();
-      alert('Archivo subido con éxito.');
     } catch (err: any) {
       alert('Error al subir archivo: ' + err.message);
     } finally {
@@ -345,7 +344,6 @@ export function useProjectDetail(projectId: string) {
       const bannerUrl = `/api/storage/file/${doc.id}?name=${encodeURIComponent(doc.name)}`;
       await updateProject(projectId, { banner_url: bannerUrl });
       await loadProjectData();
-      alert('Banner actualizado con éxito.');
     } catch (err: any) {
       alert('Error al subir banner: ' + err.message);
     } finally {
@@ -375,7 +373,6 @@ export function useProjectDetail(projectId: string) {
       }
       await uploadDocument(file, folderId, projectId, 'general');
       await loadProjectTasks();
-      alert('Imagen agregada a la galería con éxito.');
     } catch (err: any) {
       alert('Error al subir imagen a la galería: ' + err.message);
     } finally {

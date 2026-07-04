@@ -37,6 +37,24 @@
       "skillPath": "skills/mcp-builder/SKILL.md",
       "computedHash": "826e46adf81e1372282e205c34e1a2ee876e72148007726e4a2512599d2fef7b"
     },
+    "secure-linux-web-hosting": {
+      "source": "xixu-me/skills",
+      "sourceType": "github",
+      "skillPath": "skills/secure-linux-web-hosting/SKILL.md",
+      "computedHash": "49e4837b94e43d1c9e50f7e73063a3c5ffa0fc6d1a0708145f50c432cafac2d4"
+    },
+    "supabase": {
+      "source": "supabase/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/supabase/SKILL.md",
+      "computedHash": "d414d598b9428b3e851c4ce61898649906b19e55aa7415bb42a286bd9ca2ab32"
+    },
+    "supabase-postgres-best-practices": {
+      "source": "supabase/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/supabase-postgres-best-practices/SKILL.md",
+      "computedHash": "0d2c4857a7d6fdcd3fbc46e458fa4c497f029cab89a01548b3defce203003932"
+    },
     "tailwind-design-system": {
       "source": "wshobson/agents",
       "sourceType": "github",

@@ -16,15 +16,8 @@ export function getApiUrl(path: string): string {
   const isCapacitor = typeof window !== 'undefined' && (window as any).Capacitor;
   
   if (isCapacitor) {
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-    try {
-      const url = new URL(supabaseUrl);
-      // Replace port 54321 with 3000 (Next.js backend server port)
-      return `${url.protocol}//${url.hostname}:3000${cleanPath}`;
-    } catch (e) {
-      // Fallback to tailscale IP of PC
-      return `http://100.100.65.77:3000${cleanPath}`;
-    }
+    // Route all mobile app API calls to the public production domain
+    return `https://solarhubweb.com${cleanPath}`;
   }
   
   return cleanPath;

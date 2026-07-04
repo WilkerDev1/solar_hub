@@ -12,6 +12,7 @@ import { Button } from '@/core/components/ui/button';
 import { supabase } from '@/core/database/supabase';
 import { useAuth } from '@/core/auth/AuthContext';
 import { getApiUrl } from '@/core/utils/api';
+import { useRouter } from 'next/navigation';
 
 interface TaskDetailDrawerProps {
   task: TaskRow | null;
@@ -35,6 +36,7 @@ export default function TaskDetailDrawer({
   initialEditMode = false
 }: TaskDetailDrawerProps) {
   const { roles } = useAuth();
+  const router = useRouter();
   // Tabs: 'requisitos' | 'entregables' | 'subtareas' | 'actividad' | 'comentarios'
   const [activeTab, setActiveTab] = useState<'requisitos' | 'entregables' | 'subtareas' | 'actividad' | 'comentarios'>('comentarios');
   const [editMode, setEditMode] = useState(initialEditMode);
@@ -817,8 +819,24 @@ export default function TaskDetailDrawer({
                     <div className="h-7 w-7 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-850 flex items-center justify-center text-xs text-zinc-500 dark:text-zinc-400">
                       <FolderKanban className="h-4 w-4 text-emerald-400" />
                     </div>
-                    <div className="text-xs font-bold text-zinc-800 dark:text-zinc-200 truncate max-w-[180px]">
-                      {taskProject ? taskProject.name : 'Tarea Administrativa'}
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <div className="text-xs font-bold text-zinc-800 dark:text-zinc-200 truncate max-w-[180px]">
+                        {taskProject ? taskProject.name : 'Tarea Administrativa'}
+                      </div>
+                      {task.project_id && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            router.push(`/?tab=projects&projectId=${task.project_id}`);
+                            onClose();
+                          }}
+                          className="p-1 hover:bg-zinc-800 text-emerald-450 rounded transition-colors text-[10px] font-bold flex items-center gap-1 shrink-0 cursor-pointer"
+                          title="Ir a Obra"
+                        >
+                          <ChevronRight className="h-3.5 w-3.5" />
+                          <span>Ir a Obra</span>
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>

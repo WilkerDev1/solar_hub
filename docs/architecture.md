@@ -294,3 +294,38 @@ erDiagram
    ```bash
    supabase gen types typescript --local > src/core/database/types.ts
    ```
+
+---
+
+## 7. Infraestructura y Estrategia de Despliegue (Servidor Caddy)
+
+Para optimizar el uso de recursos y controlar el consumo de memoria RAM en el servidor de producción (Naski), Solar Hub se despliega utilizando una arquitectura híbrida:
+
+1. **Frontend Estático (RAM de 0%):** El frontend de Next.js se compila localmente mediante exportación estática (`output: 'export'`). Caddy sirve los archivos estáticos desde `/home/naski/solar-hub/out` de manera directa, sin requerir un proceso de Node corriendo en background.
+2. **API & AI Proxy (Node.js/Express):** Las llamadas a las herramientas de inteligencia artificial y almacenamiento se canalizan a través de un proxy local en el puerto `5000` administrado por PM2.
+3. **Mapeo de Rutas Clean URLs en Caddyfile:**
+   Caddy está configurado para enrutar de forma inteligente:
+   - `/api/*`: Redirigido mediante proxy inverso a `localhost:5000` inyectando tokens de autenticación internos para asegurar la conexión del Agente Caleb.
+   - Resto de rutas: Servidas mediante `file_server` mapeando rutas sin extensión `.html` de forma automática usando `try_files {path} {path}.html {path}/ /index.html`.
+
+### Configuración del Caddyfile en Naski
+
+```caddy
+http://solarhubweb.com, http://www.solarhubweb.com {
+    handle /api/* {
+        reverse_proxy localhost:5000 {
+            header_up Authorization "Bearer 1130_secret_caleb_bridge_token"
+        }
+    }
+
+    handle {
+        root * /home/naski/solar-hub/out
+        try_files {path} {path}.html {path}/ /index.html
+        file_server
+    }
+
+    log {
+        output stderr
+    }
+}
+```
