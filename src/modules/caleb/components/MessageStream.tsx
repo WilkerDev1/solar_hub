@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Brain, Terminal, FileText, Download } from 'lucide-react';
+import { Brain, Terminal, FileText, Download, Bot } from 'lucide-react';
 import { Message } from '../hooks/useCaleb';
 import { 
   parseCalebMessage, 
@@ -28,7 +28,18 @@ export default function MessageStream({
   messagesEndRef
 }: MessageStreamProps) {
   return (
-    <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-5 bg-zinc-50 dark:bg-[#161618] scrollbar-thin scrollbar-thumb-zinc-800">
+    <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-5 bg-zinc-50 dark:bg-[#161618] scrollbar-thin scrollbar-thumb-zinc-800 flex flex-col justify-start relative">
+      {messages.length === 0 && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center p-8 text-center select-none pointer-events-none">
+          <div className="h-16 w-16 rounded-2xl bg-emerald-600/10 text-emerald-400 border border-emerald-500/25 flex items-center justify-center mb-4 animate-pulse">
+            <Bot className="h-8 w-8" />
+          </div>
+          <h2 className="text-xl font-bold text-zinc-800 dark:text-zinc-105 tracking-wide">Caleb AI</h2>
+          <p className="text-xs text-zinc-550 max-w-xs mt-2 leading-relaxed">
+            Asistente de Inteligencia Artificial para el control de obras, inventario y tareas operativas.
+          </p>
+        </div>
+      )}
       {messages.map((msg, idx) => {
         const isLatestEmptyCaleb = msg.role === 'caleb' && msg.text === '' && idx === messages.length - 1;
         if (isLatestEmptyCaleb && loading) {

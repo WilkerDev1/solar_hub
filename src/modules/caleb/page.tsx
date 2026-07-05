@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { 
-  Paperclip, Send, X, RefreshCw, ChevronRight
+  Paperclip, Send, X, RefreshCw, ChevronRight, Menu
 } from 'lucide-react';
 import { useCaleb } from './hooks/useCaleb';
 import ChatSidebar from './components/ChatSidebar';
@@ -13,7 +13,7 @@ export default function CalebModule() {
   const c = useCaleb();
 
   return (
-    <div className="flex h-full w-full bg-zinc-50 dark:bg-zinc-950 overflow-hidden font-sans border border-zinc-200 dark:border-zinc-800 rounded-none md:rounded-2xl shadow-2xl" style={{ minHeight: 0 }}>
+    <div className="flex h-full w-full bg-zinc-50 dark:bg-zinc-950 overflow-hidden font-sans border border-zinc-200 dark:border-zinc-800 rounded-none md:rounded-2xl shadow-2xl pb-16 md:pb-0" style={{ minHeight: 0 }}>
       {/* 1. SESSIONS SIDEBAR - LEFT PANEL */}
       <ChatSidebar
         sessions={c.sessions}
@@ -38,6 +38,15 @@ export default function CalebModule() {
 
       {/* 2. MAIN CHAT DISPLAY - RIGHT PANEL */}
       <div className="flex-1 flex flex-col min-h-0 bg-white dark:bg-[#111112] relative overflow-hidden">
+        {/* Floating mobile menu trigger - top left */}
+        <button
+          onClick={() => c.setMobileSidebarOpen(true)}
+          className="md:hidden absolute top-4 left-4 z-40 h-10 w-10 flex items-center justify-center rounded-xl bg-zinc-900/80 hover:bg-zinc-800 text-white shadow-lg border border-zinc-700/50 backdrop-blur-xs transition-transform active:scale-95 cursor-pointer"
+          title="Abrir historial"
+        >
+          <Menu className="h-5 w-5" />
+        </button>
+
         {/* Chat Module Header */}
         <CalebHeader
           sidebarVisible={c.sidebarVisible}
@@ -56,25 +65,25 @@ export default function CalebModule() {
         />
 
         {/* Prompts suggestions (only if no user messages exist in session) */}
-        {c.messages.length <= 1 && (
-          <div className="px-6 py-4 bg-zinc-50/50 dark:bg-zinc-900/40 border-t border-zinc-200 dark:border-zinc-900 grid grid-cols-1 sm:grid-cols-2 gap-3 shrink-0">
+        {c.messages.length === 0 && (
+          <div className="px-6 py-4 bg-zinc-50/50 dark:bg-zinc-900/40 border-t border-zinc-200 dark:border-zinc-900 hidden md:grid md:grid-cols-2 gap-3 shrink-0">
             <button 
               onClick={() => c.executeQuickAction("Auditar inventario y alertar si hay stock crítico.")}
               className="text-xs font-semibold bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800 border border-zinc-200 dark:border-zinc-800/80 p-3.5 rounded-xl text-left transition-all cursor-pointer flex items-center justify-between group shadow-xs"
             >
               <div>
                 <div className="font-bold text-zinc-800 dark:text-zinc-250">🔍 Auditar Inventario General</div>
-                <div className="text-[10px] text-zinc-500 mt-1">Busca niveles mínimos en stock de materiales</div>
+                <div className="text-[10px] text-zinc-505 mt-1">Busca niveles mínimos en stock de materiales</div>
               </div>
               <ChevronRight className="h-4 w-4 text-zinc-455 group-hover:translate-x-0.5 transition-transform" />
             </button>
             <button 
-              onClick={() => c.executeQuickAction("Listar las tareas pendientes asignadas a obras.")}
-              className="text-xs font-semibold bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800 border border-zinc-200 dark:border-zinc-805 p-3.5 rounded-xl text-left transition-all cursor-pointer flex items-center justify-between group shadow-xs"
+              onClick={() => c.executeQuickAction("Listar las tareas pendientes asignadas to obras.")}
+              className="text-xs font-semibold bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800 border border-zinc-200 dark:border-zinc-800/80 p-3.5 rounded-xl text-left transition-all cursor-pointer flex items-center justify-between group shadow-xs"
             >
               <div>
                 <div className="font-bold text-zinc-800 dark:text-zinc-250">📋 Listar Tareas Activas</div>
-                <div className="text-[10px] text-zinc-500 mt-1">Inspecciona tareas pendientes en el CRM de proyectos</div>
+                <div className="text-[10px] text-zinc-505 mt-1">Inspecciona tareas pendientes en el CRM de proyectos</div>
               </div>
               <ChevronRight className="h-4 w-4 text-zinc-455 group-hover:translate-x-0.5 transition-transform" />
             </button>

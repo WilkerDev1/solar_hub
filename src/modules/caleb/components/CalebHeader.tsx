@@ -17,12 +17,12 @@ export default function CalebHeader({
   handleNewSession
 }: CalebHeaderProps) {
   return (
-    <div className="bg-white dark:bg-[#18181b] border-b border-zinc-200 dark:border-zinc-800 px-4 md:px-6 py-3 flex items-center justify-between shrink-0 h-14">
+    <div className="bg-white dark:bg-[#18181b] border-b border-zinc-200 dark:border-zinc-800 px-4 md:px-6 py-3 hidden md:flex items-center justify-between shrink-0 h-14">
       <div className="flex items-center space-x-3">
         {/* Sidebar toggle button (desktop) */}
         <button
           onClick={() => setSidebarVisible(!sidebarVisible)}
-          className="hidden md:flex h-9 w-9 items-center justify-center rounded-xl bg-zinc-100 dark:bg-zinc-800/80 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-650 dark:text-zinc-300 transition-colors cursor-pointer"
+          className="hidden md:flex h-9 w-9 items-center justify-center rounded-xl bg-zinc-100 dark:bg-zinc-850 hover:bg-zinc-200 dark:hover:bg-zinc-750 text-zinc-650 dark:text-zinc-300 transition-colors cursor-pointer"
           title={sidebarVisible ? "Ocultar historial" : "Mostrar historial"}
         >
           <Menu className="h-5 w-5" />
@@ -48,7 +48,7 @@ export default function CalebHeader({
         {/* Mobile New Chat (+) button - matches Claude look */}
         <button
           onClick={handleNewSession}
-          className="md:hidden h-9 w-9 flex items-center justify-center rounded-xl bg-zinc-100 dark:bg-zinc-805 text-zinc-650 hover:text-white hover:bg-emerald-600/10 transition-all active:scale-95 cursor-pointer"
+          className="md:hidden h-9 w-9 flex items-center justify-center rounded-xl bg-zinc-100 dark:bg-zinc-800 text-zinc-650 hover:text-white hover:bg-emerald-600/10 transition-all active:scale-95 cursor-pointer"
           title="Nueva Conversación"
         >
           <Plus className="h-5 w-5" />

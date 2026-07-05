@@ -93,13 +93,7 @@ export function useCaleb() {
       id: 'default-session-id',
       title: 'Nueva Conversación',
       createdAt: new Date().toISOString(),
-      messages: [
-        {
-          role: 'caleb',
-          text: 'A la orden. Estoy inicializado y listo para ejecutar consultas de proyectos, auditorías de stock, transacciones del inventario y asignación de tareas operativas. Ordene.',
-          timestamp: new Date().toISOString()
-        }
-      ]
+      messages: []
     };
     setSessions([defaultSession]);
     setActiveSessionId(defaultSession.id);
@@ -124,13 +118,7 @@ export function useCaleb() {
       id: newSessionId,
       title: 'Nueva Conversación',
       createdAt: new Date().toISOString(),
-      messages: [
-        {
-          role: 'caleb',
-          text: 'A la orden. Estoy inicializado y listo para ejecutar consultas de proyectos, auditorías de stock, transacciones del inventario y asignación de tareas operativas. Ordene.',
-          timestamp: new Date().toISOString()
-        }
-      ]
+      messages: []
     };
     const updated = [newSession, ...sessions];
     saveSessions(updated);
