@@ -1,11 +1,11 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   X, Calendar, User, Tag, Clock, ClipboardList, AlertCircle, Plus, 
-  Trash2, Edit, Upload, FileText, Check, MessageSquare, Briefcase, 
+  Trash2, Upload, FileText, Check, MessageSquare, Briefcase, 
   RefreshCw, CheckSquare, Square, ChevronRight, Activity, Paperclip, Send,
-  Loader2, FolderKanban
+  Loader2, FolderKanban, Folder, Flag, Search
 } from 'lucide-react';
 import { updateTask, auditTaskStatus, uploadTaskEvidence, deleteTask, TaskRow } from '@/core/services/tasks';
 import { Button } from '@/core/components/ui/button';
@@ -22,7 +22,7 @@ interface TaskDetailDrawerProps {
   user?: any;
   projects?: any[];
   onTaskUpdated: () => void;
-  initialEditMode?: boolean;
+  initialEditMode?: boolean; // Kept for backwards compatibility but unused
 }
 
 export default function TaskDetailDrawer({
@@ -32,38 +32,58 @@ export default function TaskDetailDrawer({
   employees,
   user,
   projects = [],
-  onTaskUpdated,
-  initialEditMode = false
+  onTaskUpdated
 }: TaskDetailDrawerProps) {
   const { roles } = useAuth();
   const router = useRouter();
-  // Tabs: 'requisitos' | 'entregables' | 'subtareas' | 'actividad' | 'comentarios'
-  const [activeTab, setActiveTab] = useState<'requisitos' | 'entregables' | 'subtareas' | 'actividad' | 'comentarios'>('comentarios');
-  const [editMode, setEditMode] = useState(initialEditMode);
-  const [loading, setLoading] = useState(false);
 
-  // Form Edit State
+  // General States
+  const [loading, setLoading] = useState(false);
+  const [token, setToken] = useState<string | null>(null);
+  const [documentMap, setDocumentMap] = useState<Record<string, { name: string; mime_type: string }>>({});
+
+  // Editable Form fields
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [assignedTo, setAssignedTo] = useState('');
   const [assignedToIds, setAssignedToIds] = useState<string[]>([]);
   const [projectId, setProjectId] = useState('');
   const [taskType, setTaskType] = useState('check');
   const [area, setArea] = useState('general');
   const [priority, setPriority] = useState('baja');
   const [dueDate, setDueDate] = useState('');
-  const [status, setStatus] = useState('pendiente');
-  const [auditStatus, setAuditStatus] = useState('pendiente');
-  const [tagInput, setTagInput] = useState('');
-  const [tags, setTags] = useState<string[]>([]);
   const [requiresAudit, setRequiresAudit] = useState(false);
-  const [auditComments, setAuditComments] = useState('');
-  const [localAuditComments, setLocalAuditComments] = useState('');
-  const [submittingAudit, setSubmittingAudit] = useState(false);
-  const [showChangesForm, setShowChangesForm] = useState(false);
-  const [token, setToken] = useState<string | null>(null);
-  const [documentMap, setDocumentMap] = useState<Record<string, { name: string; mime_type: string }>>({});
+  const [tags, setTags] = useState<string[]>([]);
 
+  // Popover controls
+  const [activePopover, setActivePopover] = useState<'assignee' | 'project' | 'area' | 'priority' | 'due_date' | 'tags' | 'add_checklist' | null>(null);
+  const [empSearch, setEmpSearch] = useState('');
+  const [projSearch, setProjSearch] = useState('');
+  const [tagInput, setTagInput] = useState('');
+
+  // Checklist controls
+  const [checklistActive, setChecklistActive] = useState(false);
+  const [checklistTitle, setChecklistTitle] = useState('Checklist');
+  const [addingChecklistItem, setAddingChecklistItem] = useState(false);
+  const [newChecklistItemTitle, setNewChecklistItemTitle] = useState('');
+  const [localSubtasks, setLocalSubtasks] = useState<any[]>([]);
+
+  // Chat Feed Controls
+  const [chatCommentText, setChatCommentText] = useState('');
+  const [uploadingFile, setUploadingFile] = useState(false);
+  const [showActivityDetails, setShowActivityDetails] = useState(true);
+
+  // Sync token
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setToken(session?.access_token || null);
+    });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setToken(session?.access_token || null);
+    });
+    return () => subscription.unsubscribe();
+  }, []);
+
+  // Fetch document metadata
   useEffect(() => {
     if (task && isOpen) {
       supabase
@@ -82,19 +102,34 @@ export default function TaskDetailDrawer({
     }
   }, [task, isOpen]);
 
+  // Sync state with task data
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setToken(session?.access_token || null);
-    });
+    if (task) {
+      setTitle(task.title);
+      setDescription(task.description || '');
+      setAssignedToIds((task as any).assigned_to_ids || (task.assigned_to ? [task.assigned_to] : []));
+      setProjectId(task.project_id || '');
+      setTaskType(task.task_type);
+      setArea(task.area || 'general');
+      setPriority((task as any).priority || 'baja');
+      setDueDate((task as any).due_date ? new Date((task as any).due_date).toISOString().split('T')[0] : '');
+      setRequiresAudit((task as any).requires_audit || false);
+      setTags((task as any).tags || []);
+      
+      const sub = (task as any).subtasks;
+      const hasSub = Array.isArray(sub);
+      setChecklistActive(hasSub);
+      setLocalSubtasks(hasSub ? sub : []);
+      
+      // Load checklist title from localstorage
+      if (typeof window !== 'undefined') {
+        const storedTitle = localStorage.getItem(`checklist_title_${task.id}`);
+        setChecklistTitle(storedTitle || 'Checklist');
+      }
+    }
+  }, [task, isOpen]);
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setToken(session?.access_token || null);
-    });
-
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, []);
+  if (!isOpen || !task) return null;
 
   const getDownloadUrl = (url: string) => {
     if (url.startsWith('/api/storage/file/')) {
@@ -103,41 +138,6 @@ export default function TaskDetailDrawer({
     }
     return url;
   };
-
-  // Action Inputs
-  const [newSubtask, setNewSubtask] = useState('');
-  const [newMaterialName, setNewMaterialName] = useState('');
-  const [newMaterialQty, setNewMaterialQty] = useState(1);
-  const [newComment, setNewComment] = useState('');
-  const [uploadingFile, setUploadingFile] = useState(false);
-
-  // Sync state with task when drawer opens or task changes
-  useEffect(() => {
-    if (task) {
-      setTitle(task.title);
-      setDescription(task.description || '');
-      setAssignedTo(task.assigned_to);
-      setAssignedToIds((task as any).assigned_to_ids || (task.assigned_to ? [task.assigned_to] : []));
-      setProjectId(task.project_id || '');
-      setTaskType(task.task_type);
-      setArea(task.area || 'general');
-      setPriority((task as any).priority || 'baja');
-      setDueDate((task as any).due_date ? new Date((task as any).due_date).toISOString().split('T')[0] : '');
-      setStatus(task.status);
-      setAuditStatus(task.audit_status || 'pendiente');
-      setTags((task as any).tags || []);
-      setRequiresAudit((task as any).requires_audit || false);
-      setAuditComments((task as any).audit_comments || '');
-      setLocalAuditComments('');
-      setShowChangesForm(false);
-      setEditMode(initialEditMode);
-    }
-  }, [task, isOpen, initialEditMode]);
-
-  if (!isOpen || !task) return null;
-
-  const assignee = employees.find(e => e.id === task.assigned_to);
-  const taskProject = projects.find(p => p.id === task.project_id);
 
   // Helper to log activities
   const logActivity = (actionText: string, detailsText: string, updatedActivities: any[] = []) => {
@@ -153,83 +153,310 @@ export default function TaskDetailDrawer({
     return [newAct, ...list];
   };
 
-  // Save general updates
-  const handleSaveDetails = async (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-    setLoading(true);
+  // Main saving function
+  const handleQuickSave = async (fieldsToUpdate: any) => {
     try {
-      const updates: any = {
-        title,
-        description,
-        assigned_to: assignedToIds[0] || '',
-        assigned_to_ids: assignedToIds,
-        project_id: projectId || null,
-        task_type: taskType,
-        area,
-        priority,
-        due_date: dueDate || null,
-        status,
-        audit_status: auditStatus,
-        tags,
-        requires_audit: requiresAudit
-      };
+      await updateTask(task.id, fieldsToUpdate);
+      onTaskUpdated();
+    } catch (err: any) {
+      console.error('Error saving task attributes:', err.message);
+    }
+  };
 
-      // Detect status changes for logs
-      let logList = (task as any).task_activities || [];
-      if (task.status !== status) {
-        logList = logActivity('Cambio de Estado', `Cambió el estado de "${task.status}" a "${status}"`, logList);
-        updates.task_activities = logList;
+  // Input blurs
+  const handleTitleBlur = async () => {
+    if (title.trim() && title !== task.title) {
+      const logList = logActivity('Título Modificado', `Cambió el título de "${task.title}" a "${title}"`);
+      await handleQuickSave({ title, task_activities: logList });
+    }
+  };
+
+  const handleDescriptionBlur = async () => {
+    if (description !== (task.description || '')) {
+      const logList = logActivity('Descripción Modificada', 'Actualizó la descripción de la tarea');
+      await handleQuickSave({ description, task_activities: logList });
+    }
+  };
+
+  // Selectors handlers
+  const handlePrioritySelect = async (nextPriority: string) => {
+    setPriority(nextPriority);
+    setActivePopover(null);
+    const logList = logActivity('Prioridad Modificada', `Estableció prioridad en "${nextPriority}"`);
+    await handleQuickSave({ priority: nextPriority, task_activities: logList });
+  };
+
+  const handleAreaSelect = async (nextArea: string) => {
+    setArea(nextArea);
+    setActivePopover(null);
+    const logList = logActivity('Área Modificada', `Cambió el departamento a "${nextArea}"`);
+    await handleQuickSave({ area: nextArea, task_activities: logList });
+  };
+
+  const handleProjectSelect = async (nextProjId: string) => {
+    setProjectId(nextProjId);
+    setActivePopover(null);
+    const name = projects.find(p => p.id === nextProjId)?.name || 'Sin vincular';
+    const logList = logActivity('Proyecto Modificado', `Vinculó la tarea al proyecto "${name}"`);
+    await handleQuickSave({ project_id: nextProjId || null, task_activities: logList });
+  };
+
+  const handleDateSelect = async (nextDate: string) => {
+    setDueDate(nextDate);
+    setActivePopover(null);
+    const logList = logActivity('Fecha Modificada', `Estableció fecha de vencimiento al ${nextDate}`);
+    await handleQuickSave({ due_date: nextDate || null, task_activities: logList });
+  };
+
+  const handleMemberToggle = async (empId: string) => {
+    let nextIds = [...assignedToIds];
+    const isChecked = nextIds.includes(empId);
+    if (isChecked) {
+      nextIds = nextIds.filter(id => id !== empId);
+    } else {
+      nextIds = [...nextIds, empId];
+    }
+    setAssignedToIds(nextIds);
+    const empName = employees.find(e => e.id === empId)?.full_name || 'Miembro';
+    const logList = logActivity('Miembros Modificados', `${isChecked ? 'Quitó a' : 'Asignó a'} ${empName}`);
+    await handleQuickSave({ 
+      assigned_to: nextIds[0] || '', 
+      assigned_to_ids: nextIds, 
+      task_activities: logList 
+    });
+  };
+
+  const handleTaskTypeChange = async (nextType: string) => {
+    setTaskType(nextType);
+    setActivePopover(null);
+    const logList = logActivity('Tipo Modificado', `Cambió el tipo a "${nextType}"`);
+    const updates: any = { task_type: nextType, task_activities: logList };
+    if (nextType === 'check' && !checklistActive) {
+      updates.subtasks = [];
+      setChecklistActive(true);
+    }
+    await handleQuickSave(updates);
+  };
+
+  const handleRequiresAuditToggle = async (checked: boolean) => {
+    setRequiresAudit(checked);
+    const logList = logActivity('Auditoría Modificada', `${checked ? 'Exigió' : 'Desactivó la exigencia de'} auditoría de líder`);
+    await handleQuickSave({ requires_audit: checked, task_activities: logList });
+  };
+
+  // Tag actions
+  const handleAddTag = async (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && tagInput.trim()) {
+      e.preventDefault();
+      if (!tags.includes(tagInput.trim())) {
+        const next = [...tags, tagInput.trim()];
+        setTags(next);
+        const logList = logActivity('Etiqueta Añadida', `Añadió etiqueta "${tagInput.trim()}"`);
+        await handleQuickSave({ tags: next, task_activities: logList });
       }
-
-      await updateTask(task.id, updates);
-      setEditMode(false);
-      onTaskUpdated();
-    } catch (err: any) {
-      alert('Error al guardar: ' + err.message);
-    } finally {
-      setLoading(false);
+      setTagInput('');
     }
   };
 
-  const canAudit = roles.some(r => r.name === 'Administrador') || task.created_by === user?.id;
-  const isAssignee = (task as any).assigned_to_ids?.includes(user?.id) || task.assigned_to === user?.id;
+  const handleRemoveTag = async (t: string) => {
+    const next = tags.filter(tag => tag !== t);
+    setTags(next);
+    const logList = logActivity('Etiqueta Eliminada', `Eliminó etiqueta "${t}"`);
+    await handleQuickSave({ tags: next, task_activities: logList });
+  };
 
-  const handleAuditAction = async (action: 'aceptado' | 'denegado' | 'requiere_revision') => {
-    if (action === 'requiere_revision' && !localAuditComments.trim()) {
-      alert('Por favor describe brevemente los cambios detallados requeridos.');
-      return;
+  // Checklist Actions
+  const handleAddChecklist = async () => {
+    setChecklistActive(true);
+    setChecklistTitle('Checklist');
+    setActivePopover(null);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(`checklist_title_${task.id}`, 'Checklist');
     }
-    setSubmittingAudit(true);
+    const logList = logActivity('Checklist Añadido', 'Añadió una lista de verificación a esta tarjeta');
+    await handleQuickSave({ subtasks: [], task_activities: logList });
+  };
+
+  const handleDeleteChecklist = async () => {
+    if (!window.confirm('¿Deseas eliminar la lista de verificación?')) return;
+    setChecklistActive(false);
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem(`checklist_title_${task.id}`);
+    }
+    const logList = logActivity('Checklist Eliminado', 'Eliminó la lista de verificación');
+    await handleQuickSave({ subtasks: null, task_activities: logList });
+  };
+
+  const handleSaveChecklistTitle = (title: string) => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(`checklist_title_${task.id}`, title);
+    }
+    setChecklistTitle(title);
+  };
+
+  const handleConfirmAddChecklistItem = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newChecklistItemTitle.trim()) return;
+    const current = localSubtasks;
+    const newItem = {
+      id: Math.random().toString(36).substring(2),
+      title: newChecklistItemTitle.trim(),
+      completed: false
+    };
+    const next = [...current, newItem];
+    setLocalSubtasks(next);
+    setNewChecklistItemTitle('');
+    setAddingChecklistItem(false);
+    const logList = logActivity('Elemento Checklist Añadido', `Añadió el elemento "${newItem.title}"`);
+    await handleQuickSave({ subtasks: next, task_activities: logList });
+  };
+
+  const handleToggleSubtaskItem = async (itemId: string) => {
+    const next = localSubtasks.map(item => {
+      if (item.id === itemId) return { ...item, completed: !item.completed };
+      return item;
+    });
+    setLocalSubtasks(next);
+    const item = localSubtasks.find(s => s.id === itemId);
+    const logList = logActivity(
+      'Checklist Modificado', 
+      `${item.completed ? 'Desmarcó' : 'Marcó'} como completada la subtarea "${item.title}"`
+    );
+    await handleQuickSave({ subtasks: next, task_activities: logList });
+  };
+
+  const handleDeleteSubtaskItem = async (itemId: string) => {
+    const item = localSubtasks.find(s => s.id === itemId);
+    const next = localSubtasks.filter(s => s.id !== itemId);
+    setLocalSubtasks(next);
+    const logList = logActivity('Elemento Checklist Eliminado', `Eliminó el elemento "${item?.title}"`);
+    await handleQuickSave({ subtasks: next, task_activities: logList });
+  };
+
+  const handleSaveSubtasks = async (nextList: any[]) => {
+    await handleQuickSave({ subtasks: nextList });
+  };
+
+  // Upload Evidence from Toolbar
+  const handleUploadToolbarEvidence = async (files: FileList | null) => {
+    if (!files || files.length === 0 || !task) return;
+    setUploadingFile(true);
     try {
-      await auditTaskStatus(task.id, action, action === 'requiere_revision' ? localAuditComments : null);
-      setLocalAuditComments('');
-      setShowChangesForm(false);
+      const file = files[0];
+      const currentUrls = task.evidence_urls || [];
+      await uploadTaskEvidence(
+        task.id,
+        file,
+        currentUrls,
+        task.project_id || undefined,
+        task.area || undefined
+      );
+      const logList = logActivity('Archivo Subido', `Cargó el archivo adjunto: ${file.name}`);
+      await updateTask(task.id, { task_activities: logList });
       onTaskUpdated();
     } catch (err: any) {
-      alert('Error en auditoría: ' + err.message);
+      alert('Error al subir archivo: ' + err.message);
     } finally {
-      setSubmittingAudit(false);
+      setUploadingFile(false);
     }
   };
 
-  const handleMarkChangesDone = async () => {
-    setSubmittingAudit(true);
+  // Chat comments/evidence upload
+  const handleConfirmAddComment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!chatCommentText.trim()) return;
+    const current = (task as any).task_comments || [];
+    const nextComment = {
+      id: Math.random().toString(36).substring(2),
+      profile_id: user?.id,
+      user_name: user?.full_name || user?.email || 'Usuario',
+      text: chatCommentText.trim(),
+      created_at: new Date().toISOString()
+    };
+    const next = [nextComment, ...current];
+    setChatCommentText('');
+    const logList = logActivity('Comentario Añadido', 'Escribió un comentario');
+    await handleQuickSave({ task_comments: next, task_activities: logList });
+  };
+
+  const handleUploadFileFromChat = async (files: FileList | null) => {
+    if (!files || files.length === 0 || !task) return;
+    setUploadingFile(true);
     try {
-      await auditTaskStatus(task.id, 'pendiente', 'Cambios realizados por el asignado.');
+      const file = files[0];
+      const currentUrls = task.evidence_urls || [];
+      const updatedTask = await uploadTaskEvidence(
+        task.id,
+        file,
+        currentUrls,
+        task.project_id || undefined,
+        task.area || undefined
+      );
+      const newUrl = updatedTask.evidence_urls ? updatedTask.evidence_urls[updatedTask.evidence_urls.length - 1] : '';
+      
+      const currentComments = (task as any).task_comments || [];
+      const nextComment = {
+        id: Math.random().toString(36).substring(2),
+        profile_id: user?.id,
+        user_name: user?.full_name || user?.email || 'Usuario',
+        text: `He adjuntado el archivo: ${file.name}`,
+        created_at: new Date().toISOString(),
+        attachment_url: newUrl
+      };
+      const nextComments = [nextComment, ...currentComments];
+      const logList = logActivity('Archivo Adjunto', `Adjuntó el archivo: ${file.name}`);
+
+      await updateTask(task.id, { 
+        task_comments: nextComments, 
+        task_activities: logList 
+      });
       onTaskUpdated();
     } catch (err: any) {
-      alert('Error al marcar cambios realizados: ' + err.message);
+      alert('Error al subir archivo desde el chat: ' + err.message);
     } finally {
-      setSubmittingAudit(false);
+      setUploadingFile(false);
     }
   };
 
-  // Delete task
-  const handleDeleteTask = async (id: string) => {
-    if (!window.confirm('¿Estás seguro de que deseas eliminar esta tarea?')) return;
+  const handleDeleteAttachment = async (url: string) => {
+    if (!window.confirm('¿Estás seguro de que deseas eliminar este adjunto?')) return;
+    const nextUrls = (task.evidence_urls || []).filter(u => u !== url);
+    const nextComments = ((task as any).task_comments || []).filter((c: any) => c.attachment_url !== url);
+    
+    // Find name
+    let filename = 'archivo';
+    try {
+      const nameParam = new URL(url, 'http://localhost').searchParams.get('name');
+      if (nameParam) filename = nameParam;
+    } catch (e) {}
+
+    const logList = logActivity('Adjunto Eliminado', `Eliminó el archivo adjunto: ${filename}`);
+    await handleQuickSave({
+      evidence_urls: nextUrls,
+      task_comments: nextComments,
+      task_activities: logList
+    });
+  };
+
+  const handleDeleteCommentAttachment = async (commentId: string, url: string) => {
+    if (!window.confirm('¿Estás seguro de que deseas eliminar este adjunto?')) return;
+    const nextUrls = (task.evidence_urls || []).filter(u => u !== url);
+    const nextComments = ((task as any).task_comments || []).map((c: any) => 
+      c.id === commentId ? { ...c, attachment_url: null, text: '(Archivo adjunto eliminado)' } : c
+    );
+    const logList = logActivity('Adjunto Chat Eliminado', 'Eliminó un archivo adjunto del chat');
+    await handleQuickSave({
+      evidence_urls: nextUrls,
+      task_comments: nextComments,
+      task_activities: logList
+    });
+  };
+
+  const handleDeleteTaskAction = async () => {
+    if (!window.confirm('¿Estás seguro de que deseas eliminar esta tarea permanentemente?')) return;
     setLoading(true);
     try {
-      await deleteTask(id);
+      await deleteTask(task.id);
       onClose();
       onTaskUpdated();
     } catch (err: any) {
@@ -239,1023 +466,839 @@ export default function TaskDetailDrawer({
     }
   };
 
-  // Update specific JSON list properties
-  const updateTaskListField = async (fieldName: string, nextList: any[], logMsg?: { action: string, details: string }) => {
-    try {
-      const updates: any = { [fieldName]: nextList };
-      if (logMsg) {
-        updates.task_activities = logActivity(logMsg.action, logMsg.details);
-      }
-      await updateTask(task.id, updates);
-      onTaskUpdated();
-    } catch (err: any) {
-      alert('Error al actualizar: ' + err.message);
-    }
-  };
+  // Mixed Feed (Comments + Activities)
+  const commentsList = ((task as any).task_comments || []).map((c: any) => ({ ...c, type: 'comment' as const }));
+  const activitiesList = ((task as any).task_activities || []).map((a: any) => ({ ...a, type: 'activity' as const }));
+  const mixedFeed = [...commentsList, ...activitiesList].sort((a, b) => 
+    new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  );
 
-  // Subtasks actions
-  const handleAddSubtask = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newSubtask.trim()) return;
-    const currentSubtasks = (task as any).subtasks || [];
-    const updated = [...currentSubtasks, { id: Math.random().toString(36).substring(2), title: newSubtask, completed: false }];
-    updateTaskListField('subtasks', updated, { action: 'Subtarea Creada', details: `Añadió la subtarea "${newSubtask}"` });
-    setNewSubtask('');
-  };
+  const filteredFeed = showActivityDetails ? mixedFeed : mixedFeed.filter(item => item.type === 'comment');
 
-  const handleToggleSubtask = (subId: string) => {
-    const currentSubtasks = (task as any).subtasks || [];
-    const updated = currentSubtasks.map((s: any) => {
-      if (s.id === subId) {
-        const nextState = !s.completed;
-        return { ...s, completed: nextState };
-      }
-      return s;
-    });
-    const item = currentSubtasks.find((s: any) => s.id === subId);
-    updateTaskListField('subtasks', updated, { 
-      action: 'Subtarea Modificada', 
-      details: `${item.completed ? 'Desmarcó' : 'Marcó'} como completada la subtarea "${item.title}"` 
-    });
-  };
+  // Filter lists
+  const filteredEmployees = employees.filter(emp => 
+    emp.full_name.toLowerCase().includes(empSearch.toLowerCase())
+  );
+  const filteredProjects = projects.filter(proj => 
+    proj.name.toLowerCase().includes(projSearch.toLowerCase())
+  );
 
-  const handleDeleteSubtask = (subId: string) => {
-    const currentSubtasks = (task as any).subtasks || [];
-    const item = currentSubtasks.find((s: any) => s.id === subId);
-    const updated = currentSubtasks.filter((s: any) => s.id !== subId);
-    updateTaskListField('subtasks', updated, { action: 'Subtarea Eliminada', details: `Eliminó la subtarea "${item.title}"` });
-  };
-
-  // Materials actions
-  const handleAddMaterial = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newMaterialName.trim()) return;
-    const current = (task as any).task_materials || [];
-    const updated = [...current, { 
-      id: Math.random().toString(36).substring(2), 
-      name: newMaterialName, 
-      qty: newMaterialQty, 
-      status: 'pendiente' 
-    }];
-    updateTaskListField('task_materials', updated, { action: 'Requisito Material', details: `Añadió material: ${newMaterialName} (x${newMaterialQty})` });
-    setNewMaterialName('');
-    setNewMaterialQty(1);
-  };
-
-  const handleAuditMaterial = (matId: string, approval: 'aprobado' | 'rechazado') => {
-    const current = (task as any).task_materials || [];
-    const updated = current.map((m: any) => {
-      if (m.id === matId) return { ...m, status: approval };
-      return m;
-    });
-    const item = current.find((m: any) => m.id === matId);
-    updateTaskListField('task_materials', updated, { 
-      action: 'Auditoría Material', 
-      details: `${approval === 'aprobado' ? 'Aprobó' : 'Rechazó'} el requerimiento de "${item.name}" (x${item.qty})` 
-    });
-  };
-
-  const handleDeleteMaterial = (matId: string) => {
-    const current = (task as any).task_materials || [];
-    const item = current.find((m: any) => m.id === matId);
-    const updated = current.filter((m: any) => m.id !== matId);
-    updateTaskListField('task_materials', updated, { action: 'Material Eliminado', details: `Eliminó el material "${item.name}"` });
-  };
-
-  // Comments actions
-  const handleAddComment = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newComment.trim()) return;
-    const current = (task as any).task_comments || [];
-    const updated = [{
-      id: Math.random().toString(36).substring(2),
-      profile_id: user?.id,
-      user_name: user?.full_name || user?.email || 'Usuario',
-      text: newComment,
-      created_at: new Date().toISOString()
-    }, ...current];
-    updateTaskListField('task_comments', updated, { action: 'Comentario', details: 'Escribió un comentario en la tarea.' });
-    setNewComment('');
-  };
-
-  // Deliverables Evidence upload
-  const handleUploadDeliverable = async (files: FileList | null) => {
-    if (!files || files.length === 0 || !task) return;
-    setUploadingFile(true);
-    try {
-      const file = files[0];
-      const currentUrls = task.evidence_urls || [];
-
-      await uploadTaskEvidence(
-        task.id,
-        file,
-        currentUrls,
-        task.project_id || undefined,
-        task.area || undefined
-      );
-
-      // Log activity
-      const logList = logActivity('Archivo Subido', `Entregó archivo: ${file.name}`);
-      await updateTask(task.id, {
-        task_activities: logList
-      });
-
-      alert('Archivo subido con éxito.');
-      onTaskUpdated();
-    } catch (err: any) {
-      alert('Error al subir: ' + err.message);
-    } finally {
-      setUploadingFile(false);
-    }
-  };
-
-  // Quick state update (for badges dropdowns in view mode)
-  const handleQuickStatusChange = async (nextStatus: string) => {
-    try {
-      let logList = (task as any).task_activities || [];
-      logList = logActivity('Cambio de Estado', `Cambió el estado a "${nextStatus}"`, logList);
-      await updateTask(task.id, {
-        status: nextStatus,
-        task_activities: logList
-      });
-      onTaskUpdated();
-    } catch (err: any) {
-      alert('Error: ' + err.message);
-    }
-  };
-
-  const handleQuickPriorityChange = async (nextPriority: string) => {
-    try {
-      let logList = (task as any).task_activities || [];
-      logList = logActivity('Cambio de Prioridad', `Estableció prioridad en "${nextPriority}"`, logList);
-      await updateTask(task.id, {
-        priority: nextPriority,
-        task_activities: logList
-      });
-      onTaskUpdated();
-    } catch (err: any) {
-      alert('Error: ' + err.message);
-    }
-  };
-
-  // Tag management
-  const handleAddTag = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && tagInput.trim()) {
-      e.preventDefault();
-      if (!tags.includes(tagInput.trim())) {
-        const next = [...tags, tagInput.trim()];
-        setTags(next);
-      }
-      setTagInput('');
-    }
-  };
-
-  const handleRemoveTag = (t: string) => {
-    setTags(prev => prev.filter(tag => tag !== t));
-  };
-
-  // Filter activities to show "My Work" vs "All activities"
-  const activities = (task as any).task_activities || [];
-  const myWorkActivities = activities.filter((act: any) => act.profile_id === user?.id);
+  // Subtask metrics
+  const totalSubtasks = localSubtasks.length;
+  const completedSubtasks = localSubtasks.filter(s => s.completed).length;
+  const checklistProgress = totalSubtasks > 0 ? Math.round((completedSubtasks / totalSubtasks) * 100) : 0;
 
   return (
     <>
-      {/* BACKGROUND BACKDROP LAYER */}
+      {/* Background overlay */}
       <div 
         onClick={onClose} 
-        className="fixed inset-0 bg-black/60 backdrop-blur-xs z-40 transition-opacity duration-300"
+        className="fixed inset-0 bg-black/80 backdrop-blur-xs z-40 transition-opacity duration-300"
       />
 
-      {/* SIDEBAR PANEL SLIDE-OVER */}
-      <div className="fixed inset-y-0 right-0 w-full max-w-2xl bg-white dark:bg-[#1e1e24] border-l border-zinc-200 dark:border-[#2c2d34]/60 shadow-2xl flex flex-col z-50 transform transition-transform duration-300 ease-in-out translate-x-0">
+      {/* Popovers click-away backdrop */}
+      {activePopover && (
+        <div 
+          className="fixed inset-0 z-45 bg-transparent cursor-default" 
+          onClick={() => setActivePopover(null)} 
+        />
+      )}
+
+      {/* Main sheet container - max-w-5xl */}
+      <div className="fixed inset-y-0 right-0 w-full max-w-5xl bg-[#1e1e24] border-l border-[#2c2d34]/60 shadow-2xl flex flex-col z-50 transform transition-transform duration-300 ease-in-out translate-x-0">
         
-        {/* PANEL HEADER */}
-        <div className="p-4 border-b border-zinc-200 dark:border-[#2c2d34]/60 flex justify-between items-center bg-zinc-900/20 shrink-0">
+        {/* Panel Header */}
+        <div className="p-4 border-b border-[#2c2d34]/60 flex justify-between items-center bg-zinc-900/10 shrink-0">
           <div className="flex items-center gap-2">
             <ClipboardList className="h-5 w-5 text-emerald-400" />
-            <span className="text-xs font-mono font-bold uppercase tracking-wider text-zinc-500">Detalles de Tarea</span>
+            <span className="text-xs font-mono font-bold uppercase tracking-wider text-zinc-400">Detalles de Tarea</span>
           </div>
           <div className="flex items-center gap-2">
-            <button 
-              onClick={() => setEditMode(!editMode)} 
-              className={`px-3 py-1.5 rounded-none text-xs font-bold transition-all border ${
-                editMode 
-                  ? 'bg-emerald-600/10 text-emerald-400 border-emerald-500/20' 
-                  : 'bg-white dark:bg-[#121315] border-zinc-200 dark:border-[#2c2d34]/60 text-zinc-550 dark:text-zinc-400 hover:text-white'
-              }`}
+            <Button 
+              type="button" 
+              onClick={handleDeleteTaskAction}
+              disabled={loading}
+              className="bg-rose-650/10 hover:bg-rose-600 border border-rose-500/20 text-rose-400 hover:text-white font-bold h-8 text-xs px-3 rounded-lg flex items-center gap-1 transition-all"
             >
-              {editMode ? 'Ver Modo Lectura' : 'Editar Tarea'}
-            </button>
+              {loading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+              <span>Eliminar Tarjeta</span>
+            </Button>
             <button 
               onClick={onClose} 
-              className="p-1.5 hover:bg-zinc-150 dark:hover:bg-[#121315] rounded-none text-zinc-500 hover:text-white transition-colors cursor-pointer"
+              className="p-1.5 hover:bg-[#121315] rounded text-zinc-400 hover:text-white transition-colors cursor-pointer"
             >
               <X className="h-5 w-5" />
             </button>
           </div>
         </div>
 
-        {/* CONTAINER SCROLLABLE BODY */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-6 scrollbar-thin scrollbar-thumb-zinc-900">
-          {editMode ? (
-            /* EDIT FORM VIEW */
-            <form onSubmit={handleSaveDetails} className="space-y-4">
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-zinc-500 uppercase font-mono">Título</label>
-                <input 
-                  required 
-                  value={title} 
-                  onChange={e => setTitle(e.target.value)} 
-                  className="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-3 text-sm focus:border-emerald-500 outline-none text-zinc-800 dark:text-white font-bold" 
-                />
-              </div>
+        {/* Unified View/Edit Body Split - 2 Columns */}
+        <div className="flex-1 flex flex-col md:flex-row min-h-0 divide-y md:divide-y-0 md:divide-x divide-[#2c2d34]/60">
+          
+          {/* Left Column: Details, description, checklist & attachments */}
+          <div className="flex-1 overflow-y-auto p-6 space-y-6 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+            
+            {/* Title Input (Editable) */}
+            <div className="space-y-1 text-left">
+              <input
+                type="text"
+                value={title}
+                onChange={e => setTitle(e.target.value)}
+                onBlur={handleTitleBlur}
+                className="w-full bg-transparent border-none text-xl font-bold text-white outline-none focus:bg-[#16161c] px-3 py-1.5 rounded-xl transition-all font-sans"
+                placeholder="Título de la tarea"
+              />
+            </div>
 
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-zinc-500 uppercase font-mono">Descripción</label>
-                <textarea 
-                  value={description} 
-                  onChange={e => setDescription(e.target.value)} 
-                  className="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-3 text-sm focus:border-emerald-500 outline-none h-24 resize-none text-zinc-650 dark:text-zinc-350" 
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
+            {/* Display active attributes */}
+            <div className="flex flex-wrap gap-5 text-left">
+              {assignedToIds.length > 0 && (
                 <div className="space-y-1">
-                  <label className="text-xs font-bold text-zinc-500 uppercase font-mono">Estado</label>
-                  <select 
-                    value={status} 
-                    onChange={e => setStatus(e.target.value)} 
-                    className="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-3 text-sm focus:border-emerald-500 outline-none text-zinc-800 dark:text-zinc-200"
-                  >
-                    <option value="pendiente">To Do (Pendiente)</option>
-                    <option value="en_progreso">In Progress (En Curso)</option>
-                    <option value="completada">Review / Done (Completada)</option>
-                  </select>
-                </div>
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-zinc-500 uppercase font-mono">Prioridad</label>
-                  <select 
-                    value={priority} 
-                    onChange={e => setPriority(e.target.value)} 
-                    className="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-3 text-sm focus:border-emerald-500 outline-none text-zinc-800 dark:text-zinc-200"
-                  >
-                    <option value="baja">Baja</option>
-                    <option value="media">Media</option>
-                    <option value="alta">Alta</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-zinc-500 uppercase font-mono">Tipo</label>
-                  <select 
-                    value={taskType} 
-                    onChange={e => setTaskType(e.target.value)} 
-                    className="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-3 text-sm focus:border-emerald-500 outline-none text-zinc-800 dark:text-zinc-200"
-                  >
-                    <option value="check">Check (Acción)</option>
-                    <option value="entregable">Entregable</option>
-                    <option value="reporte">Reporte</option>
-                    <option value="evidencia">Evidencia</option>
-                  </select>
-                </div>
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-zinc-500 uppercase font-mono">Departamento</label>
-                  <select 
-                    value={area} 
-                    onChange={e => setArea(e.target.value)} 
-                    className="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-3 text-sm focus:border-emerald-500 outline-none text-zinc-800 dark:text-zinc-200"
-                  >
-                    <option value="general">General</option>
-                    <option value="legal">Legal</option>
-                    <option value="almacen">Almacén</option>
-                    <option value="operaciones">Operaciones</option>
-                    <option value="administracion">Administración</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-zinc-500 uppercase font-mono">Fecha Vencimiento</label>
-                  <input 
-                    type="date" 
-                    value={dueDate} 
-                    onChange={e => setDueDate(e.target.value)} 
-                    className="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-3 text-sm focus:border-emerald-500 outline-none text-zinc-800 dark:text-zinc-200" 
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-zinc-500 uppercase font-mono">Proyecto Asociado</label>
-                  <select 
-                    value={projectId} 
-                    onChange={e => setProjectId(e.target.value)} 
-                    className="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-3 text-sm focus:border-emerald-500 outline-none text-zinc-800 dark:text-zinc-200"
-                  >
-                    <option value="">Sin vincular a proyecto</option>
-                    {projects.map(proj => (
-                      <option key={proj.id} value={proj.id}>{proj.name}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2.5 py-2 text-left">
-                <input
-                  type="checkbox"
-                  id="drawer-requires-audit-checkbox"
-                  checked={requiresAudit}
-                  onChange={e => setRequiresAudit(e.target.checked)}
-                  className="rounded border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-emerald-600 focus:ring-emerald-500/20 h-4 w-4 cursor-pointer"
-                />
-                <label htmlFor="drawer-requires-audit-checkbox" className="text-xs font-bold text-zinc-650 dark:text-zinc-350 cursor-pointer select-none">
-                  Requiere Auditoría (Revisión de líder antes de marcarse como completa)
-                </label>
-              </div>
-
-              <div className="space-y-1 text-left">
-                <label className="text-xs font-bold text-zinc-555 uppercase font-mono">Colaboradores Asignados</label>
-                <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-3.5 max-h-36 overflow-y-auto space-y-2.5">
-                  {(() => {
-                    const taskProject = projects.find(p => p.id === projectId);
-                    const selectableEmployees = (taskProject && taskProject.member_ids && taskProject.member_ids.length > 0)
-                      ? employees.filter(emp => taskProject.member_ids.includes(emp.id))
-                      : employees;
-                    
-                    if (selectableEmployees.length === 0) {
-                      return <p className="text-xs italic text-zinc-500">No hay integrantes asignados a este proyecto para asignar.</p>;
-                    }
-                    
-                    return selectableEmployees.map(emp => {
-                      const isChecked = assignedToIds.includes(emp.id);
-                      return (
-                        <label key={emp.id} className="flex items-center gap-2.5 text-xs text-zinc-700 dark:text-zinc-300 font-semibold cursor-pointer select-none">
-                          <input
-                            type="checkbox"
-                            checked={isChecked}
-                            onChange={() => {
-                              if (isChecked) {
-                                setAssignedToIds(prev => prev.filter(id => id !== emp.id));
-                              } else {
-                                setAssignedToIds(prev => [...prev, emp.id]);
-                              }
-                            }}
-                            className="rounded border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-emerald-600 focus:ring-emerald-500/20 h-4 w-4 cursor-pointer"
-                          />
-                          <span>{emp.full_name} ({emp.roleName})</span>
-                        </label>
-                      );
-                    });
-                  })()}
-                </div>
-              </div>
-
-              {/* Tags Editor */}
-              <div className="space-y-2">
-                <label className="text-xs font-bold text-zinc-500 uppercase font-mono">Etiquetas (Enter para agregar)</label>
-                <input 
-                  type="text" 
-                  value={tagInput}
-                  onChange={e => setTagInput(e.target.value)}
-                  onKeyDown={handleAddTag}
-                  placeholder="Agregar etiqueta..."
-                  className="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-3 text-sm focus:border-emerald-500 outline-none text-zinc-800 dark:text-white" 
-                />
-                <div className="flex flex-wrap gap-1.5 mt-2">
-                  {tags.map((t, idx) => (
-                    <span key={idx} className="bg-zinc-100 dark:bg-zinc-850 border border-zinc-200 dark:border-zinc-750 text-zinc-700 dark:text-zinc-300 text-xs px-2.5 py-1 rounded-lg flex items-center gap-1.5 font-semibold">
-                      {t}
-                      <X className="h-3 w-3 text-zinc-500 hover:text-white cursor-pointer" onClick={() => handleRemoveTag(t)} />
-                    </span>
-                  ))}
-                </div>
-              </div>
-
-              <div className="pt-4 flex justify-between items-center gap-2">
-                <Button 
-                  type="button" 
-                  variant="ghost" 
-                  onClick={() => handleDeleteTask(task.id)} 
-                  className="bg-rose-600/10 text-rose-400 hover:bg-rose-600 hover:text-white border border-rose-500/10 font-bold h-10 px-4 rounded-xl cursor-pointer"
-                >
-                  <Trash2 className="h-4 w-4 mr-1.5" /> Eliminar Tarea
-                </Button>
-                <div className="flex gap-2">
-                  <Button type="button" variant="ghost" onClick={() => setEditMode(false)} className="text-zinc-500 h-10 px-4 rounded-xl">Cancelar</Button>
-                  <Button type="submit" disabled={loading} className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold h-10 px-4 rounded-xl">
-                    {loading ? <RefreshCw className="animate-spin h-4 w-4 mr-2" /> : null} Guardar
-                  </Button>
-                </div>
-              </div>
-            </form>
-          ) : (
-            /* READ-ONLY INFORMATION PANEL */
-            <div className="space-y-6">
-              
-              {/* Title & Description */}
-              <div className="space-y-2 border-b border-zinc-200 dark:border-zinc-900 pb-5">
-                <h2 className="text-xl font-bold text-zinc-800 dark:text-white tracking-tight">{task.title}</h2>
-                <p className="text-xs text-zinc-550 font-mono flex items-center gap-1.5">
-                  <Clock className="h-3.5 w-3.5" /> Creado el {new Date(task.created_at).toLocaleDateString([], { day: 'numeric', month: 'long', year: 'numeric' })}
-                </p>
-                {task.description ? (
-                  <p className="text-zinc-500 dark:text-zinc-400 text-sm bg-zinc-50/50 dark:bg-zinc-900/30 p-4 rounded-xl border border-zinc-900/60 leading-relaxed mt-4">
-                    {task.description}
-                  </p>
-                ) : (
-                  <p className="text-zinc-650 italic text-xs pt-1">Sin descripción disponible.</p>
-                )}
-              </div>
-
-              {/* AUDIT STATUS & LEAD CONTROLS PANEL */}
-              {task.requires_audit && (
-                <div className="bg-zinc-50/50 dark:bg-zinc-900/40 border border-zinc-200/80 dark:border-zinc-800/80 rounded-2xl p-5 space-y-4 text-left backdrop-blur-md">
-                  <div className="flex justify-between items-center">
-                    <div className="flex items-center gap-2">
-                      <AlertCircle className="h-4 w-4 text-amber-400" />
-                      <span className="text-[10px] font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider font-mono">Control de Auditoría</span>
-                    </div>
-                    <span className={`text-[10px] font-bold uppercase border px-2.5 py-0.5 rounded-full${
-                      task.audit_status === 'aceptado' ? 'bg-emerald-950/40 text-emerald-450 border-emerald-500/20' :
-                      task.audit_status === 'denegado' ? 'bg-rose-950/40 text-rose-450 border-rose-500/20' :
-                      task.audit_status === 'requiere_revision' ? 'bg-amber-950/40 text-amber-450 border-amber-500/20' :
-                      'bg-white dark:bg-zinc-900 text-zinc-550 dark:text-zinc-450 border-zinc-200 dark:border-zinc-800'
-                    }`}>
-                      {task.audit_status === 'pendiente' ? 'Pendiente de Revisión' : 
-                       task.audit_status === 'aceptado' ? 'Aceptado / Aprobado' : 
-                       task.audit_status === 'denegado' ? 'Rechazado' : 
-                       task.audit_status === 'requiere_revision' ? 'Cambios Solicitados' : task.audit_status}
-                    </span>
-                  </div>
-
-                  {/* If needs changes, show the instruction */}
-                  {task.audit_status === 'requiere_revision' && task.audit_comments && (
-                    <div className="bg-amber-600/5 border border-amber-500/10 p-3 rounded-xl space-y-1">
-                      <span className="text-[9px] font-bold text-amber-400 font-mono uppercase">Instrucciones de cambio:</span>
-                      <p className="text-zinc-650 dark:text-zinc-350 text-xs leading-relaxed">{task.audit_comments}</p>
-                    </div>
-                  )}
-
-                  {/* Action Buttons for Assignee */}
-                  {task.audit_status === 'requiere_revision' && isAssignee && (
-                    <div className="pt-2">
-                      <Button
-                        disabled={submittingAudit}
-                        onClick={handleMarkChangesDone}
-                        className="w-full bg-amber-500 hover:bg-amber-400 text-zinc-955 font-bold text-xs h-9 rounded-xl flex items-center justify-center gap-1.5 cursor-pointer"
-                      >
-                        {submittingAudit ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-4 w-4" />}
-                        Marcar Cambios como Realizados
-                      </Button>
-                    </div>
-                  )}
-
-                  {/* Action controls for leader/auditor */}
-                  {task.audit_status === 'pendiente' && (
-                    <>
-                      {canAudit ? (
-                        <div className="space-y-3">
-                          <p className="text-xs text-zinc-550 dark:text-zinc-450">Esta tarea requiere aprobación del líder. Elige una acción:</p>
-                          
-                          {!showChangesForm ? (
-                            <div className="grid grid-cols-3 gap-2">
-                              <Button
-                                disabled={submittingAudit}
-                                onClick={() => handleAuditAction('aceptado')}
-                                className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs h-9 rounded-xl font-bold flex items-center justify-center gap-1 cursor-pointer"
-                              >
-                                Aceptar
-                              </Button>
-                              <Button
-                                disabled={submittingAudit}
-                                onClick={() => handleAuditAction('denegado')}
-                                className="bg-rose-600 hover:bg-rose-500 text-white text-xs h-9 rounded-xl font-bold flex items-center justify-center gap-1 cursor-pointer"
-                              >
-                                Rechazar
-                              </Button>
-                              <Button
-                                disabled={submittingAudit}
-                                onClick={() => setShowChangesForm(true)}
-                                className="bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-700 border border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 text-xs h-9 rounded-xl font-bold flex items-center justify-center gap-1 cursor-pointer"
-                              >
-                                Pedir Cambios
-                              </Button>
-                            </div>
-                          ) : (
-                            <div className="space-y-2.5 pt-1">
-                              <label className="text-[10px] font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider font-mono">Describir cambios detallados</label>
-                              <textarea
-                                value={localAuditComments}
-                                onChange={e => setLocalAuditComments(e.target.value)}
-                                placeholder="Indica detalladamente qué cambios debe realizar el colaborador..."
-                                className="w-full bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-850 rounded-xl p-3 text-xs text-zinc-800 dark:text-white focus:border-amber-500 outline-none h-16 resize-none"
-                              />
-                              <div className="flex gap-2 justify-end">
-                                <Button
-                                  variant="ghost"
-                                  onClick={() => {
-                                    setShowChangesForm(false);
-                                    setLocalAuditComments('');
-                                  }}
-                                  className="text-zinc-500 text-xs h-8 px-3 rounded-lg cursor-pointer"
-                                >
-                                  Cancelar
-                                </Button>
-                                <Button
-                                  disabled={submittingAudit}
-                                  onClick={() => handleAuditAction('requiere_revision')}
-                                  className="bg-amber-650 hover:bg-amber-600 text-white text-xs h-8 px-3 rounded-lg font-bold cursor-pointer"
-                                >
-                                  Enviar Requerimiento
-                                </Button>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      ) : (
-                        <div className="flex items-center gap-2 text-zinc-500 text-xs bg-zinc-50 dark:bg-zinc-950/40 p-3 rounded-xl border border-zinc-200 dark:border-zinc-900">
-                          <Clock className="h-4 w-4 text-zinc-650 shrink-0" />
-                          <span>Esperando que un líder o el creador de la tarea audite el entregable.</span>
-                        </div>
-                      )}
-                    </>
-                  )}
-                </div>
-              )}
-
-              {/* Grid Metadata Parameters */}
-              <div className="grid grid-cols-2 gap-6 bg-zinc-900/20 border border-zinc-200 dark:border-zinc-900 p-5 rounded-2xl">
-                <div className="space-y-1 col-span-2">
-                  <span className="text-[10px] font-bold text-zinc-550 uppercase tracking-wider font-mono">Colaboradores Asignados</span>
-                  <div className="flex flex-wrap gap-2.5 mt-1.5">
-                    {((task as any).assigned_to_ids && (task as any).assigned_to_ids.length > 0
-                      ? (task as any).assigned_to_ids
-                      : (task.assigned_to ? [task.assigned_to] : [])
-                    ).map((id: string) => {
+                  <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider font-mono">Miembros</span>
+                  <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                    {assignedToIds.map(id => {
                       const emp = employees.find(e => e.id === id);
                       if (!emp) return null;
                       return (
-                        <div key={emp.id} className="flex items-center gap-2 bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 px-2.5 py-1 rounded-xl">
-                          <div className="h-6 w-6 rounded-full bg-zinc-100 dark:bg-zinc-850 border border-zinc-200 dark:border-zinc-700 flex items-center justify-center text-[10px] font-bold text-zinc-700 dark:text-zinc-300">
-                            {emp.full_name?.charAt(0).toUpperCase()}
-                          </div>
-                          <div className="text-left">
-                            <div className="text-xs font-bold text-zinc-800 dark:text-zinc-200 leading-tight">{emp.full_name}</div>
-                            <div className="text-[9px] text-zinc-500 leading-none mt-0.5">{emp.roleName}</div>
-                          </div>
+                        <div 
+                          key={emp.id} 
+                          className="h-7 w-7 rounded-full bg-emerald-600 border border-emerald-505/20 flex items-center justify-center text-[10px] font-bold text-white uppercase cursor-default"
+                          title={`${emp.full_name} (${emp.roleName})`}
+                        >
+                          {emp.full_name?.charAt(0).toUpperCase()}
                         </div>
                       );
                     })}
-                    {(!task.assigned_to && (!(task as any).assigned_to_ids || (task as any).assigned_to_ids.length === 0)) && (
-                      <span className="text-xs italic text-zinc-650">Sin colaboradores asignados</span>
-                    )}
+                    <button
+                      type="button"
+                      onClick={() => setActivePopover('assignee')}
+                      className="h-7 w-7 rounded-full bg-[#2c2d34] hover:bg-[#3c3d47] border border-[#3e3f4a] flex items-center justify-center text-zinc-400 hover:text-white transition-colors"
+                    >
+                      <Plus className="h-3.5 w-3.5" />
+                    </button>
                   </div>
                 </div>
+              )}
 
+              {dueDate && (
                 <div className="space-y-1">
-                  <span className="text-[10px] font-bold text-zinc-550 uppercase tracking-wider font-mono">Proyecto / Obra</span>
-                  <div className="flex items-center gap-2">
-                    <div className="h-7 w-7 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-850 flex items-center justify-center text-xs text-zinc-500 dark:text-zinc-400">
-                      <FolderKanban className="h-4 w-4 text-emerald-400" />
-                    </div>
-                    <div className="flex items-center gap-1.5 min-w-0">
-                      <div className="text-xs font-bold text-zinc-800 dark:text-zinc-200 truncate max-w-[180px]">
-                        {taskProject ? taskProject.name : 'Tarea Administrativa'}
-                      </div>
-                      {task.project_id && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            router.push(`/?tab=projects&projectId=${task.project_id}`);
-                            onClose();
-                          }}
-                          className="p-1 hover:bg-zinc-800 text-emerald-450 rounded transition-colors text-[10px] font-bold flex items-center gap-1 shrink-0 cursor-pointer"
-                          title="Ir a Obra"
-                        >
-                          <ChevronRight className="h-3.5 w-3.5" />
-                          <span>Ir a Obra</span>
-                        </button>
-                      )}
-                    </div>
+                  <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider font-mono">Vencimiento</span>
+                  <div className="flex items-center gap-2 bg-[#2c2d34] border border-[#3e3f4a] rounded-lg px-2.5 py-1 text-xs font-bold text-zinc-300 mt-1">
+                    <Calendar className="h-3.5 w-3.5 text-amber-500" />
+                    <span>{new Date(dueDate).toLocaleDateString([], { day: 'numeric', month: 'short' })}</span>
+                    <button 
+                      type="button" 
+                      onClick={async () => {
+                        setDueDate('');
+                        await handleQuickSave({ due_date: null });
+                      }}
+                      className="text-[10px] font-bold text-rose-500 hover:text-rose-400 ml-1.5"
+                    >
+                      ×
+                    </button>
                   </div>
                 </div>
+              )}
 
+              {projectId && (
                 <div className="space-y-1">
-                  <span className="text-[10px] font-bold text-zinc-550 uppercase tracking-wider font-mono">Estado Operativo</span>
-                  <select 
-                    value={status} 
-                    onChange={e => handleQuickStatusChange(e.target.value)} 
-                    className="bg-zinc-50/60 dark:bg-zinc-900/60 border border-zinc-200 dark:border-zinc-800 rounded-lg px-2.5 py-1 text-xs text-zinc-800 dark:text-zinc-200 outline-none focus:border-emerald-500 font-semibold"
-                  >
-                    <option value="pendiente">To Do</option>
-                    <option value="en_progreso">In Progress</option>
-                    <option value="completada">Review / Done</option>
-                  </select>
-                </div>
-
-                <div className="space-y-1">
-                  <span className="text-[10px] font-bold text-zinc-550 uppercase tracking-wider font-mono">Prioridad</span>
-                  <select 
-                    value={priority} 
-                    onChange={e => handleQuickPriorityChange(e.target.value)} 
-                    className="bg-zinc-50/60 dark:bg-zinc-900/60 border border-zinc-200 dark:border-zinc-800 rounded-lg px-2.5 py-1 text-xs text-zinc-800 dark:text-zinc-200 outline-none focus:border-emerald-500 font-semibold"
-                  >
-                    <option value="baja">Baja</option>
-                    <option value="media">Media</option>
-                    <option value="alta">Alta</option>
-                  </select>
-                </div>
-
-                <div className="space-y-1">
-                  <span className="text-[10px] font-bold text-zinc-550 uppercase tracking-wider font-mono">Fecha de Vencimiento</span>
-                  <div className="flex items-center gap-1.5 text-xs font-bold text-zinc-650 dark:text-zinc-350">
-                    <Calendar className="h-4 w-4 text-zinc-500" />
-                    {task.due_date ? new Date(task.due_date).toLocaleDateString() : 'N/D'}
+                  <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider font-mono">Proyecto / Obra</span>
+                  <div className="flex items-center gap-2 bg-[#2c2d34] border border-[#3e3f4a] rounded-lg px-2.5 py-1 text-xs font-bold text-zinc-300 mt-1">
+                    <FolderKanban className="h-3.5 w-3.5 text-blue-500" />
+                    <span className="truncate max-w-[150px]">{projects.find(p => p.id === projectId)?.name || 'Obra'}</span>
+                    <button 
+                      type="button" 
+                      onClick={async () => {
+                        setProjectId('');
+                        await handleQuickSave({ project_id: null });
+                      }}
+                      className="text-[10px] font-bold text-rose-500 hover:text-rose-400 ml-1.5"
+                    >
+                      ×
+                    </button>
                   </div>
                 </div>
+              )}
 
+              {area && area !== 'general' && (
                 <div className="space-y-1">
-                  <span className="text-[10px] font-bold text-zinc-550 uppercase tracking-wider font-mono">Departamento</span>
-                  <span className="inline-flex items-center rounded-md bg-zinc-100 dark:bg-zinc-800 px-2 py-1 text-xs font-mono font-bold text-zinc-700 dark:text-zinc-300 uppercase border border-zinc-200 dark:border-zinc-700">
-                    {task.area || 'general'}
-                  </span>
+                  <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider font-mono">Departamento</span>
+                  <div className="flex items-center gap-2 bg-[#2c2d34] border border-[#3e3f4a] rounded-lg px-2.5 py-1 text-xs font-bold text-zinc-300 mt-1 uppercase font-mono">
+                    <Briefcase className="h-3.5 w-3.5 text-indigo-500" />
+                    <span>{area}</span>
+                  </div>
                 </div>
-              </div>
+              )}
 
-              {/* Tags list */}
-              {tags.length > 0 && (
-                <div className="flex flex-wrap gap-1.5">
-                  {tags.map((t, i) => (
-                    <span key={i} className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-850 text-zinc-500 dark:text-zinc-400 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full">
-                      {t}
-                    </span>
-                  ))}
+              {priority && (
+                <div className="space-y-1">
+                  <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider font-mono">Prioridad</span>
+                  <div className={`flex items-center gap-2 bg-[#2c2d34] border border-[#3e3f4a] rounded-lg px-2.5 py-1 text-xs font-bold mt-1 uppercase ${
+                    priority === 'alta' ? 'text-rose-400' : priority === 'media' ? 'text-yellow-400' : 'text-zinc-400'
+                  }`}>
+                    <Flag className="h-3.5 w-3.5" />
+                    <span>{priority}</span>
+                  </div>
                 </div>
               )}
             </div>
-          )}
-        </div>
 
-        {/* DETAILS SECTION INTERACTIVE TABS */}
-        <div className="border-t border-zinc-205 dark:border-[#2c2d34]/60 flex-1 flex flex-col min-h-[350px]">
-          
-          {/* Tab Selector */}
-          <div className="flex border-b border-zinc-205 dark:border-[#2c2d34]/60 bg-zinc-50/50 dark:bg-[#121315]/40 px-4 shrink-0 overflow-x-auto gap-2">
-            {[
-              { id: 'comentarios', label: 'Comentarios', icon: MessageSquare },
-              { id: 'requisitos', label: 'Materiales (Requisitos)', icon: Briefcase },
-              { id: 'entregables', label: 'Archivos Entregables', icon: Paperclip },
-              { id: 'subtareas', label: 'Asignaciones (Subtareas)', icon: CheckSquare },
-              { id: 'actividad', label: 'Actividad de la Tarea', icon: Activity }
-            ].map(tab => {
-              const Icon = tab.icon;
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id as any)}
-                  className={`flex items-center gap-1.5 py-3 px-3 text-xs font-bold transition-all border-b-2 uppercase whitespace-nowrap rounded-none cursor-pointer ${
-                    activeTab === tab.id
-                      ? 'border-emerald-500 text-emerald-400'
-                      : 'border-transparent text-zinc-500 hover:text-zinc-350 hover:bg-zinc-800/10'
-                  }`}
-                >
-                  <Icon className="h-3.5 w-3.5" />
-                  {tab.label}
-                </button>
-              );
-            })}
-          </div>
-
-          {/* TAB CONTENTS VIEWPORT */}
-          <div className="flex-1 p-6 overflow-y-auto bg-zinc-50 dark:bg-[#121315]/30">
-            
-            {/* Tab: Comentarios */}
-            {activeTab === 'comentarios' && (
-              <div className="space-y-4 h-full flex flex-col justify-between">
-                
-                {/* Form comments */}
-                <form onSubmit={handleAddComment} className="flex gap-2 items-center bg-zinc-50/60 dark:bg-[#121315] p-2 rounded-none border border-zinc-200 dark:border-[#2c2d34]/60">
-                  <input
-                    type="text"
-                    value={newComment}
-                    onChange={e => setNewComment(e.target.value)}
-                    placeholder="Escribe un comentario o actualización..."
-                    className="flex-1 bg-transparent text-sm focus:outline-none text-zinc-800 dark:text-zinc-200 px-2"
-                  />
-                  <button type="submit" className="p-2 rounded-none bg-emerald-600 hover:bg-emerald-500 text-white font-bold transition-colors cursor-pointer">
-                    <Send className="h-4 w-4" />
+            {/* Compact Actions Toolbar (Trello style) */}
+            <div className="space-y-2 pt-2 text-left">
+              <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-wider font-mono block">Barra de Herramientas</span>
+              <div className="flex flex-wrap items-center gap-2">
+                {/* 1. Miembros popover */}
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setActivePopover('assignee')}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-[#2c2d34] border border-[#3e3f4a] hover:bg-[#383948] text-[11px] font-bold text-zinc-300 hover:text-white rounded-lg transition-all"
+                  >
+                    <User className="h-3.5 w-3.5 text-emerald-500" />
+                    <span>Miembros</span>
                   </button>
-                </form>
 
-                {/* Comment Thread List */}
-                <div className="flex-1 overflow-y-auto space-y-4 pr-1 mt-3">
-                  {((task as any).task_comments || []).length === 0 ? (
-                    <div className="py-8 text-center text-zinc-650 flex flex-col items-center gap-1.5">
-                      <MessageSquare className="h-6 w-6 opacity-30" />
-                      <span className="text-xs">No hay comentarios en esta tarea.</span>
-                    </div>
-                  ) : (
-                    ((task as any).task_comments || []).map((comm: any) => (
-                      <div key={comm.id} className="flex gap-3 bg-zinc-900/20 border border-zinc-200 dark:border-zinc-900 p-3.5 rounded-xl">
-                        <div className="h-7 w-7 rounded-full bg-zinc-855 border border-zinc-200 dark:border-zinc-800 flex items-center justify-center text-[10px] font-bold text-zinc-500 dark:text-zinc-400">
-                          {comm.user_name?.charAt(0).toUpperCase() || 'U'}
-                        </div>
-                        <div className="flex-1 space-y-1 text-left">
-                          <div className="flex justify-between items-baseline">
-                            <span className="text-xs font-bold text-zinc-800 dark:text-zinc-200">{comm.user_name}</span>
-                            <span className="text-[9px] text-zinc-550 font-mono">
-                              {comm.created_at ? new Date(comm.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
-                            </span>
-                          </div>
-                          <p className="text-zinc-500 dark:text-zinc-400 text-xs leading-relaxed">{comm.text}</p>
-                        </div>
+                  {activePopover === 'assignee' && (
+                    <div className="absolute left-0 mt-1.5 w-64 bg-[#25262c] border border-[#3c3d47] rounded-xl p-3 shadow-2xl z-50 flex flex-col gap-2">
+                      <div className="flex items-center gap-1.5 bg-[#16161c] border border-[#2c2d34]/60 px-2 py-1 rounded-lg">
+                        <Search className="h-3.5 w-3.5 text-zinc-500" />
+                        <input
+                          type="text"
+                          placeholder="Buscar miembro..."
+                          value={empSearch}
+                          onChange={e => setEmpSearch(e.target.value)}
+                          className="bg-transparent border-none text-[11px] text-white focus:outline-none focus:ring-0 w-full"
+                        />
                       </div>
-                    ))
+                      <div className="max-h-40 overflow-y-auto space-y-1 pr-1 scrollbar-thin scrollbar-thumb-zinc-800">
+                        {filteredEmployees.map(emp => {
+                          const isChecked = assignedToIds.includes(emp.id);
+                          return (
+                            <button
+                              key={emp.id}
+                              type="button"
+                              onClick={() => handleMemberToggle(emp.id)}
+                              className={`w-full text-left text-[11px] font-semibold p-2 hover:bg-[#2c2d34] rounded-lg flex items-center justify-between ${
+                                isChecked ? 'bg-[#2c2d34] text-emerald-400 font-bold' : 'text-zinc-300'
+                              }`}
+                            >
+                              <span>{emp.full_name}</span>
+                              {isChecked && <Check className="h-3 w-3 text-emerald-400" />}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
                   )}
                 </div>
-              </div>
-            )}
 
-            {/* Tab: Requisitos y Materiales */}
-            {activeTab === 'requisitos' && (
-              <div className="space-y-4">
-                
-                {/* Form to request material */}
-                <form onSubmit={handleAddMaterial} className="flex flex-col sm:flex-row gap-3 items-end p-4 rounded-xl border border-zinc-200 dark:border-zinc-900 bg-zinc-50/50 dark:bg-zinc-900/30">
-                  <div className="flex-1 w-full space-y-1 text-left">
-                    <label className="text-[10px] font-bold text-zinc-550 uppercase font-mono">Nombre del Material o Archivo Requerido</label>
-                    <input 
-                      required
-                      value={newMaterialName}
-                      onChange={e => setNewMaterialName(e.target.value)}
-                      placeholder="Ej. Conectores MC4 o Manual de Torque"
-                      className="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg p-2 text-xs text-zinc-800 dark:text-white focus:border-emerald-500 outline-none"
-                    />
-                  </div>
-                  <div className="w-full sm:w-24 space-y-1 text-left">
-                    <label className="text-[10px] font-bold text-zinc-550 uppercase font-mono">Cantidad</label>
-                    <input 
-                      type="number"
-                      min={1}
-                      value={newMaterialQty}
-                      onChange={e => setNewMaterialQty(parseInt(e.target.value) || 1)}
-                      className="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg p-2 text-xs text-zinc-800 dark:text-white focus:border-emerald-500 outline-none"
-                    />
-                  </div>
-                  <button type="submit" className="w-full sm:w-auto h-9 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-700 border border-zinc-200 dark:border-zinc-750 text-zinc-700 dark:text-zinc-300 font-bold px-4 py-2.5 rounded-lg text-xs transition-colors flex items-center justify-center gap-1.5">
-                    <Plus className="h-4 w-4" /> Agregar
+                {/* 2. Obra / Proyecto popover */}
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setActivePopover('project')}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-[#2c2d34] border border-[#3e3f4a] hover:bg-[#383948] text-[11px] font-bold text-zinc-300 hover:text-white rounded-lg transition-all"
+                  >
+                    <Folder className="h-3.5 w-3.5 text-blue-500" />
+                    <span>Obra / Proyecto</span>
                   </button>
-                </form>
 
-                {/* Materials List */}
-                <div className="space-y-2">
-                  {((task as any).task_materials || []).length === 0 ? (
-                    <div className="py-8 text-center text-zinc-650 flex flex-col items-center gap-1.5">
-                      <Briefcase className="h-6 w-6 opacity-30" />
-                      <span className="text-xs">No hay materiales cargados a la tarea.</span>
+                  {activePopover === 'project' && (
+                    <div className="absolute left-0 mt-1.5 w-64 bg-[#25262c] border border-[#3c3d47] rounded-xl p-3 shadow-2xl z-50 flex flex-col gap-2">
+                      <div className="flex items-center gap-1.5 bg-[#16161c] border border-[#2c2d34]/60 px-2 py-1 rounded-lg">
+                        <Search className="h-3.5 w-3.5 text-zinc-500" />
+                        <input
+                          type="text"
+                          placeholder="Buscar obra..."
+                          value={projSearch}
+                          onChange={e => setProjSearch(e.target.value)}
+                          className="bg-transparent border-none text-[11px] text-white focus:outline-none focus:ring-0 w-full"
+                        />
+                      </div>
+                      <div className="max-h-40 overflow-y-auto space-y-1 pr-1 scrollbar-thin scrollbar-thumb-zinc-800">
+                        <button
+                          type="button"
+                          onClick={() => handleProjectSelect('')}
+                          className={`w-full text-left text-[11px] font-semibold p-2 hover:bg-[#2c2d34] rounded-lg ${
+                            !projectId ? 'bg-[#2c2d34] text-emerald-450 font-bold' : 'text-zinc-400'
+                          }`}
+                        >
+                          Sin vincular
+                        </button>
+                        {filteredProjects.map(proj => (
+                          <button
+                            key={proj.id}
+                            type="button"
+                            onClick={() => handleProjectSelect(proj.id)}
+                            className={`w-full text-left text-[11px] font-semibold p-2 hover:bg-[#2c2d34] rounded-lg ${
+                              projectId === proj.id ? 'bg-[#2c2d34] text-emerald-450 font-bold' : 'text-zinc-300'
+                            }`}
+                          >
+                            {proj.name}
+                          </button>
+                        ))}
+                      </div>
                     </div>
-                  ) : (
-                    ((task as any).task_materials || []).map((mat: any) => (
-                      <div key={mat.id} className="flex justify-between items-center bg-zinc-900/20 border border-zinc-200 dark:border-zinc-900 p-3 rounded-xl">
-                        <div className="text-left">
-                          <span className="font-bold text-xs text-zinc-800 dark:text-zinc-200">{mat.name}</span>
-                          <span className="text-[10px] text-zinc-500 font-mono block mt-0.5">Cantidad requerida: x{mat.qty}</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className={`text-[9px] font-bold uppercase border px-2 py-0.5 rounded-full${
-                            mat.status === 'aprobado' ? 'bg-emerald-950/40 text-emerald-450 border-emerald-500/20' :
-                            mat.status === 'rechazado' ? 'bg-rose-950/40 text-rose-450 border-rose-500/20' :
-                            'bg-white dark:bg-zinc-900 text-zinc-500 border-zinc-200 dark:border-zinc-800'
-                          }`}>
-                            {mat.status}
-                          </span>
-                          
-                          {/* Leader Audit Quick Buttons */}
-                          {mat.status === 'pendiente' && (
-                            <div className="flex gap-1">
-                              <button onClick={() => handleAuditMaterial(mat.id, 'aprobado')} className="p-1 rounded bg-emerald-950/40 border border-emerald-900/50 text-emerald-400 hover:bg-emerald-900/30 text-[9px] font-bold transition-colors px-1.5 cursor-pointer">
-                                Aprob.
-                              </button>
-                              <button onClick={() => handleAuditMaterial(mat.id, 'rechazado')} className="p-1 rounded bg-rose-950/40 border border-rose-900/50 text-rose-400 hover:bg-rose-900/30 text-[9px] font-bold transition-colors px-1.5 cursor-pointer">
-                                Rechaz.
-                              </button>
-                            </div>
-                          )}
+                  )}
+                </div>
 
-                          <button onClick={() => handleDeleteMaterial(mat.id)} className="p-1 text-zinc-550 hover:text-rose-400 transition-colors">
-                            <Trash2 className="h-3.5 w-3.5" />
+                {/* 3. Departamento popover */}
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setActivePopover('area')}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-[#2c2d34] border border-[#3e3f4a] hover:bg-[#383948] text-[11px] font-bold text-zinc-300 hover:text-white rounded-lg transition-all"
+                  >
+                    <Briefcase className="h-3.5 w-3.5 text-indigo-500" />
+                    <span>Departamento</span>
+                  </button>
+
+                  {activePopover === 'area' && (
+                    <div className="absolute left-0 mt-1.5 w-48 bg-[#25262c] border border-[#3c3d47] rounded-xl p-2 shadow-2xl z-50 flex flex-col gap-1">
+                      {[
+                        { key: 'general', label: 'General' },
+                        { key: 'operaciones', label: 'Operaciones' },
+                        { key: 'almacen', label: 'Almacén' },
+                        { key: 'administracion', label: 'Administración' },
+                        { key: 'legal', label: 'Legal' }
+                      ].map(item => (
+                        <button
+                          key={item.key}
+                          type="button"
+                          onClick={() => handleAreaSelect(item.key)}
+                          className={`w-full text-left text-[11px] font-semibold p-2 hover:bg-[#2c2d34] rounded-lg ${
+                            area === item.key ? 'bg-[#2c2d34] text-emerald-450 font-bold' : 'text-zinc-300'
+                          }`}
+                        >
+                          {item.label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* 4. Prioridad popover */}
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setActivePopover('priority')}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-[#2c2d34] border border-[#3e3f4a] hover:bg-[#383948] text-[11px] font-bold text-zinc-300 hover:text-white rounded-lg transition-all"
+                  >
+                    <Flag className="h-3.5 w-3.5 text-rose-500" />
+                    <span>Prioridad</span>
+                  </button>
+
+                  {activePopover === 'priority' && (
+                    <div className="absolute left-0 mt-1.5 w-40 bg-[#25262c] border border-[#3c3d47] rounded-xl p-2 shadow-2xl z-50 flex flex-col gap-1">
+                      {[
+                        { key: 'baja', label: 'Baja', color: 'text-zinc-400' },
+                        { key: 'media', label: 'Media', color: 'text-yellow-405' },
+                        { key: 'alta', label: 'Alta', color: 'text-rose-505' }
+                      ].map(item => (
+                        <button
+                          key={item.key}
+                          type="button"
+                          onClick={() => handlePrioritySelect(item.key)}
+                          className={`w-full text-left text-[11px] font-semibold p-2 hover:bg-[#2c2d34] rounded-lg flex items-center justify-between ${
+                            priority === item.key ? 'bg-[#2c2d34] text-emerald-450 font-bold' : 'text-zinc-300'
+                          }`}
+                        >
+                          <span>{item.label}</span>
+                          <span className={`h-2 w-2 rounded-full bg-current ${item.color}`} />
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* 5. Fechas popover (floating upwards to prevent boundary clipping) */}
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setActivePopover('due_date')}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-[#2c2d34] border border-[#3e3f4a] hover:bg-[#383948] text-[11px] font-bold text-zinc-300 hover:text-white rounded-lg transition-all"
+                  >
+                    <Calendar className="h-3.5 w-3.5 text-amber-500" />
+                    <span>Fechas</span>
+                  </button>
+
+                  {activePopover === 'due_date' && (
+                    <div className="absolute left-0 bottom-full mb-1.5 w-56 bg-[#25262c] border border-[#3c3d47] rounded-xl p-3 shadow-2xl z-50 flex flex-col gap-2">
+                      <label className="text-[10px] font-bold text-zinc-400 uppercase font-mono">Vencimiento</label>
+                      <input
+                        type="date"
+                        value={dueDate}
+                        onChange={e => handleDateSelect(e.target.value)}
+                        className="bg-[#16161c] border border-[#2c2d34]/60 text-xs text-white rounded-lg p-2 focus:outline-none focus:border-emerald-500 w-full"
+                      />
+                      <div className="flex justify-between items-center gap-2 pt-1">
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            setDueDate('');
+                            setActivePopover(null);
+                            await handleQuickSave({ due_date: null });
+                          }}
+                          className="text-[9.5px] font-bold text-rose-500 hover:underline"
+                        >
+                          Limpiar
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setActivePopover(null)}
+                          className="text-[9.5px] font-bold text-emerald-450 hover:underline"
+                        >
+                          Confirmar
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* 6. Checklist button */}
+                <button
+                  type="button"
+                  onClick={handleAddChecklist}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-[#2c2d34] border border-[#3e3f4a] hover:bg-[#383948] text-[11px] font-bold text-zinc-300 hover:text-white rounded-lg transition-all"
+                >
+                  <CheckSquare className="h-3.5 w-3.5 text-emerald-400" />
+                  <span>Checklist</span>
+                </button>
+
+                {/* 7. Adjunto button */}
+                <label className="flex items-center gap-1.5 px-3 py-1.5 bg-[#2c2d34] border border-[#3e3f4a] hover:bg-[#383948] text-[11px] font-bold text-zinc-300 hover:text-white rounded-lg transition-all cursor-pointer">
+                  {uploadingFile ? (
+                    <RefreshCw className="h-3.5 w-3.5 animate-spin text-emerald-500" />
+                  ) : (
+                    <Paperclip className="h-3.5 w-3.5 text-amber-500" />
+                  )}
+                  <span>Adjunto</span>
+                  <input
+                    type="file"
+                    className="hidden"
+                    onChange={e => handleUploadToolbarEvidence(e.target.files)}
+                  />
+                </label>
+
+                {/* 8. Tipo & Auditoria Settings */}
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setActivePopover('tags')}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-[#2c2d34] border border-[#3e3f4a] hover:bg-[#383948] text-[11px] font-bold text-[#10b981] hover:text-[#34d399] rounded-lg transition-all"
+                  >
+                    <Tag className="h-3.5 w-3.5" />
+                    <span>Tipo y Auditoría</span>
+                  </button>
+
+                  {activePopover === 'tags' && (
+                    <div className="absolute right-0 bottom-full mb-1.5 w-60 bg-[#25262c] border border-[#3c3d47] rounded-xl p-3.5 shadow-2xl z-50 flex flex-col gap-3">
+                      <div className="space-y-1.5">
+                        <label className="text-[9px] font-bold text-zinc-400 uppercase font-mono block">Tipo de Tarea</label>
+                        <div className="grid grid-cols-2 gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => handleTaskTypeChange('check')}
+                            className={`flex flex-col items-center justify-center p-2 rounded-lg border text-center transition-all ${
+                              taskType === 'check' 
+                                ? 'bg-[#16161c] border-emerald-600 text-emerald-450 font-bold' 
+                                : 'bg-[#16161c] border-[#2c2d34]/60 text-zinc-400 hover:border-[#3c3d47] text-xs'
+                            }`}
+                          >
+                            <CheckSquare className="h-4 w-4 mb-1" />
+                            <span className="text-[9.5px]">Check Rápido</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleTaskTypeChange('entregable')}
+                            className={`flex flex-col items-center justify-center p-2 rounded-lg border text-center transition-all ${
+                              taskType === 'entregable' 
+                                ? 'bg-[#16161c] border-emerald-600 text-emerald-450 font-bold' 
+                                : 'bg-[#16161c] border-[#2c2d34]/60 text-zinc-400 hover:border-[#3c3d47] text-xs'
+                            }`}
+                          >
+                            <FileText className="h-4 w-4 mb-1" />
+                            <span className="text-[9.5px]">Entregable</span>
                           </button>
                         </div>
                       </div>
-                    ))
+
+                      <div className="pt-2 border-t border-[#2c2d34]/60 flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          id="drawer-requires-audit-checkbox"
+                          checked={requiresAudit}
+                          onChange={e => handleRequiresAuditToggle(e.target.checked)}
+                          className="rounded border-[#2c2d34]/60 bg-[#16161c] text-emerald-600 focus:ring-emerald-500/20 h-4 w-4 cursor-pointer"
+                        />
+                        <label 
+                          htmlFor="drawer-requires-audit-checkbox" 
+                          className="text-[10px] font-bold text-zinc-400 cursor-pointer select-none leading-tight"
+                        >
+                          Exigir Auditoría de Líder
+                        </label>
+                      </div>
+                    </div>
                   )}
                 </div>
               </div>
-            )}
+            </div>
 
-            {/* Tab: Archivos Entregables */}
-            {activeTab === 'entregables' && (
-              <div className="space-y-4">
-                
-                {/* Upload section */}
-                <div className="border border-dashed border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/10 p-6 text-center rounded-xl flex flex-col items-center justify-center space-y-2">
-                  {uploadingFile ? (
-                    <>
-                      <Loader2 className="animate-spin text-emerald-500 h-8 w-8" />
-                      <span className="text-zinc-500 dark:text-zinc-400 text-xs">Subiendo archivo entregable...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Upload className="text-zinc-650 h-8 w-8" />
-                      <h4 className="text-zinc-500 dark:text-zinc-400 text-xs font-bold">Entrega tus documentos aquí</h4>
-                      <p className="text-zinc-500 text-[10px]">Formatos PDF, PNG, JPG, ZIP (máx. 10MB)</p>
-                      <label className="mt-2 inline-flex items-center justify-center rounded-lg text-xs px-3 h-8 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-200 font-bold border border-zinc-200 dark:border-zinc-750 transition-colors cursor-pointer">
-                        <Plus className="h-3.5 w-3.5 mr-1" /> Seleccionar Archivo
-                        <input
-                          type="file"
-                          className="hidden"
-                          onChange={(e) => handleUploadDeliverable(e.target.files)}
-                        />
-                      </label>
-                    </>
-                  )}
+            {/* Description Textarea (Editable with blur autosave) */}
+            <div className="space-y-1.5 text-left pt-2">
+              <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider font-mono block">Descripción</label>
+              <textarea
+                value={description}
+                onChange={e => setDescription(e.target.value)}
+                onBlur={handleDescriptionBlur}
+                className="w-full bg-[#16161c] border border-[#2c2d34]/60 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-emerald-500 focus:bg-[#121217] placeholder-zinc-650 h-28 resize-none transition-all leading-relaxed"
+                placeholder="Añadir una descripción más detallada sobre la ejecución de esta tarea..."
+              />
+            </div>
+
+            {/* Checklist Section (Dynamic) */}
+            {checklistActive && (
+              <div className="space-y-3 pt-4 border-t border-[#2c2d34]/60 text-left">
+                <div className="flex justify-between items-center">
+                  <div className="flex items-center gap-2 text-emerald-450">
+                    <CheckSquare className="h-4.5 w-4.5" />
+                    <input
+                      type="text"
+                      value={checklistTitle}
+                      onChange={e => handleSaveChecklistTitle(e.target.value)}
+                      className="bg-transparent border-none text-xs font-bold text-zinc-200 focus:bg-[#16161c] focus:outline-none px-2 py-0.5 rounded-lg w-64"
+                      placeholder="Título de Checklist"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleDeleteChecklist}
+                    className="text-[10px] font-bold text-rose-500 hover:text-rose-400 hover:underline"
+                  >
+                    Eliminar
+                  </button>
                 </div>
 
-                {/* Evidence Lists */}
-                <div className="space-y-2">
-                  <h4 className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider font-mono">Entregas y Evidencias subidas</h4>
-                  {(task.evidence_urls || []).length === 0 ? (
-                    <div className="py-4 text-center text-zinc-650 text-xs italic">
-                      No se han subido archivos de evidencia para esta tarea.
+                {/* Progress bar */}
+                <div className="flex items-center gap-3">
+                  <span className="text-[10px] font-mono text-zinc-400 font-bold w-6 text-right">{checklistProgress}%</span>
+                  <div className="flex-1 h-1.5 bg-[#16161c] rounded-full overflow-hidden border border-[#2c2d34]/60">
+                    <div 
+                      className="h-full bg-emerald-500 transition-all duration-300" 
+                      style={{ width: `${checklistProgress}%` }}
+                    />
+                  </div>
+                </div>
+
+                {/* Checklist Items list */}
+                <div className="space-y-1">
+                  {localSubtasks.map(sub => (
+                    <div key={sub.id} className="flex items-center justify-between group py-0.5">
+                      <div className="flex items-center gap-2.5 flex-1 min-w-0">
+                        <input
+                          type="checkbox"
+                          checked={sub.completed}
+                          onChange={() => handleToggleSubtaskItem(sub.id)}
+                          className="rounded border-[#2c2d34]/60 bg-[#16161c] text-emerald-600 focus:ring-emerald-500/20 h-4 w-4 cursor-pointer"
+                        />
+                        <input
+                          type="text"
+                          value={sub.title}
+                          onChange={e => {
+                            const next = localSubtasks.map(s => s.id === sub.id ? { ...s, title: e.target.value } : s);
+                            setLocalSubtasks(next);
+                          }}
+                          onBlur={() => handleSaveSubtasks(localSubtasks)}
+                          className={`bg-transparent border-none text-xs text-zinc-300 focus:bg-[#16161c] focus:outline-none px-2 py-0.5 rounded-lg flex-1 min-w-0 ${
+                            sub.completed ? 'line-through text-zinc-500' : ''
+                          }`}
+                        />
+                      </div>
+                      <button 
+                        type="button"
+                        onClick={() => handleDeleteSubtaskItem(sub.id)}
+                        className="p-1 text-zinc-500 hover:text-rose-400 transition-colors opacity-0 group-hover:opacity-100"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
                     </div>
-                  ) : (
-                    (task.evidence_urls || []).map((url, i) => {
-                      let filename = `Archivo_${i + 1}`;
-                      let extension = '';
-                      let mimeType = '';
-                      
-                      const match = url.match(/\/api\/storage\/file\/([a-f0-9-]+)/i);
-                      const fileId = match ? match[1] : null;
-                      const docInfo = fileId ? documentMap[fileId] : null;
-                      
-                      if (docInfo) {
-                        filename = docInfo.name;
-                        mimeType = docInfo.mime_type;
-                      } else {
-                        try {
-                          if (url.startsWith('/api/storage/file/')) {
-                            const urlObj = new URL(url, typeof window !== 'undefined' ? window.location.origin : 'http://localhost');
-                            const nameParam = urlObj.searchParams.get('name');
-                            if (nameParam) filename = nameParam;
-                          } else {
-                            filename = url.split('/').pop() || filename;
-                          }
-                        } catch (e) {
+                  ))}
+                </div>
+
+                {/* Add item interface */}
+                {addingChecklistItem ? (
+                  <form onSubmit={handleConfirmAddChecklistItem} className="space-y-2 pl-6">
+                    <input
+                      type="text"
+                      value={newChecklistItemTitle}
+                      onChange={e => setNewChecklistItemTitle(e.target.value)}
+                      placeholder="Añadir un elemento..."
+                      className="w-full bg-[#16161c] border border-[#2c2d34]/60 rounded-xl p-2 text-xs text-white focus:outline-none focus:border-emerald-500"
+                      autoFocus
+                    />
+                    <div className="flex gap-2">
+                      <Button type="submit" className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold h-8 text-xs px-3 rounded-lg">
+                        Añadir
+                      </Button>
+                      <Button 
+                        type="button" 
+                        variant="ghost" 
+                        onClick={() => {
+                          setAddingChecklistItem(false);
+                          setNewChecklistItemTitle('');
+                        }}
+                        className="text-zinc-500 h-8 text-xs px-3 rounded-lg"
+                      >
+                        Cancelar
+                      </Button>
+                    </div>
+                  </form>
+                ) : (
+                  <div className="pl-6">
+                    <button
+                      type="button"
+                      onClick={() => setAddingChecklistItem(true)}
+                      className="text-xs font-bold text-zinc-400 hover:text-white bg-[#2c2d34] border border-[#3e3f4a] hover:bg-[#383948] px-3 py-1.5 rounded-lg transition-colors"
+                    >
+                      Añadir un elemento
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Attachments Section */}
+            {task.evidence_urls && task.evidence_urls.length > 0 && (
+              <div className="space-y-3 pt-4 border-t border-[#2c2d34]/60 text-left">
+                <div className="flex items-center gap-2 text-zinc-400">
+                  <Paperclip className="h-4.5 w-4.5" />
+                  <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider font-mono">Adjuntos</span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {task.evidence_urls.map((url, i) => {
+                    let filename = `Archivo_${i + 1}`;
+                    let extension = '';
+                    let mimeType = '';
+                    
+                    const match = url.match(/\/api\/storage\/file\/([a-f0-9-]+)/i);
+                    const fileId = match ? match[1] : null;
+                    const docInfo = fileId ? documentMap[fileId] : null;
+                    
+                    if (docInfo) {
+                      filename = docInfo.name;
+                      mimeType = docInfo.mime_type;
+                    } else {
+                      try {
+                        if (url.startsWith('/api/storage/file/')) {
+                          const urlObj = new URL(url, typeof window !== 'undefined' ? window.location.origin : 'http://localhost');
+                          const nameParam = urlObj.searchParams.get('name');
+                          if (nameParam) filename = nameParam;
+                        } else {
                           filename = url.split('/').pop() || filename;
                         }
+                      } catch (e) {
+                        filename = url.split('/').pop() || filename;
                       }
-                      
-                      extension = filename.split('.').pop()?.toLowerCase() || '';
-                      const isImage = ['png', 'jpg', 'jpeg', 'webp', 'gif'].includes(extension) || mimeType.startsWith('image/');
+                    }
+                    
+                    extension = filename.split('.').pop()?.toLowerCase() || '';
+                    const isImage = ['png', 'jpg', 'jpeg', 'webp', 'gif'].includes(extension) || mimeType.startsWith('image/');
 
-                      return (
-                        <div key={i} className="flex flex-col gap-2 bg-zinc-900/20 border border-zinc-900 p-3 rounded-xl">
-                          <div className="flex justify-between items-center">
-                            <a 
-                              href={getDownloadUrl(url)} 
-                              target="_blank" 
-                              rel="noopener noreferrer" 
-                              className="flex items-center gap-2 hover:text-emerald-400 transition-colors text-left"
-                            >
-                              <FileText className="h-4 w-4 text-zinc-550 shrink-0" />
-                              <span className="font-bold text-xs text-zinc-650 dark:text-zinc-350 truncate max-w-sm">{filename}</span>
-                            </a>
-                            <span className="text-[9px] font-mono text-zinc-550 uppercase">
-                              {extension || 'DOC'}
-                            </span>
+                    return (
+                      <div key={i} className="flex gap-2.5 bg-[#16161c] border border-[#2c2d34]/60 p-3 rounded-xl relative group">
+                        {isImage ? (
+                          <div className="h-14 w-20 rounded bg-[#25262c] overflow-hidden shrink-0 border border-[#2c2d34]/60">
+                            <img src={getDownloadUrl(url)} alt={filename} className="h-full w-full object-cover" />
                           </div>
-                          {isImage && (
-                            <div className="mt-1 border border-zinc-200 dark:border-zinc-900 rounded-lg overflow-hidden max-w-xs bg-zinc-950/40">
-                              <img src={getDownloadUrl(url)} alt={filename} className="w-full h-auto max-h-40 object-contain" />
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Tab: Asignaciones (Subtareas) */}
-            {activeTab === 'subtareas' && (
-              <div className="space-y-4">
-                
-                {/* Form to add subtask */}
-                <form onSubmit={handleAddSubtask} className="flex gap-2 items-center bg-zinc-50/60 dark:bg-zinc-900/60 p-2 rounded-xl border border-zinc-200 dark:border-zinc-800">
-                  <input
-                    type="text"
-                    value={newSubtask}
-                    onChange={e => setNewSubtask(e.target.value)}
-                    placeholder="Agregar una nueva asignación o subtarea..."
-                    className="flex-1 bg-transparent text-xs focus:outline-none text-zinc-800 dark:text-zinc-200 px-2"
-                  />
-                  <button type="submit" className="p-2 rounded-lg bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 font-bold transition-colors">
-                    <Plus className="h-3.5 w-3.5" />
-                  </button>
-                </form>
-
-                {/* Subtask list */}
-                <div className="space-y-2">
-                  {((task as any).subtasks || []).length === 0 ? (
-                    <div className="py-8 text-center text-zinc-650 flex flex-col items-center gap-1.5">
-                      <CheckSquare className="h-6 w-6 opacity-30" />
-                      <span className="text-xs">No hay asignaciones/subtareas registradas.</span>
-                    </div>
-                  ) : (
-                    ((task as any).subtasks || []).map((sub: any) => (
-                      <div key={sub.id} className="flex items-center justify-between bg-zinc-900/20 border border-zinc-200 dark:border-zinc-900 p-3 rounded-xl">
-                        <div className="flex items-center gap-3">
-                          <button
-                            onClick={() => handleToggleSubtask(sub.id)}
-                            className="text-zinc-500 hover:text-emerald-400 transition-colors cursor-pointer shrink-0"
+                        ) : (
+                          <div className="h-14 w-20 rounded bg-[#25262c] flex items-center justify-center text-xs text-zinc-400 font-bold shrink-0 border border-[#2c2d34]/60">
+                            {extension.toUpperCase() || 'DOC'}
+                          </div>
+                        )}
+                        <div className="flex-1 min-w-0 text-left flex flex-col justify-center">
+                          <a 
+                            href={getDownloadUrl(url)} 
+                            target="_blank" 
+                            rel="noopener noreferrer" 
+                            className="font-bold text-xs text-zinc-300 hover:text-emerald-450 hover:underline truncate block"
                           >
-                            {sub.completed ? (
-                              <CheckSquare className="h-4.5 w-4.5 text-emerald-400" />
-                            ) : (
-                              <Square className="h-4.5 w-4.5" />
-                            )}
-                          </button>
-                          <span className={`text-xs${sub.completed ? 'line-through text-zinc-500' : 'text-zinc-700 dark:text-zinc-300'}`}>
-                            {sub.title}
-                          </span>
+                            {filename}
+                          </a>
+                          <span className="text-[9px] text-zinc-550 font-mono mt-0.5">Adjuntado</span>
                         </div>
-                        <button onClick={() => handleDeleteSubtask(sub.id)} className="p-1 text-zinc-550 hover:text-rose-450 transition-colors">
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteAttachment(url)}
+                          className="p-1 text-zinc-500 hover:text-rose-500 transition-colors absolute top-2 right-2 opacity-0 group-hover:opacity-100"
+                        >
                           <Trash2 className="h-3.5 w-3.5" />
                         </button>
                       </div>
-                    ))
-                  )}
+                    );
+                  })}
                 </div>
               </div>
             )}
 
-            {/* Tab: Actividad (Auditoría & Mi Trabajo) */}
-            {activeTab === 'actividad' && (
-              <div className="space-y-4">
-                
-                {/* User Info Stats Summary */}
-                <div className="p-4 rounded-xl border border-zinc-200 dark:border-zinc-900 bg-zinc-900/20 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 text-left">
-                  <div className="text-left">
-                    <h5 className="font-bold text-xs text-zinc-800 dark:text-white">Historial de Actividad de la Tarea</h5>
-                    <p className="text-[10px] text-zinc-550">Resumen de todas las acciones registradas en la tarea.</p>
-                  </div>
-                  <div className="bg-emerald-600/10 text-emerald-400 font-bold border border-emerald-500/20 px-3 py-1 rounded-lg text-xs font-mono">
-                    {activities.length} acciones totales
-                  </div>
-                </div>
+            {/* Tags section */}
+            <div className="space-y-2 pt-2 text-left">
+              <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider font-mono block">Etiquetas</span>
+              <input 
+                type="text" 
+                value={tagInput}
+                onChange={e => setTagInput(e.target.value)}
+                onKeyDown={handleAddTag}
+                placeholder="Presiona Enter para agregar..."
+                className="w-full bg-[#16161c] border border-[#2c2d34]/60 rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-emerald-500 focus:bg-[#121217]" 
+              />
+              <div className="flex flex-wrap gap-1.5 mt-2">
+                {tags.map((t, idx) => (
+                  <span key={idx} className="bg-[#2c2d34] border border-[#3e3f4a] text-zinc-300 text-xs px-2.5 py-1 rounded-lg flex items-center gap-1.5 font-semibold">
+                    {t}
+                    <X className="h-3 w-3 text-zinc-500 hover:text-white cursor-pointer" onClick={() => handleRemoveTag(t)} />
+                  </span>
+                ))}
+              </div>
+            </div>
 
-                {/* Combined activity feed log */}
-                <div className="relative border-l border-zinc-200 dark:border-zinc-900 pl-4 space-y-5 py-2">
-                  {activities.length === 0 ? (
-                    <div className="text-zinc-650 text-xs italic pl-2 py-4">
-                      No hay registros de actividad en esta tarea.
-                    </div>
-                  ) : (
-                    activities.map((act: any) => {
-                      const isCurrentUser = act.profile_id === user?.id;
-                      return (
-                        <div key={act.id} className="relative group text-left">
-                          {/* Timeline dot */}
-                          <span className={`absolute -left-[21px] top-1 h-2.5 w-2.5 rounded-full border${
-                            isCurrentUser 
-                              ? 'bg-emerald-400 border-emerald-500/20' 
-                              : 'bg-zinc-100 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700'
-                          }`} />
-                          
-                          <div className="space-y-0.5">
-                            <div className="flex items-center gap-2">
-                              <span className="text-xs font-bold text-zinc-800 dark:text-zinc-200">
-                                {isCurrentUser ? 'Tú' : act.user_name}
-                              </span>
-                              <span className="text-[9px] font-bold uppercase px-1.5 py-0.2 rounded-sm bg-white dark:bg-zinc-900 text-zinc-500 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-800 font-mono">
-                                {act.action}
-                              </span>
-                              <span className="text-[9px] text-zinc-550 font-mono">
-                                {act.created_at ? new Date(act.created_at).toLocaleString() : ''}
-                              </span>
-                            </div>
-                            <p className="text-xs text-zinc-500">{act.details}</p>
-                          </div>
+            {/* Auditoria Section */}
+            {task.requires_audit && (
+              <div className="bg-[#16161c] border border-[#2c2d34]/60 rounded-2xl p-5 space-y-4 text-left">
+                <div className="flex justify-between items-center">
+                  <div className="flex items-center gap-2">
+                    <AlertCircle className="h-4 w-4 text-amber-400" />
+                    <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider font-mono">Auditoría del Líder</span>
+                  </div>
+                  <span className={`text-[10px] font-bold uppercase border px-2.5 py-0.5 rounded-full ${
+                    task.audit_status === 'aceptado' ? 'bg-emerald-950/40 text-emerald-400 border-emerald-800' :
+                    task.audit_status === 'denegado' ? 'bg-rose-950/40 text-rose-400 border-rose-800' :
+                    task.audit_status === 'requiere_revision' ? 'bg-amber-950/40 text-amber-400 border-amber-800' :
+                    'bg-[#2c2d34] text-zinc-400 border-[#3e3f4a]'
+                  }`}>
+                    {task.audit_status === 'pendiente' ? 'Pendiente' : 
+                     task.audit_status === 'aceptado' ? 'Aprobado' : 
+                     task.audit_status === 'denegado' ? 'Rechazado' : 
+                     task.audit_status === 'requiere_revision' ? 'Cambios Solicitados' : task.audit_status}
+                  </span>
+                </div>
+                {task.audit_comments && (
+                  <div className="bg-amber-500/5 border border-amber-500/10 p-3 rounded-xl space-y-1">
+                    <span className="text-[9px] font-bold text-amber-400 font-mono uppercase">Instrucciones:</span>
+                    <p className="text-zinc-350 text-xs leading-relaxed">{task.audit_comments}</p>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Right Column: Unified Comments & Activities Chat */}
+          <div className="w-full md:w-96 flex flex-col min-h-0 bg-[#17171d]/20 border-l border-zinc-200 dark:border-[#2c2d34]/60">
+            <div className="p-4 border-b border-[#2c2d34]/60 flex items-center justify-between bg-zinc-900/10 shrink-0">
+              <div className="flex items-center gap-2 text-zinc-350">
+                <MessageSquare className="h-4.5 w-4.5 text-emerald-400" />
+                <span className="text-xs font-mono font-bold uppercase tracking-wider">Comentarios y Actividad</span>
+              </div>
+              <button 
+                type="button" 
+                onClick={() => setShowActivityDetails(!showActivityDetails)}
+                className="text-[10px] font-bold text-emerald-500 hover:text-emerald-400 uppercase tracking-widest font-mono transition-colors"
+              >
+                {showActivityDetails ? 'Ocultar detalles' : 'Mostrar detalles'}
+              </button>
+            </div>
+
+            {/* Chat list */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-4 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+              {filteredFeed.length === 0 ? (
+                <div className="py-12 text-center text-zinc-600 flex flex-col items-center gap-2">
+                  <MessageSquare className="h-8 w-8 opacity-20" />
+                  <span className="text-xs">No hay actividad o comentarios en esta tarea.</span>
+                </div>
+              ) : (
+                filteredFeed.map((item: any) => {
+                  if (item.type === 'comment') {
+                    return (
+                      <div key={item.id} className="flex gap-3 bg-[#1e1e24] border border-[#2c2d34]/60 p-3 rounded-xl relative group">
+                        <div className="h-7 w-7 rounded-full bg-emerald-600 flex items-center justify-center text-[10px] font-bold text-white shrink-0">
+                          {item.user_name?.charAt(0).toUpperCase() || 'U'}
                         </div>
-                      );
-                    })
-                  )}
-                </div>
-              </div>
-            )}
+                        <div className="flex-1 min-w-0 text-left">
+                          <div className="flex justify-between items-baseline">
+                            <span className="text-xs font-bold text-zinc-200">{item.user_name}</span>
+                            <span className="text-[9px] text-zinc-550 font-mono">
+                              {item.created_at ? new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
+                            </span>
+                          </div>
+                          <p className="text-zinc-400 text-xs mt-1 leading-relaxed">{item.text}</p>
+                          
+                          {item.attachment_url && (
+                            <div className="mt-2 flex items-center gap-2 bg-[#16161c] border border-[#2c2d34]/60 p-2 rounded-lg relative group/file">
+                              <FileText className="h-4 w-4 text-emerald-400 shrink-0" />
+                              <span className="text-[10px] text-zinc-350 truncate flex-1 select-all">{item.attachment_url.split('name=').pop() || 'archivo'}</span>
+                              <button 
+                                type="button" 
+                                onClick={() => handleDeleteCommentAttachment(item.id, item.attachment_url)}
+                                className="p-1 text-zinc-500 hover:text-rose-500 transition-colors absolute top-1 right-1 opacity-0 group-hover/file:opacity-100"
+                              >
+                                <Trash2 className="h-3 w-3" />
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  } else {
+                    // System activity row
+                    return (
+                      <div key={item.id} className="flex gap-3 px-2 text-left">
+                        <div className="h-6 w-6 rounded-full bg-[#2c2d34] border border-[#3c3d47] flex items-center justify-center text-[8.5px] font-bold text-zinc-400 shrink-0">
+                          {item.user_name?.charAt(0).toUpperCase() || 'S'}
+                        </div>
+                        <div className="flex-1 min-w-0 text-[10px] text-zinc-450 leading-relaxed">
+                          <span className="font-bold text-zinc-300">{item.user_name} </span>
+                          <span>{item.action.toLowerCase()}: </span>
+                          <span className="text-zinc-400 italic">{item.details}</span>
+                          <span className="text-[9px] text-zinc-550 font-mono block mt-0.5">
+                            {item.created_at ? new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  }
+                })
+              )}
+            </div>
 
+            {/* Chat comment/file input */}
+            <form onSubmit={handleConfirmAddComment} className="p-3 border-t border-[#2c2d34]/60 bg-zinc-900/10 shrink-0 flex items-center gap-2">
+              <label className="p-2 bg-[#2c2d34] border border-[#3e3f4a] text-zinc-400 hover:text-white rounded-lg transition-colors cursor-pointer shrink-0" title="Subir archivo al chat">
+                {uploadingFile ? (
+                  <RefreshCw className="h-4 w-4 animate-spin text-emerald-450" />
+                ) : (
+                  <Paperclip className="h-4 w-4" />
+                )}
+                <input 
+                  type="file" 
+                  className="hidden" 
+                  disabled={uploadingFile}
+                  onChange={e => handleUploadFileFromChat(e.target.files)} 
+                />
+              </label>
+              <input
+                type="text"
+                value={chatCommentText}
+                onChange={e => setChatCommentText(e.target.value)}
+                placeholder="Escribe un comentario..."
+                className="flex-1 bg-[#16161c] border border-[#2c2d34]/60 rounded-lg text-xs text-white px-3 py-2 focus:outline-none focus:border-emerald-500 focus:bg-[#121217] transition-all"
+              />
+              <button 
+                type="submit" 
+                disabled={!chatCommentText.trim()}
+                className="p-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold transition-all shrink-0 cursor-pointer"
+              >
+                <Send className="h-3.5 w-3.5" />
+              </button>
+            </form>
           </div>
         </div>
 
