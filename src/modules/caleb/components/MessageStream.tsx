@@ -28,19 +28,20 @@ export default function MessageStream({
   messagesEndRef
 }: MessageStreamProps) {
   return (
-    <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-5 bg-zinc-50 dark:bg-[#161618] scrollbar-thin scrollbar-thumb-zinc-800 flex flex-col justify-start relative">
-      {messages.length === 0 && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center p-8 text-center select-none pointer-events-none">
-          <div className="h-16 w-16 rounded-2xl bg-emerald-600/10 text-emerald-400 border border-emerald-500/25 flex items-center justify-center mb-4 animate-pulse">
-            <Bot className="h-8 w-8" />
+    <div className="flex-1 overflow-y-auto p-4 md:p-6 bg-zinc-50/40 dark:bg-[#111112] scrollbar-thin scrollbar-thumb-zinc-800 flex flex-col justify-start relative">
+      <div className="w-full max-w-3xl mx-auto flex-1 flex flex-col justify-start space-y-6 pb-6 relative">
+        {messages.length === 0 && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center p-8 text-center select-none pointer-events-none">
+            <div className="h-16 w-16 rounded-2xl bg-emerald-600/10 text-emerald-450 border border-emerald-500/20 flex items-center justify-center mb-4 animate-pulse">
+              <Bot className="h-8 w-8" />
+            </div>
+            <h2 className="text-2xl font-black text-zinc-800 dark:text-zinc-100 tracking-wide" style={{ fontFamily: "'Outfit', sans-serif" }}>Caleb IA</h2>
+            <p className="text-xs text-zinc-500 max-w-xs mt-2.5 leading-relaxed font-medium">
+              Asistente de Inteligencia Artificial para el control de obras, inventario y tareas operativas.
+            </p>
           </div>
-          <h2 className="text-xl font-bold text-zinc-800 dark:text-zinc-105 tracking-wide">Caleb AI</h2>
-          <p className="text-xs text-zinc-550 max-w-xs mt-2 leading-relaxed">
-            Asistente de Inteligencia Artificial para el control de obras, inventario y tareas operativas.
-          </p>
-        </div>
-      )}
-      {messages.map((msg, idx) => {
+        )}
+        {messages.map((msg, idx) => {
         const isLatestEmptyCaleb = msg.role === 'caleb' && msg.text === '' && idx === messages.length - 1;
         if (isLatestEmptyCaleb && loading) {
           return (
@@ -67,14 +68,14 @@ export default function MessageStream({
         return (
           <div key={idx} className={`flex space-x-3 ${msg.role === 'user' ? 'justify-end' : 'justify-start'} items-start`}>
             {msg.role === 'caleb' && (
-              <div className="h-9 w-9 rounded-xl bg-emerald-950/80 border border-emerald-800 flex items-center justify-center text-emerald-400 font-bold shrink-0 text-sm">
+              <div className="h-9 w-9 rounded-none bg-emerald-950/80 border border-emerald-800 flex items-center justify-center text-emerald-400 font-bold shrink-0 text-sm">
                 C
               </div>
             )}
-            <div className={`max-w-[85%] md:max-w-2xl p-4.5 rounded-2xl text-sm leading-relaxed border ${
+            <div className={`max-w-[85%] md:max-w-2xl p-4.5 rounded-none text-sm leading-relaxed border ${
               msg.role === 'user'
                 ? 'bg-emerald-600 border-emerald-500/20 text-white'
-                : 'bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 text-zinc-800 dark:text-zinc-100'
+                : 'bg-white dark:bg-[#1a1a1f] border-zinc-200 dark:border-zinc-800/80 text-zinc-800 dark:text-zinc-100'
             }`}>
               {/* Caleb parsed response layout */}
               {msg.role === 'caleb' ? (
@@ -84,21 +85,21 @@ export default function MessageStream({
                       return (
                         <details 
                           key={bIdx} 
-                          className="bg-zinc-105 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-850 rounded-xl p-3 my-2 text-xs font-sans text-zinc-500 dark:text-zinc-400"
+                          className="bg-zinc-100 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-none p-3 my-2 text-xs font-sans text-zinc-500 dark:text-zinc-400"
                           open
                         >
                           <summary className="cursor-pointer font-bold select-none outline-none flex items-center gap-1.5 text-zinc-650 dark:text-zinc-300">
                             <Brain className="h-3.5 w-3.5 text-emerald-400" />
                             <span>Razonamiento / Proceso interno</span>
                           </summary>
-                          <div className="mt-2.5 whitespace-pre-wrap font-mono leading-relaxed border-t border-zinc-200 dark:border-zinc-850 pt-2 text-[11px] text-zinc-500">
+                          <div className="mt-2.5 whitespace-pre-wrap font-mono leading-relaxed border-t border-zinc-250 dark:border-zinc-800 pt-2 text-[11px] text-zinc-500">
                             {block.content.trim()}
                           </div>
                         </details>
                       );
                     } else if (block.type === 'tool') {
                       return (
-                        <div key={bIdx} className="flex items-center gap-2 p-2 rounded-lg bg-zinc-100/60 dark:bg-zinc-900/60 border border-zinc-200/50 dark:border-zinc-800/50 text-[11px] font-mono text-zinc-500 dark:text-zinc-400 my-1">
+                        <div key={bIdx} className="flex items-center gap-2 p-2 rounded-none bg-zinc-100/60 dark:bg-zinc-900/60 border border-zinc-200/50 dark:border-zinc-800/50 text-[11px] font-mono text-zinc-500 dark:text-zinc-400 my-1">
                           <span className="inline-flex h-2 w-2 rounded-full bg-amber-500 shrink-0" />
                           <span className="font-semibold">{block.content}</span>
                         </div>
@@ -115,11 +116,10 @@ export default function MessageStream({
               ) : (
                 <div className="whitespace-pre-wrap font-sans text-white">{msg.text}</div>
               )}
-
               {/* Render images ONLY if IA decides to output them using Markdown Image Syntax ![alt](url) */}
               {markdownImages.map((img, imgIdx) => (
-                <div key={imgIdx} className="mt-3 rounded-xl overflow-hidden border border-zinc-200 dark:border-zinc-850 bg-black/5 dark:bg-black/20 max-w-sm">
-                  <div className="bg-zinc-100 dark:bg-zinc-900 px-3 py-1.5 text-[10px] text-zinc-500 font-bold border-b border-zinc-200 dark:border-zinc-850 truncate flex items-center gap-1.5">
+                <div key={imgIdx} className="mt-3 rounded-none overflow-hidden border border-zinc-200 dark:border-zinc-800 bg-black/5 dark:bg-black/20 max-w-sm">
+                  <div className="bg-zinc-105 dark:bg-zinc-900 px-3 py-1.5 text-[10px] text-zinc-500 font-bold border-b border-zinc-200 dark:border-zinc-800 truncate flex items-center gap-1.5 rounded-none">
                     <Terminal className="h-3 w-3 text-emerald-400" /> Vista previa: {img.alt}
                   </div>
                   <img 
@@ -137,7 +137,7 @@ export default function MessageStream({
               {markdownFiles.map((file, fIdx) => (
                 <div key={fIdx} className="mt-3 space-y-2 max-w-sm">
                   {isImageFile(file.name) && (
-                    <div className="rounded-xl overflow-hidden border border-zinc-200 dark:border-zinc-855 bg-black/5 dark:bg-black/20">
+                    <div className="rounded-none overflow-hidden border border-zinc-200 dark:border-zinc-800 bg-black/5 dark:bg-black/20">
                       <img 
                         src={file.url} 
                         alt={file.name} 
@@ -145,18 +145,18 @@ export default function MessageStream({
                       />
                     </div>
                   )}
-                  <div className="flex items-center justify-between p-3 rounded-xl bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-850 text-zinc-800 dark:text-zinc-200 shadow-sm">
+                  <div className="flex items-center justify-between p-3 rounded-none bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 text-zinc-850 dark:text-zinc-200 shadow-sm">
                     <div className="flex items-center space-x-3 overflow-hidden">
                       <FileText className="h-7 w-7 text-emerald-500 shrink-0" />
                       <div className="text-left overflow-hidden">
                         <div className="text-xs font-bold truncate">{file.name}</div>
-                        <div className="text-[9px] text-zinc-500 truncate">ID: {file.id.substring(0, 8)}...</div>
+                        <div className="text-[9px] text-zinc-500 truncate font-semibold">ID: {file.id.substring(0, 8)}...</div>
                       </div>
                     </div>
                     <a
                       href={file.url}
                       download={file.name}
-                      className="ml-4 shrink-0 flex items-center justify-center p-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white transition-colors cursor-pointer"
+                      className="ml-4 shrink-0 flex items-center justify-center p-2 rounded-none bg-emerald-600 hover:bg-emerald-700 text-white transition-colors cursor-pointer"
                       title="Descargar archivo"
                     >
                       <Download className="h-3.5 w-3.5" />
@@ -169,7 +169,7 @@ export default function MessageStream({
               {msg.role === 'user' && msg.attachment && (
                 <div className="mt-3 space-y-2 max-w-sm">
                   {isImageFile(msg.attachment.name) && (
-                    <div className="rounded-xl overflow-hidden border border-zinc-200 dark:border-zinc-800 bg-black/5 dark:bg-black/20">
+                    <div className="rounded-none overflow-hidden border border-zinc-200 dark:border-zinc-800 bg-black/5 dark:bg-black/20">
                       <img 
                         src={getApiUrl(`/api/storage/file/${msg.attachment.id}?name=${encodeURIComponent(msg.attachment.name)}`)}
                         alt={msg.attachment.name} 
@@ -178,19 +178,19 @@ export default function MessageStream({
                     </div>
                   )}
                   <div 
-                    className="flex items-center justify-between p-3 rounded-xl bg-zinc-50 dark:bg-zinc-950 border border-zinc-250 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 shadow-sm"
+                    className="flex items-center justify-between p-3 rounded-none bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 shadow-sm"
                   >
                     <div className="flex items-center space-x-3 overflow-hidden">
-                      <FileText className="h-7 w-7 text-zinc-550 shrink-0" />
+                      <FileText className="h-7 w-7 text-zinc-500 shrink-0" />
                       <div className="text-left overflow-hidden">
                         <div className="text-xs font-semibold truncate">{msg.attachment.name}</div>
-                        <div className="text-[9px] text-zinc-555 truncate">ID: {msg.attachment.id.substring(0, 8)}...</div>
+                        <div className="text-[9px] text-zinc-500 truncate font-semibold">ID: {msg.attachment.id.substring(0, 8)}...</div>
                       </div>
                     </div>
                     <a
                       href={getApiUrl(`/api/storage/file/${msg.attachment.id}?name=${encodeURIComponent(msg.attachment.name)}`)}
                       download={msg.attachment.name}
-                      className="ml-4 shrink-0 flex items-center justify-center p-2 rounded-lg bg-zinc-200 hover:bg-zinc-350 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-200 transition-colors cursor-pointer"
+                      className="ml-4 shrink-0 flex items-center justify-center p-2 rounded-none bg-zinc-200 hover:bg-zinc-300 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-705 dark:text-zinc-200 transition-colors cursor-pointer"
                       title="Descargar archivo"
                     >
                       <Download className="h-3.5 w-3.5" />
@@ -207,6 +207,7 @@ export default function MessageStream({
         );
       })}
       <div ref={messagesEndRef} />
+      </div>
     </div>
   );
 }

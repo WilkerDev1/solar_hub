@@ -38,8 +38,8 @@ export default function ChatSidebar({
       className={`
         ${mobileSidebarOpen ? 'translate-x-0' : '-translate-x-full'} 
         md:translate-x-0 fixed md:static inset-y-0 left-0 w-80 
-        bg-zinc-100 dark:bg-zinc-950 border-r border-zinc-200 dark:border-zinc-800 
-        flex flex-col shrink-0 z-50 transition-transform duration-300 ease-in-out h-full
+        bg-zinc-100 dark:bg-[#1e1e24] border-r border-zinc-200 dark:border-zinc-800/80 
+        flex flex-col shrink-0 z-50 transition-transform duration-300 ease-in-out h-full rounded-none
       `}
     >
       {/* Resize Handle (Desktop Only) */}
@@ -50,11 +50,11 @@ export default function ChatSidebar({
         />
       )}
       {/* Sidebar Header */}
-      <div className="p-4 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between bg-zinc-200/20 dark:bg-zinc-950/20 h-14">
-        <span className="text-xs font-bold text-zinc-550 uppercase tracking-wider">Historial de Chats</span>
+      <div className="p-4 border-b border-zinc-200 dark:border-zinc-800/80 flex items-center justify-between bg-zinc-200/20 dark:bg-zinc-900/10 h-14 rounded-none">
+        <span className="text-xs font-bold text-zinc-550 dark:text-zinc-400 uppercase tracking-wider">Historial de Chats</span>
         <button
           onClick={handleNewSession}
-          className="flex items-center space-x-1 px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white transition-all cursor-pointer shadow-sm active:scale-95"
+          className="flex items-center space-x-1 px-3 py-1.5 rounded-none text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white transition-all cursor-pointer shadow-sm active:scale-95"
           title="Nueva Conversación"
         >
           <Plus className="h-3.5 w-3.5" />
@@ -63,7 +63,7 @@ export default function ChatSidebar({
       </div>
 
       {/* Sessions List */}
-      <div className="flex-1 overflow-y-auto p-3 space-y-1 scrollbar-thin scrollbar-thumb-zinc-800">
+      <div className="flex-1 overflow-y-auto p-2 space-y-1.5 scrollbar-thin scrollbar-thumb-zinc-800 rounded-none">
         {sessions.map((s) => {
           const isActive = s.id === activeSessionId;
           return (
@@ -73,10 +73,10 @@ export default function ChatSidebar({
                 setActiveSessionId(s.id);
                 setMobileSidebarOpen(false);
               }}
-              className={`group flex items-center justify-between p-3 rounded-xl cursor-pointer transition-all border ${
+              className={`group flex items-center justify-between p-3 rounded-none cursor-pointer transition-all border-l-4 ${
                 isActive 
-                  ? 'bg-emerald-600/10 text-emerald-400 border-emerald-500/20 font-semibold' 
-                  : 'bg-transparent text-zinc-400 hover:bg-zinc-850/50 border-transparent hover:text-zinc-200'
+                  ? 'bg-zinc-200/50 dark:bg-zinc-800/30 text-emerald-600 dark:text-emerald-450 border-emerald-500 font-semibold' 
+                  : 'bg-transparent text-zinc-550 dark:text-zinc-400 hover:bg-zinc-200/20 dark:hover:bg-zinc-800/20 border-transparent hover:text-zinc-200'
               }`}
             >
               <div className="flex items-center space-x-2.5 overflow-hidden">
@@ -96,7 +96,7 @@ export default function ChatSidebar({
       </div>
 
       {/* Connection status footer */}
-      <div className="p-4 border-t border-zinc-200 dark:border-zinc-800 bg-zinc-200/10 dark:bg-zinc-950/20 flex items-center justify-between text-[10px] uppercase font-bold text-zinc-500 shrink-0">
+      <div className="p-4 border-t border-zinc-200 dark:border-zinc-800/80 bg-zinc-205/10 dark:bg-zinc-900/10 flex items-center justify-between text-[10px] uppercase font-bold text-zinc-500 shrink-0 rounded-none">
         <div className="flex items-center space-x-2">
           <Shield className="h-3.5 w-3.5 text-emerald-500" />
           <span>Caleb Virtual Agent</span>
