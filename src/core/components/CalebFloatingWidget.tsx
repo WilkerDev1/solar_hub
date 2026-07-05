@@ -123,14 +123,25 @@ export default function CalebFloatingWidget() {
     if (saved) {
       try {
         const parsed = JSON.parse(saved) as ChatSession[];
-        if (parsed.length > 0) {
-          setSessions(parsed);
-          setActiveSessionId(prev => parsed.find(s => s.id === prev) ? prev : parsed[0].id);
+        // Clean legacy sessions containing only the default greeting message
+        const cleaned = parsed.map(s => {
+          if (s.messages.length === 1 && s.messages[0].role === 'caleb' && (
+            s.messages[0].text.includes('A la orden') ||
+            s.messages[0].text.includes('inicializado') ||
+            s.messages[0].text.includes('Estoy inicializado y listo')
+          )) {
+            return { ...s, messages: [] };
+          }
+          return s;
+        });
+        if (cleaned.length > 0) {
+          setSessions(cleaned);
+          setActiveSessionId(prev => cleaned.find(s => s.id === prev) ? prev : cleaned[0].id);
           return;
         }
       } catch (_) {}
     }
-    const def: ChatSession = { id: 'default-session-id', title: 'Nueva Conversación', createdAt: new Date().toISOString(), messages: [{ role: 'caleb', text: DEFAULT_GREETING, timestamp: new Date().toISOString() }] };
+    const def: ChatSession = { id: 'default-session-id', title: 'Nueva Conversación', createdAt: new Date().toISOString(), messages: [] };
     setSessions([def]); setActiveSessionId(def.id);
     localStorage.setItem(STORAGE_KEY, JSON.stringify([def]));
   }, []);
@@ -154,7 +165,7 @@ export default function CalebFloatingWidget() {
 
   const handleNewConversation = () => {
     const newId = `session-${Date.now()}`;
-    const ns: ChatSession = { id: newId, title: 'Nueva Conversación', createdAt: new Date().toISOString(), messages: [{ role: 'caleb', text: DEFAULT_GREETING, timestamp: new Date().toISOString() }] };
+    const ns: ChatSession = { id: newId, title: 'Nueva Conversación', createdAt: new Date().toISOString(), messages: [] };
     saveSessions([ns, ...sessions]); setActiveSessionId(newId);
   };
 
@@ -240,7 +251,18 @@ export default function CalebFloatingWidget() {
           </div>
 
           {/* Messages */}
-          <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-3 scrollbar-thin scrollbar-thumb-zinc-700 bg-[#1c1c21]">
+          <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-3 scrollbar-thin scrollbar-thumb-zinc-700 bg-[#1c1c21] flex flex-col justify-start relative">
+            {messages.length === 0 && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center select-none pointer-events-none">
+                <div className="h-12 w-12 rounded-xl bg-emerald-600/10 text-emerald-400 border border-emerald-500/25 flex items-center justify-center mb-3 animate-pulse">
+                  <Bot className="h-6 w-6" />
+                </div>
+                <h2 className="text-sm font-bold text-white tracking-wide">Caleb IA</h2>
+                <p className="text-[10px] text-zinc-500 max-w-[200px] mt-1.5 leading-relaxed">
+                  Asistente Virtual de Obra e Inventario
+                </p>
+              </div>
+            )}
             {messages.map((msg, idx) => {
               const isThinking = msg.role === 'caleb' && msg.text === '' && idx === messages.length - 1 && loading;
               if (isThinking) return (

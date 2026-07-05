@@ -69,9 +69,20 @@ export function useCaleb() {
       if (saved) {
         try {
           const parsed = JSON.parse(saved) as ChatSession[];
-          if (parsed.length > 0) {
-            setSessions(parsed);
-            setActiveSessionId(prev => parsed.find(s => s.id === prev) ? prev : parsed[0].id);
+          // Clean legacy sessions containing only the default greeting message
+          const cleaned = parsed.map(s => {
+            if (s.messages.length === 1 && s.messages[0].role === 'caleb' && (
+              s.messages[0].text.includes('A la orden') ||
+              s.messages[0].text.includes('inicializado') ||
+              s.messages[0].text.includes('Estoy inicializado y listo')
+            )) {
+              return { ...s, messages: [] };
+            }
+            return s;
+          });
+          if (cleaned.length > 0) {
+            setSessions(cleaned);
+            setActiveSessionId(prev => cleaned.find(s => s.id === prev) ? prev : cleaned[0].id);
           } else {
             initializeDefaultSession();
           }
