@@ -370,11 +370,11 @@ export default function CreateTaskModal({
                   </button>
 
                   {activePopover === 'priority' && (
-                    <div className="absolute right-0 mt-1.5 w-40 bg-[#25262c] border border-[#3c3d47] rounded-xl p-2 shadow-2xl z-50 flex flex-col gap-1">
+                    <div className="absolute left-0 bottom-full mb-1.5 w-40 bg-[#25262c] border border-[#3c3d47] rounded-xl p-2 shadow-2xl z-50 flex flex-col gap-1">
                       {[
                         { key: 'baja', label: 'Baja', color: 'text-zinc-400' },
                         { key: 'media', label: 'Media', color: 'text-yellow-400' },
-                        { key: 'alta', label: 'Alta', color: 'text-rose-400' }
+                        { key: 'alta', label: 'Alta', color: 'text-rose-455' }
                       ].map(item => (
                         <button
                           key={item.key}
@@ -408,7 +408,7 @@ export default function CreateTaskModal({
                   </button>
 
                   {activePopover === 'due_date' && (
-                    <div className="absolute right-0 mt-1.5 w-56 bg-[#25262c] border border-[#3c3d47] rounded-xl p-3 shadow-2xl z-50 flex flex-col gap-2">
+                    <div className="absolute right-0 bottom-full mb-1.5 w-56 bg-[#25262c] border border-[#3c3d47] rounded-xl p-3 shadow-2xl z-50 flex flex-col gap-2">
                       <label className="text-[10px] font-bold text-zinc-400 uppercase font-mono">Seleccionar Fecha</label>
                       <input
                         type="date"
@@ -452,7 +452,7 @@ export default function CreateTaskModal({
                   </button>
 
                   {activePopover === 'options' && (
-                    <div className="absolute right-0 mt-1.5 w-60 bg-[#25262c] border border-[#3c3d47] rounded-xl p-3.5 shadow-2xl z-50 flex flex-col gap-3">
+                    <div className="absolute right-0 bottom-full mb-1.5 w-60 bg-[#25262c] border border-[#3c3d47] rounded-xl p-3.5 shadow-2xl z-50 flex flex-col gap-3">
                       <div className="space-y-1.5">
                         <label className="text-[9px] font-bold text-zinc-400 uppercase font-mono block">Tipo de Tarea</label>
                         <div className="grid grid-cols-2 gap-1.5">
