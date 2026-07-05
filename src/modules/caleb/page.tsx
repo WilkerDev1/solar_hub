@@ -26,6 +26,7 @@ export default function CalebModule() {
         sidebarWidth={c.sidebarWidth}
         sidebarVisible={c.sidebarVisible}
         startResizing={c.startResizing}
+        sidebarRef={c.sidebarRef}
       />
 
       {/* MOBILE OVERLAY BACKGROUND */}

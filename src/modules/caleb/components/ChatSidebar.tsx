@@ -15,6 +15,7 @@ interface ChatSidebarProps {
   sidebarWidth: number;
   sidebarVisible: boolean;
   startResizing: (e: React.MouseEvent) => void;
+  sidebarRef?: React.RefObject<HTMLElement | null>;
 }
 
 export default function ChatSidebar({
@@ -27,10 +28,12 @@ export default function ChatSidebar({
   setMobileSidebarOpen,
   sidebarWidth,
   sidebarVisible,
-  startResizing
+  startResizing,
+  sidebarRef
 }: ChatSidebarProps) {
   return (
     <aside 
+      ref={sidebarRef as any}
       style={{
         width: typeof window !== 'undefined' && window.innerWidth >= 768 ? (sidebarVisible ? `${sidebarWidth}px` : '0px') : undefined,
         display: typeof window !== 'undefined' && window.innerWidth >= 768 && !sidebarVisible ? 'none' : undefined

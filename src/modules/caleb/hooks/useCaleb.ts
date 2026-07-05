@@ -30,8 +30,9 @@ export function useCaleb() {
 
   // Sidebar resizing and visibility states
   const [sidebarWidth, setSidebarWidth] = useState(280);
-  const [sidebarVisible, setSidebarVisible] = useState(true);
+  const [sidebarVisible, setSidebarVisible] = useState(false);
   const isResizing = useRef(false);
+  const sidebarRef = useRef<HTMLElement | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -45,8 +46,14 @@ export function useCaleb() {
 
   const handleSidebarMouseMove = (e: MouseEvent) => {
     if (!isResizing.current) return;
-    const newWidth = Math.max(200, Math.min(e.clientX - 10, 480)); // 200px min, 480px max
-    setSidebarWidth(newWidth);
+    const rect = sidebarRef.current?.getBoundingClientRect();
+    if (rect) {
+      const newWidth = Math.max(180, Math.min(e.clientX - rect.left, 480));
+      setSidebarWidth(newWidth);
+    } else {
+      const newWidth = Math.max(180, Math.min(e.clientX - 280, 480));
+      setSidebarWidth(newWidth);
+    }
   };
 
   const handleSidebarMouseUp = () => {
@@ -312,6 +319,7 @@ export function useCaleb() {
     sidebarWidth,
     sidebarVisible,
     setSidebarVisible,
+    sidebarRef,
     fileInputRef,
     messagesEndRef,
     messages,
