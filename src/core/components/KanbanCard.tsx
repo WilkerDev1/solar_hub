@@ -394,7 +394,7 @@ export default function KanbanCard({
     return (
       <div
         onClick={onClick}
-        className={`bg-zinc-850 border-t-4 ${borderAccentColor} border-l border-r border-b border-zinc-800 p-4 rounded-xl flex flex-col justify-between hover:border-zinc-700 transition-all select-none relative ${isCompleted ? 'opacity-65' : ''}`}
+        className={`bg-zinc-850 border-t-4 ${borderAccentColor} border-l border-r border-b border-zinc-800 p-4 rounded-none flex flex-col justify-between hover:border-zinc-500 transition-all select-none relative ${isCompleted ? 'opacity-65' : ''}`}
       >
         {cardInner}
       </div>
@@ -409,7 +409,7 @@ export default function KanbanCard({
           {...provided.draggableProps}
           {...provided.dragHandleProps}
           onClick={onClick}
-          className={`bg-zinc-850 border-t-4 ${borderAccentColor} border-l border-r border-b border-zinc-800 p-4 rounded-xl flex flex-col justify-between hover:border-zinc-700 transition-all select-none relative ${
+          className={`bg-zinc-850 border-t-4 ${borderAccentColor} border-l border-r border-b border-zinc-800 p-4 rounded-none flex flex-col justify-between hover:border-zinc-500 transition-all select-none relative ${
             snapshot.isDragging ? 'shadow-2xl border-emerald-500 bg-zinc-800 scale-[1.02]' : ''
           } ${isCompleted ? 'opacity-65' : ''}`}
         >
