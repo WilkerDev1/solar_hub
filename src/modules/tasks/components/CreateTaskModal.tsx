@@ -84,7 +84,7 @@ export default function CreateTaskModal({
       )}
 
       {/* Modal card body - bg-[#1e1e24] (gris claro) - no z-index to allow parent's z-30 backdrop to slip above its children */}
-      <div className="bg-[#1e1e24] border border-[#2c2d34]/60 rounded-2xl w-full max-w-lg max-h-[90vh] flex flex-col shadow-2xl relative">
+      <div className="bg-[#1e1e24] border border-[#2c2d34]/60 rounded-2xl w-full max-w-lg max-h-[80vh] flex flex-col shadow-2xl relative">
         <div className="p-4 border-b border-[#2c2d34]/60 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-2 text-emerald-400">
             <Plus className="h-4.5 w-4.5" />
@@ -99,10 +99,10 @@ export default function CreateTaskModal({
           </button>
         </div>
 
-        {/* Scrollable form with conditional bottom padding when advanced options are shown */}
+        {/* Scrollable form with conditional bottom padding when advanced options are shown, hidden scrollbar but scrollable */}
         <form 
           onSubmit={handleCreateSubmit} 
-          className={`p-5 overflow-y-auto space-y-4 text-left flex-1 min-h-0 transition-all ${
+          className={`p-5 overflow-y-auto space-y-4 text-left flex-1 min-h-0 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] transition-all ${
             showAdvanced ? 'pb-48' : 'pb-6'
           }`}
         >
