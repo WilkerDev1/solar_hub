@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import KanbanCard from './KanbanCard';
+import KanbanCard from '@/core/components/KanbanCard';
 import { TaskRow } from '@/core/services/tasks';
 
 interface KeepViewProps {
@@ -52,6 +52,7 @@ export default function KeepView({
               handleToggleCheck={handleToggleCheck}
               employees={employees}
               projects={projects}
+              showProjectBadge={true}
               showStatus={true} // Display status badge in Keep view
               onUploadSuccess={loadTasks}
               documentMap={documentMap}

@@ -280,6 +280,7 @@ export default function TaskDetailDrawer({
   const handleDeleteChecklist = async () => {
     if (!window.confirm('¿Deseas eliminar la lista de verificación?')) return;
     setChecklistActive(false);
+    setLocalSubtasks([]);
     if (typeof window !== 'undefined') {
       localStorage.removeItem(`checklist_title_${task.id}`);
     }

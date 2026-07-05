@@ -1,11 +1,9 @@
 'use client';
 
-import React from 'react';
 import { Plus } from 'lucide-react';
 import { Button } from '@/core/components/ui/button';
-import { TaskRow } from '@/core/services/tasks';
 import { DragDropContext, Droppable } from '@hello-pangea/dnd';
-import KanbanCard from './KanbanCard';
+import KanbanCard from '@/core/components/KanbanCard';
 import { ProjectDetailContext } from '../hooks/useProjectDetail';
 
 type Props = Pick<ProjectDetailContext,

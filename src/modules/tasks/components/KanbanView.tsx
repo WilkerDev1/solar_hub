@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { DragDropContext, Droppable } from '@hello-pangea/dnd';
-import KanbanCard from './KanbanCard';
+import KanbanCard from '@/core/components/KanbanCard';
 import { TaskRow } from '@/core/services/tasks';
 
 interface KanbanViewProps {
@@ -66,6 +66,7 @@ export default function KanbanView({
                       handleToggleCheck={handleToggleCheck} 
                       employees={employees} 
                       projects={projects}
+                      showProjectBadge={true}
                       showStatus={false}
                       onUploadSuccess={loadTasks} 
                       documentMap={documentMap} 
