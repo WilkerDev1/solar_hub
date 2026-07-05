@@ -225,14 +225,14 @@ export function useTasks() {
       await createTask({
         title: createForm.title.trim(),
         description: createForm.description.trim() || null,
-        origin: createForm.origin,
-        task_type: createForm.task_type,
+        origin: createForm.origin || 'proyecto',
+        task_type: createForm.task_type || 'check',
         assigned_to: assigned,
         project_id: createForm.project_id || null,
-        area: createForm.area,
-        priority: createForm.priority,
+        area: createForm.area || 'general',
+        priority: createForm.priority || 'media',
         due_date: createForm.due_date || null,
-        requires_audit: createForm.requires_audit
+        requires_audit: createForm.requires_audit || false
       });
 
       setIsCreateOpen(false);
