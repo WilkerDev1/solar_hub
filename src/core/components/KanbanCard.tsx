@@ -181,8 +181,8 @@ export default function KanbanCard({
       {/* Content wrapper with padding */}
       <div className="p-4 flex-1 flex flex-col justify-between">
         <div className="space-y-3">
-          {/* Audit Status Alert Banner (Shown only inside the card body when loading to highlight it) */}
-          {task.requires_audit && task.audit_status === 'pendiente' && (
+          {/* Audit Status Alert Banner (Shown only inside the card body when in blocked status to highlight it) */}
+          {task.requires_audit && task.status === 'bloqueada' && task.audit_status === 'pendiente' && (
             <div className="mb-2 bg-amber-500/10 border border-amber-500/30 text-amber-400 px-2.5 py-1.5 rounded-lg text-[9px] font-bold flex items-center gap-1.5 animate-pulse">
               <AlertCircle className="h-3.5 w-3.5 shrink-0 text-amber-500" />
               <span>Auditoría Pendiente (Revisar)</span>
@@ -274,7 +274,7 @@ export default function KanbanCard({
               </span>
             )}
             {/* Audit Status Icon: displayed on the card to indicate need of leader approval */}
-            {task.requires_audit && (
+            {task.requires_audit && (task.audit_status === 'aceptado' || task.audit_status === 'denegado' || (task.audit_status === 'pendiente' && task.status === 'bloqueada')) && (
               <span 
                 className="flex items-center"
                 title={
