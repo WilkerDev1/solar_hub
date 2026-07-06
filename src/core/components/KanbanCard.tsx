@@ -264,8 +264,7 @@ export default function KanbanCard({
         </div>
 
         {/* Footer of Card: bottom row of dynamic indicators & assignee avatar */}
-        {/* Footer of Card: bottom row of dynamic indicators & assignee avatar */}
-        <div className="mt-3 pt-3 border-t border-zinc-800/80 flex flex-col gap-2.5 sm:flex-row sm:justify-between sm:items-center shrink-0">
+        <div className="mt-3 pt-3 border-t border-zinc-800/80 flex flex-col gap-2.5 shrink-0">
           {/* Dynamic indicators with counters */}
           <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5 text-[9px] font-mono text-zinc-500 font-bold">
             {(task as any).due_date && (
@@ -339,8 +338,8 @@ export default function KanbanCard({
             )}
           </div>
 
-          {/* Right side: Department Icon & Assignees circle avatar stack */}
-          <div className="flex items-center gap-2 shrink-0 justify-end w-full sm:w-auto pt-2 sm:pt-0 border-t border-zinc-850 sm:border-t-0">
+          {/* Right side: Department Icon & Assignees circle avatar stack (always a separate row) */}
+          <div className="flex items-center gap-2 shrink-0 justify-end w-full pt-2 border-t border-zinc-800/30">
             {/* Department Icon */}
             {(() => {
               const dept = getDepartmentIcon(task.area || 'general');
