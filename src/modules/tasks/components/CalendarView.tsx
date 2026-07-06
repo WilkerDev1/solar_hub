@@ -25,17 +25,17 @@ export default function CalendarView({
 }: CalendarViewProps) {
 
   return (
-    <div className="bg-zinc-900/10 border border-zinc-850 rounded-2xl p-5 shadow-xl">
+    <div className="bg-[#1e1e24] border border-zinc-700 rounded-2xl p-5 shadow-xl">
       {/* Calendar Navigator Header */}
       <div className="flex justify-between items-center mb-6 px-1">
         <h3 className="font-bold text-white uppercase tracking-wider text-sm font-mono">
           {currentDate.toLocaleDateString([], { month: 'long', year: 'numeric' })}
         </h3>
         <div className="flex gap-2">
-          <button onClick={prevMonth} className="h-9 w-9 bg-zinc-950 border border-zinc-800 rounded-lg flex items-center justify-center text-zinc-400 hover:text-white transition-colors">
+          <button onClick={prevMonth} className="h-9 w-9 bg-zinc-900 border border-zinc-700 rounded-lg flex items-center justify-center text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors">
             <ChevronLeft className="h-4.5 w-4.5" />
           </button>
-          <button onClick={nextMonth} className="h-9 w-9 bg-zinc-950 border border-zinc-800 rounded-lg flex items-center justify-center text-zinc-400 hover:text-white transition-colors">
+          <button onClick={nextMonth} className="h-9 w-9 bg-zinc-900 border border-zinc-700 rounded-lg flex items-center justify-center text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors">
             <ChevronRight className="h-4.5 w-4.5" />
           </button>
         </div>
@@ -55,7 +55,7 @@ export default function CalendarView({
       {/* Month days grid */}
       <div className="grid grid-cols-7 gap-2.5">
         {getCalendarDays().map((day, idx) => {
-          if (!day) return <div key={idx} className="bg-zinc-900/5 border border-transparent min-h-24 rounded-xl" />;
+          if (!day) return <div key={idx} className="bg-zinc-900/20 border border-transparent min-h-24 rounded-xl" />;
           
           const dateTasks = getTasksForDate(day);
           const isToday = new Date().toDateString() === day.toDateString();
@@ -63,8 +63,8 @@ export default function CalendarView({
           return (
             <div
               key={idx}
-              className={`min-h-24 bg-zinc-900/20 border p-2 rounded-xl text-left flex flex-col justify-between hover:border-zinc-700 transition-colors ${
-                isToday ? 'border-emerald-500/40 bg-emerald-500/5' : 'border-zinc-900'
+              className={`min-h-24 bg-zinc-900/40 border border-zinc-800 p-2 rounded-xl text-left flex flex-col justify-between hover:border-zinc-750 transition-colors ${
+                isToday ? 'border-emerald-500/40 bg-emerald-500/5' : ''
               }`}
             >
               <span className={`text-[11px] font-bold font-mono ${isToday ? 'text-emerald-400' : 'text-zinc-500'}`}>

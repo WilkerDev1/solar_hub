@@ -69,10 +69,10 @@ export default function TasksModule() {
       )}
 
       {/* 1. Main Content Area */}
-      <main className="flex-1 flex flex-col min-w-0 bg-[#0c0c0e] overflow-hidden">
+      <main className="flex-1 flex flex-col min-w-0 bg-[#121315] overflow-hidden">
         {/* Top Header Banner — shrinks and expands dynamically on scroll */}
         <div 
-          className={`transition-all duration-300 ease-in-out flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-zinc-800 pb-5 shrink-0 px-6 pt-6 ${
+          className={`transition-all duration-300 ease-in-out flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-zinc-700/60 pb-5 shrink-0 px-6 pt-6 ${
             showHeader 
               ? 'opacity-100 max-h-[160px] mb-6' 
               : 'opacity-0 max-h-0 pb-0 mb-0 border-b-0 overflow-hidden pointer-events-none'
@@ -90,7 +90,7 @@ export default function TasksModule() {
           
           <div className="flex items-center gap-3">
             {/* View Toggles */}
-            <div className="bg-zinc-900 border border-zinc-800 p-0.5 rounded-xl flex">
+            <div className="bg-[#1e1e24] border border-zinc-700 p-0.5 rounded-xl flex">
               <button
                 onClick={() => t.setViewMode('keep')}
                 className={`p-2 rounded-lg text-xs font-bold transition-all ${
@@ -141,7 +141,7 @@ export default function TasksModule() {
             {t.viewMode === 'keep' && (
               <button
                 onClick={() => t.setKeepLayout(t.keepLayout === 'grid' ? 'list' : 'grid')}
-                className="p-2 bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white rounded-xl transition-all"
+                className="p-2 bg-[#1e1e24] border border-zinc-700 text-zinc-400 hover:text-white rounded-xl transition-all"
                 title={t.keepLayout === 'grid' ? "Ver modo ampliado (Lista)" : "Ver modo galería (Cuadrícula)"}
               >
                 {t.keepLayout === 'grid' ? <List className="h-4 w-4" /> : <LayoutGrid className="h-4 w-4" />}
@@ -151,7 +151,7 @@ export default function TasksModule() {
             {/* Menu Button to toggle filters on Mobile */}
             <button
               onClick={() => t.setSidebarCollapsed(!t.sidebarCollapsed)}
-              className="lg:hidden p-2 bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white rounded-xl transition-all h-10 w-10 flex items-center justify-center shrink-0"
+              className="lg:hidden p-2 bg-[#1e1e24] border border-zinc-700 text-zinc-400 hover:text-white rounded-xl transition-all h-10 w-10 flex items-center justify-center shrink-0"
               title="Filtros"
             >
               <SlidersHorizontal className="h-4 w-4" />

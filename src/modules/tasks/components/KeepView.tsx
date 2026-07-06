@@ -38,7 +38,7 @@ export default function KeepView({
   return (
     <div className="w-full">
       {filteredTasks.length === 0 ? (
-        <div className="py-20 flex flex-col items-center justify-center bg-zinc-900/10 border border-zinc-850 rounded-2xl">
+        <div className="py-20 flex flex-col items-center justify-center bg-[#1e1e24] border border-zinc-700 rounded-2xl">
           <span className="text-zinc-550 italic text-xs">No hay tareas en esta vista.</span>
         </div>
       ) : (

@@ -21,10 +21,10 @@ export default function ListView({
 }: ListViewProps) {
 
   return (
-    <div className="bg-zinc-900/10 border border-zinc-850 rounded-2xl overflow-hidden shadow-xl">
+    <div className="bg-[#1e1e24] border border-zinc-700 rounded-2xl overflow-hidden shadow-xl">
       <table className="w-full text-left border-collapse">
         <thead>
-          <tr className="bg-zinc-900/50 border-b border-zinc-850 text-[10px] font-bold uppercase tracking-wider text-zinc-500">
+          <tr className="bg-zinc-900/80 border-b border-zinc-700 text-[10px] font-bold uppercase tracking-wider text-zinc-500">
             <th className="px-6 py-4 w-12"></th>
             <th className="px-6 py-4">Tarea</th>
             <th className="px-6 py-4">Obra / Proyecto</th>
@@ -34,7 +34,7 @@ export default function ListView({
             <th className="px-6 py-4">Estado</th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-zinc-850 text-xs">
+        <tbody className="divide-y divide-zinc-800 text-xs">
           {filteredTasks.map((task) => {
             const isCompleted = task.status === 'completada';
             const isDeliverable = ['entregable', 'reporte', 'evidencia'].includes(task.task_type);
