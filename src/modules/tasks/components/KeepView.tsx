@@ -42,23 +42,24 @@ export default function KeepView({
           <span className="text-zinc-550 italic text-xs">No hay tareas en esta vista.</span>
         </div>
       ) : (
-        <div className={`${layoutClass} space-y-4`}>
+        <div className={layoutClass}>
           {filteredTasks.map((task) => (
-            <KanbanCard
-              key={task.id}
-              task={task}
-              index={-1} // Render as static card outside drag & drop context
-              onClick={() => handleOpenTask(task)}
-              handleToggleCheck={handleToggleCheck}
-              employees={employees}
-              projects={projects}
-              showProjectBadge={true}
-              showStatus={true} // Display status badge in Keep view
-              onUploadSuccess={loadTasks}
-              documentMap={documentMap}
-              onEditClick={handleEditTask}
-              onDeleteClick={handleDeleteTask}
-            />
+            <div key={task.id} className="break-inside-avoid mb-4">
+              <KanbanCard
+                task={task}
+                index={-1} // Render as static card outside drag & drop context
+                onClick={() => handleOpenTask(task)}
+                handleToggleCheck={handleToggleCheck}
+                employees={employees}
+                projects={projects}
+                showProjectBadge={true}
+                showStatus={true} // Display status badge in Keep view
+                onUploadSuccess={loadTasks}
+                documentMap={documentMap}
+                onEditClick={handleEditTask}
+                onDeleteClick={handleDeleteTask}
+              />
+            </div>
           ))}
         </div>
       )}
