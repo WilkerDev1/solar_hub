@@ -252,11 +252,7 @@ export default function KanbanCard({
             {/* Audit Status Icon: displayed on the card to indicate need of leader approval */}
             {task.requires_audit && (
               <span 
-                className={`flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold border ${
-                  task.audit_status === 'aceptado' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' :
-                  task.audit_status === 'denegado' ? 'bg-rose-500/10 text-rose-400 border-rose-500/20 animate-pulse' :
-                  'bg-amber-500/10 text-amber-400 border-amber-500/20 animate-pulse'
-                }`}
+                className="flex items-center"
                 title={
                   task.audit_status === 'aceptado' ? 'Auditoría Aprobada' :
                   task.audit_status === 'denegado' ? 'Auditoría Rechazada' :
@@ -264,11 +260,12 @@ export default function KanbanCard({
                 }
               >
                 {task.audit_status === 'aceptado' ? (
-                  <ShieldCheck className="h-3.5 w-3.5 shrink-0 text-emerald-450" />
+                  <ShieldCheck className="h-3.5 w-3.5 shrink-0 text-emerald-500" />
+                ) : task.audit_status === 'denegado' ? (
+                  <ShieldAlert className="h-3.5 w-3.5 shrink-0 text-rose-500 animate-pulse" />
                 ) : (
-                  <ShieldAlert className="h-3.5 w-3.5 shrink-0 text-amber-500" />
+                  <ShieldAlert className="h-3.5 w-3.5 shrink-0 text-amber-500 animate-pulse" />
                 )}
-                <span>Auditar</span>
               </span>
             )}
             {commentsCount > 0 && (
