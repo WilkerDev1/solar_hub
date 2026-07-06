@@ -141,6 +141,32 @@ export default function KanbanCard({
 
   const cardInner = (
     <>
+      {/* Hover Action Buttons (Edit / Delete) */}
+      <div className="absolute top-2.5 right-2.5 flex items-center gap-1.5 z-10 opacity-0 group-hover:opacity-100 transition-opacity">
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onEditClick?.(task);
+          }}
+          className="h-7 w-7 rounded-full bg-zinc-950/75 border border-zinc-700/50 hover:bg-zinc-800 hover:text-zinc-200 text-zinc-400 flex items-center justify-center transition-all shadow-lg cursor-pointer"
+          title="Editar Tarea"
+        >
+          <Edit className="h-3.5 w-3.5" />
+        </button>
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onDeleteClick?.(task);
+          }}
+          className="h-7 w-7 rounded-full bg-zinc-950/75 border border-zinc-700/50 hover:bg-zinc-800 hover:text-rose-455 text-zinc-455 flex items-center justify-center transition-all shadow-lg cursor-pointer"
+          title="Eliminar Tarea"
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+        </button>
+      </div>
+
       {/* Cover Image flush at the top */}
       {coverUrl && (
         <div className="w-full h-32 overflow-hidden bg-zinc-950/20 border-b border-zinc-800 shrink-0">
@@ -177,36 +203,35 @@ export default function KanbanCard({
                 </span>
               )}
             </div>
-
-            {/* Compact Edit/Delete Action Buttons */}
-            <div className="flex items-center gap-1 shrink-0 text-zinc-500">
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onEditClick?.(task);
-                }}
-                className="p-1 rounded hover:bg-zinc-800 hover:text-zinc-300 transition-colors"
-                title="Editar Tarea"
-              >
-                <Edit className="h-3 w-3" />
-              </button>
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onDeleteClick?.(task);
-                }}
-                className="p-1 rounded hover:bg-zinc-800 hover:text-rose-455 transition-colors"
-                title="Eliminar Tarea"
-              >
-                <Trash2 className="h-3 w-3" />
-              </button>
-            </div>
           </div>
 
-          {/* Task Title */}
-          <div className="flex items-start">
+          {/* Task Title & Hover Checkbox */}
+          <div className="flex items-start gap-2">
+            {!isCompleted ? (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleToggleCheck(e, task);
+                }}
+                className="mt-0.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200 shrink-0 h-4 w-4 rounded-full border border-zinc-500 hover:border-emerald-500 hover:bg-emerald-500/10 flex items-center justify-center cursor-pointer"
+                title="Marcar como completada"
+              >
+                <div className="h-1.5 w-1.5 rounded-full bg-transparent" />
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleToggleCheck(e, task);
+                }}
+                className="mt-0.5 shrink-0 h-4 w-4 rounded-full border border-emerald-500 bg-emerald-500/20 flex items-center justify-center cursor-pointer"
+                title="Marcar como pendiente"
+              >
+                <div className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+              </button>
+            )}
             <span className={`font-bold text-xs text-white leading-snug text-left ${isCompleted ? 'line-through text-zinc-500' : ''}`}>
               {task.title}
             </span>
@@ -360,7 +385,7 @@ export default function KanbanCard({
     return (
       <div
         onClick={onClick}
-        className={`bg-[#1c1c21] border-t border-t-zinc-800 border-l border-r border-b border-zinc-800 p-0 rounded-none flex flex-col justify-between hover:border-zinc-500 transition-all select-none relative ${isCompleted ? 'opacity-65' : ''}`}
+        className={`bg-[#1c1c21] border-t border-t-zinc-800 border-l border-r border-b border-zinc-800 p-0 rounded-none flex flex-col justify-between hover:border-zinc-500 transition-all select-none relative group ${isCompleted ? 'opacity-65' : ''}`}
       >
         {cardInner}
       </div>
@@ -375,7 +400,7 @@ export default function KanbanCard({
           {...provided.draggableProps}
           {...provided.dragHandleProps}
           onClick={onClick}
-          className={`bg-[#1c1c21] border-t border-t-zinc-800 border-l border-r border-b border-zinc-800 p-0 rounded-none flex flex-col justify-between hover:border-zinc-500 transition-all select-none relative ${
+          className={`bg-[#1c1c21] border-t border-t-zinc-800 border-l border-r border-b border-zinc-800 p-0 rounded-none flex flex-col justify-between hover:border-zinc-500 transition-all select-none relative group ${
             snapshot.isDragging ? 'shadow-2xl border-emerald-500 bg-zinc-800 scale-[1.02]' : ''
           } ${isCompleted ? 'opacity-65' : ''}`}
         >

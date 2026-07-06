@@ -438,9 +438,16 @@ export function useProjectDetail(projectId: string) {
   const handleToggleCheck = async (e: React.MouseEvent, task: TaskRow) => {
     e.stopPropagation();
     const nextStatus = task.status === 'completada' ? 'pendiente' : 'completada';
-    setTasks(prev => prev.map(t => t.id === task.id ? { ...t, status: nextStatus } : t));
+    
+    let targetStatus: 'backlog' | 'pendiente' | 'en_progreso' | 'bloqueada' | 'completada' = nextStatus;
+    if (nextStatus === 'completada' && task.requires_audit && task.audit_status !== 'aceptado') {
+      targetStatus = 'bloqueada';
+      alert('Esta tarea requiere auditoría de líder antes de completarse. Se moverá a la columna "Bloqueada" en espera de aprobación.');
+    }
+
+    setTasks(prev => prev.map(t => t.id === task.id ? { ...t, status: targetStatus } : t));
     try {
-      await updateTaskStatus(task.id, nextStatus);
+      await updateTaskStatus(task.id, targetStatus);
       loadProjectTasks();
     } catch (err: any) {
       loadProjectTasks();
@@ -477,10 +484,18 @@ export function useProjectDetail(projectId: string) {
     if (destination.droppableId === source.droppableId && destination.index === source.index) return;
 
     const nextStatus = destination.droppableId as 'backlog' | 'pendiente' | 'en_progreso' | 'bloqueada' | 'completada';
-    setTasks(prev => prev.map(t => t.id === draggableId ? { ...t, status: nextStatus } : t));
+    
+    const task = tasks.find(t => t.id === draggableId);
+    let targetStatus = nextStatus;
+    if (nextStatus === 'completada' && task?.requires_audit && task?.audit_status !== 'aceptado') {
+      targetStatus = 'bloqueada';
+      alert('Esta tarea requiere auditoría de líder antes de completarse. Se ha movido a la columna "Bloqueada" en espera de aprobación.');
+    }
+
+    setTasks(prev => prev.map(t => t.id === draggableId ? { ...t, status: targetStatus } : t));
 
     try {
-      await updateTaskStatus(draggableId, nextStatus);
+      await updateTaskStatus(draggableId, targetStatus);
       loadProjectTasks();
     } catch (err: any) {
       loadProjectTasks();

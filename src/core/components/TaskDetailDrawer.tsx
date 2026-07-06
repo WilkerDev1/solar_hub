@@ -34,7 +34,7 @@ export default function TaskDetailDrawer({
   projects = [],
   onTaskUpdated
 }: TaskDetailDrawerProps) {
-  const { roles } = useAuth();
+  const { roles, hasPermission } = useAuth();
   const router = useRouter();
 
   // General States
@@ -1174,10 +1174,29 @@ export default function TaskDetailDrawer({
                      task.audit_status === 'requiere_revision' ? 'Cambios Solicitados' : task.audit_status}
                   </span>
                 </div>
-                {task.audit_comments && (
-                  <div className="bg-amber-500/5 border border-amber-500/10 p-3 rounded-xl space-y-1">
-                    <span className="text-[9px] font-bold text-amber-400 font-mono uppercase">Instrucciones:</span>
-                    <p className="text-zinc-350 text-xs leading-relaxed">{task.audit_comments}</p>
+                {task.audit_status !== 'aceptado' && hasPermission('admin:*') && (
+                  <div className="flex items-center justify-between pt-3 border-t border-[#2c2d34]/60">
+                    <span className="text-[10px] text-zinc-450 font-mono font-bold uppercase">Aprobar Auditoría:</span>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        if (!confirm('¿Desea aprobar la auditoría de esta tarea? Pasará automáticamente a completada.')) return;
+                        try {
+                          setLoading(true);
+                          await auditTaskStatus(task.id, 'aceptado');
+                          onTaskUpdated?.();
+                        } catch (err: any) {
+                          alert('Error al aprobar auditoría: ' + err.message);
+                        } finally {
+                          setLoading(false);
+                        }
+                      }}
+                      disabled={loading}
+                      className="bg-emerald-600 hover:bg-emerald-500 text-white p-2 rounded-full flex items-center justify-center cursor-pointer transition-all shadow-md active:scale-95 disabled:opacity-50"
+                      title="Aceptar Auditoría (Completar Tarea)"
+                    >
+                      <Check className="h-4.5 w-4.5" />
+                    </button>
                   </div>
                 )}
               </div>

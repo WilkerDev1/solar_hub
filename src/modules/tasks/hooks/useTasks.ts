@@ -202,11 +202,17 @@ export function useTasks() {
     e.stopPropagation(); // Avoid opening drawer
     const nextStatus = task.status === 'completada' ? 'pendiente' : 'completada';
     
+    let targetStatus: 'backlog' | 'pendiente' | 'en_progreso' | 'bloqueada' | 'completada' = nextStatus;
+    if (nextStatus === 'completada' && task.requires_audit && task.audit_status !== 'aceptado') {
+      targetStatus = 'bloqueada';
+      alert('Esta tarea requiere auditoría de líder antes de completarse. Se moverá a la columna "Bloqueada" en espera de aprobación.');
+    }
+    
     // Optimistic Update
-    setTasks(prev => prev.map(t => t.id === task.id ? { ...t, status: nextStatus } : t));
+    setTasks(prev => prev.map(t => t.id === task.id ? { ...t, status: targetStatus } : t));
 
     try {
-      await updateTaskStatus(task.id, nextStatus);
+      await updateTaskStatus(task.id, targetStatus);
       loadTasks(); // Silent refresh
     } catch (err: any) {
       // Revert on error
@@ -262,12 +268,19 @@ export function useTasks() {
     if (destination.droppableId === source.droppableId && destination.index === source.index) return;
 
     const nextStatus = destination.droppableId as 'backlog' | 'pendiente' | 'en_progreso' | 'bloqueada' | 'completada';
+    
+    const task = tasks.find(t => t.id === draggableId);
+    let targetStatus = nextStatus;
+    if (nextStatus === 'completada' && task?.requires_audit && task?.audit_status !== 'aceptado') {
+      targetStatus = 'bloqueada';
+      alert('Esta tarea requiere auditoría de líder antes de completarse. Se ha movido a la columna "Bloqueada" en espera de aprobación.');
+    }
 
     // Optimistic Update locally
-    setTasks(prev => prev.map(t => t.id === draggableId ? { ...t, status: nextStatus } : t));
+    setTasks(prev => prev.map(t => t.id === draggableId ? { ...t, status: targetStatus } : t));
 
     try {
-      await updateTaskStatus(draggableId, nextStatus);
+      await updateTaskStatus(draggableId, targetStatus);
       loadTasks(); // Silent refresh
     } catch (err: any) {
       loadTasks();
