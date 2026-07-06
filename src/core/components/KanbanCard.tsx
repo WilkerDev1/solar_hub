@@ -188,17 +188,16 @@ export default function KanbanCard({
               <span>Auditoría Pendiente (Revisar)</span>
             </div>
           )}
-
           {/* Badges row: Thin colored pills at the top */}
           <div className="flex justify-between items-center gap-2">
             <div className="flex gap-1.5 flex-wrap">
               {showStatus && (
-                <span className={`text-[8.5px] font-bold uppercase px-2 py-0.5 rounded-full ${getStatusColor(task.status)}`} title={`Estado: ${task.status}`}>
+                <span className={`text-[8.5px] font-bold uppercase px-2 py-0.5 rounded ${getStatusColor(task.status)}`} title={`Estado: ${task.status}`}>
                   {task.status === 'pendiente' ? 'por hacer' : task.status === 'en_progreso' ? 'en progreso' : task.status === 'completada' ? 'hecha' : task.status}
                 </span>
               )}
               {showProjectBadge && taskProject && (
-                <span className="text-[8.5px] font-bold uppercase px-2 py-0.5 rounded-full bg-teal-500/20 text-teal-350 border border-teal-500/25" title={`Obra: ${taskProject.name}`}>
+                <span className="text-[8.5px] font-bold uppercase px-2 py-0.5 rounded bg-teal-500/20 text-teal-350 border border-teal-500/25" title={`Obra: ${taskProject.name}`}>
                   {taskProject.name.toLowerCase()}
                 </span>
               )}
@@ -206,7 +205,7 @@ export default function KanbanCard({
           </div>
 
           {/* Task Title & Hover Checkbox */}
-          <div className="flex items-start gap-2">
+          <div className="flex items-start">
             {!isCompleted ? (
               <button
                 type="button"
@@ -214,7 +213,7 @@ export default function KanbanCard({
                   e.stopPropagation();
                   handleToggleCheck(e, task);
                 }}
-                className="mt-0.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200 shrink-0 h-4 w-4 rounded-full border border-zinc-500 hover:border-emerald-500 hover:bg-emerald-500/10 flex items-center justify-center cursor-pointer"
+                className="mt-0.5 w-0 opacity-0 scale-0 group-hover:w-4 group-hover:mr-2 group-hover:opacity-100 group-hover:scale-100 transition-all duration-200 ease-in-out shrink-0 h-4 rounded-full border border-zinc-500 hover:border-emerald-500 hover:bg-emerald-500/10 flex items-center justify-center cursor-pointer"
                 title="Marcar como completada"
               >
                 <div className="h-1.5 w-1.5 rounded-full bg-transparent" />
@@ -226,7 +225,7 @@ export default function KanbanCard({
                   e.stopPropagation();
                   handleToggleCheck(e, task);
                 }}
-                className="mt-0.5 shrink-0 h-4 w-4 rounded-full border border-emerald-500 bg-emerald-500/20 flex items-center justify-center cursor-pointer"
+                className="mt-0.5 shrink-0 h-4 w-4 mr-2 rounded-full border border-emerald-500 bg-emerald-500/20 flex items-center justify-center cursor-pointer"
                 title="Marcar como pendiente"
               >
                 <div className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
