@@ -2,7 +2,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { useTasks } from './hooks/useTasks';
-import TaskSidebar from './components/TaskSidebar';
+import TaskFilterSidebar from '@/core/components/TaskFilterSidebar';
 import KanbanView from './components/KanbanView';
 import ListView from './components/ListView';
 import CalendarView from './components/CalendarView';
@@ -216,8 +216,7 @@ export default function TasksModule() {
         <Plus className="h-5.5 w-5.5" />
       </button>
 
-      {/* 2. Right sidebar (Filtros) */}
-      <TaskSidebar
+      <TaskFilterSidebar
         sidebarCollapsed={t.sidebarCollapsed}
         setSidebarCollapsed={t.setSidebarCollapsed}
         filterProject={t.filterProject}

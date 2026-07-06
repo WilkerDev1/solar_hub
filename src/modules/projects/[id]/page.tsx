@@ -16,6 +16,7 @@ import ChatSidebar from './components/ChatSidebar';
 import SettingsModal from './components/SettingsModal';
 import DispatchModal from './components/DispatchModal';
 import CreateTaskModal from './components/CreateTaskModal';
+import TaskFilterSidebar from '@/core/components/TaskFilterSidebar';
 
 interface Props {
   projectId: string;
@@ -44,10 +45,17 @@ export default function ProjectDetailModule({ projectId }: Props) {
   }
 
   return (
-    <div className="flex h-[calc(100vh-8rem)] bg-[#121315]">
+    <div className="flex h-[calc(100vh-8rem)] bg-[#121315] relative overflow-hidden">
+      {/* Dimmed backdrop overlay when mobile sidebar is open */}
+      {!ctx.sidebarCollapsed && (ctx.activeTab === 'kanban' || ctx.activeTab === 'list') && (
+        <div 
+          className="lg:hidden fixed inset-0 bg-black/60 z-40 transition-opacity duration-300"
+          onClick={() => ctx.setSidebarCollapsed(true)}
+        />
+      )}
+
       {/* ─── MAIN CONTENT PANEL ─── */}
       <div className="flex-1 overflow-y-auto space-y-6 p-6 text-center scrollbar-thin scrollbar-thumb-zinc-900">
-
         <ProjectHeader
           project={ctx.project}
           isAdmin={ctx.isAdmin}
@@ -56,6 +64,8 @@ export default function ProjectDetailModule({ projectId }: Props) {
           setIsSettingsOpen={ctx.setIsSettingsOpen}
           activeTab={ctx.activeTab}
           setActiveTab={ctx.setActiveTab}
+          sidebarCollapsed={ctx.sidebarCollapsed}
+          setSidebarCollapsed={ctx.setSidebarCollapsed}
         />
 
         {/* TAB: OVERVIEW */}
@@ -75,14 +85,7 @@ export default function ProjectDetailModule({ projectId }: Props) {
         {/* TAB: KANBAN */}
         {ctx.activeTab === 'kanban' && (
           <KanbanTab
-            filteredTasks={ctx.filteredTasks}
             getColumnTasks={ctx.getColumnTasks}
-            filterArea={ctx.filterArea}
-            setFilterArea={ctx.setFilterArea}
-            filterPriority={ctx.filterPriority}
-            setFilterPriority={ctx.setFilterPriority}
-            filterAssignee={ctx.filterAssignee}
-            setFilterAssignee={ctx.setFilterAssignee}
             employees={ctx.employees}
             setIsCreateOpen={ctx.setIsCreateOpen}
             onDragEnd={ctx.onDragEnd}
@@ -99,13 +102,6 @@ export default function ProjectDetailModule({ projectId }: Props) {
         {ctx.activeTab === 'list' && (
           <ListTab
             filteredTasks={ctx.filteredTasks}
-            filterArea={ctx.filterArea}
-            setFilterArea={ctx.setFilterArea}
-            filterPriority={ctx.filterPriority}
-            setFilterPriority={ctx.setFilterPriority}
-            filterAssignee={ctx.filterAssignee}
-            setFilterAssignee={ctx.setFilterAssignee}
-            employees={ctx.employees}
             setIsCreateOpen={ctx.setIsCreateOpen}
             handleToggleCheck={ctx.handleToggleCheck}
             setSelectedTask={ctx.setSelectedTask}
@@ -167,6 +163,21 @@ export default function ProjectDetailModule({ projectId }: Props) {
           />
         )}
       </div>
+
+      {/* ─── RIGHT SIDEBAR: FILTERS ─── */}
+      {(ctx.activeTab === 'kanban' || ctx.activeTab === 'list') && (
+        <TaskFilterSidebar
+          sidebarCollapsed={ctx.sidebarCollapsed}
+          setSidebarCollapsed={ctx.setSidebarCollapsed}
+          filterArea={ctx.filterArea}
+          setFilterArea={ctx.setFilterArea}
+          filterPriority={ctx.filterPriority}
+          setFilterPriority={ctx.setFilterPriority}
+          filterAssignee={ctx.filterAssignee}
+          setFilterAssignee={ctx.setFilterAssignee}
+          employees={ctx.employees}
+        />
+      )}
 
       {/* ─── RIGHT SIDEBAR: CHAT ─── */}
       {ctx.isChatOpen && (

@@ -3,15 +3,19 @@
 import React from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  ArrowLeft, MapPin, Zap, CheckCircle, MessageSquare, Settings, Layers
+  ArrowLeft, MapPin, Zap, CheckCircle, MessageSquare, Settings, Layers, SlidersHorizontal
 } from 'lucide-react';
-import { ProjectDetailContext, TabType } from '../hooks/useProjectDetail';
+import { ProjectDetailContext } from '../hooks/useProjectDetail';
 
 type Props = Pick<ProjectDetailContext,
-  'project' | 'isAdmin' | 'isChatOpen' | 'setIsChatOpen' | 'setIsSettingsOpen' | 'activeTab' | 'setActiveTab'
+  'project' | 'isAdmin' | 'isChatOpen' | 'setIsChatOpen' | 'setIsSettingsOpen' | 'activeTab' | 'setActiveTab' |
+  'sidebarCollapsed' | 'setSidebarCollapsed'
 >;
 
-export default function ProjectHeader({ project, isAdmin, isChatOpen, setIsChatOpen, setIsSettingsOpen, activeTab, setActiveTab }: Props) {
+export default function ProjectHeader({ 
+  project, isAdmin, isChatOpen, setIsChatOpen, setIsSettingsOpen, 
+  activeTab, setActiveTab, sidebarCollapsed, setSidebarCollapsed 
+}: Props) {
   const router = useRouter();
 
   return (
@@ -32,6 +36,20 @@ export default function ProjectHeader({ project, isAdmin, isChatOpen, setIsChatO
         </div>
 
         <div className="flex gap-2">
+          {(activeTab === 'kanban' || activeTab === 'list') && setSidebarCollapsed && (
+            <button
+              onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+              className={`h-10 w-10 flex items-center justify-center rounded-none border transition-all ${
+                !sidebarCollapsed
+                  ? 'bg-emerald-600/10 text-emerald-400 border-emerald-500/20'
+                  : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:text-white hover:bg-zinc-700'
+              }`}
+              title="Filtrar Tareas"
+            >
+              <SlidersHorizontal className="h-4 w-4" />
+            </button>
+          )}
+
           <button
             onClick={() => setIsChatOpen(!isChatOpen)}
             className={`h-10 w-10 flex items-center justify-center rounded-none border transition-all ${

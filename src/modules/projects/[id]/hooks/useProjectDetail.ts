@@ -89,6 +89,7 @@ export function useProjectDetail(projectId: string) {
   const [filterArea, setFilterArea] = useState('todos');
   const [filterPriority, setFilterPriority] = useState('todos');
   const [filterAssignee, setFilterAssignee] = useState('todos');
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
 
   // Settings Edit Modal State
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -782,6 +783,7 @@ export function useProjectDetail(projectId: string) {
     filterArea, setFilterArea,
     filterPriority, setFilterPriority,
     filterAssignee, setFilterAssignee,
+    sidebarCollapsed, setSidebarCollapsed,
 
     // Settings
     isSettingsOpen, setIsSettingsOpen,
