@@ -285,10 +285,8 @@ export default function KanbanCard({
               >
                 {task.audit_status === 'aceptado' ? (
                   <ShieldCheck className="h-3.5 w-3.5 shrink-0 text-emerald-500" />
-                ) : task.audit_status === 'denegado' ? (
-                  <ShieldAlert className="h-3.5 w-3.5 shrink-0 text-rose-500 animate-pulse" />
                 ) : (
-                  <ShieldAlert className="h-3.5 w-3.5 shrink-0 text-amber-500 animate-pulse" />
+                  <ShieldAlert className="h-3.5 w-3.5 shrink-0 text-rose-500 animate-pulse" />
                 )}
               </span>
             )}
