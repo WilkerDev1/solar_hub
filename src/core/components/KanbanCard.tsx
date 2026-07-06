@@ -274,7 +274,7 @@ export default function KanbanCard({
               </span>
             )}
             {/* Audit Status Icon: displayed on the card to indicate need of leader approval */}
-            {task.requires_audit && (task.audit_status === 'aceptado' || task.audit_status === 'denegado' || (task.audit_status === 'pendiente' && task.status === 'bloqueada')) && (
+            {task.requires_audit && (
               <span 
                 className="flex items-center"
                 title={
