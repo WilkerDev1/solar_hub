@@ -5,7 +5,7 @@ import {
   X, Calendar, User, Tag, Clock, ClipboardList, AlertCircle, Plus, 
   Trash2, Upload, FileText, Check, MessageSquare, Briefcase, 
   RefreshCw, CheckSquare, Square, ChevronRight, Activity, Paperclip, Send,
-  Loader2, FolderKanban, Folder, Flag, Search
+  Loader2, FolderKanban, Folder, Flag, Search, ChevronsUp, ChevronDown, Equal
 } from 'lucide-react';
 import { updateTask, auditTaskStatus, uploadTaskEvidence, deleteTask, TaskRow } from '@/core/services/tasks';
 import { Button } from '@/core/components/ui/button';
@@ -637,7 +637,13 @@ export default function TaskDetailDrawer({
                   <div className={`flex items-center gap-2 bg-[#2c2d34] border border-[#3e3f4a] rounded-lg px-2.5 py-1 text-xs font-bold mt-1 uppercase ${
                     priority === 'alta' ? 'text-rose-400' : priority === 'media' ? 'text-yellow-400' : 'text-zinc-400'
                   }`}>
-                    <Flag className="h-3.5 w-3.5" />
+                    {priority === 'alta' ? (
+                      <ChevronsUp className="h-3.5 w-3.5 text-rose-500" />
+                    ) : priority === 'media' ? (
+                      <Equal className="h-3.5 w-3.5 text-amber-500 rotate-90" />
+                    ) : (
+                      <ChevronDown className="h-3.5 w-3.5 text-blue-500" />
+                    )}
                     <span>{priority}</span>
                   </div>
                 </div>
@@ -792,9 +798,9 @@ export default function TaskDetailDrawer({
                   {activePopover === 'priority' && (
                     <div className="absolute left-0 mt-1.5 w-40 bg-[#25262c] border border-[#3c3d47] rounded-xl p-2 shadow-2xl z-50 flex flex-col gap-1">
                       {[
-                        { key: 'baja', label: 'Baja', color: 'text-zinc-400' },
-                        { key: 'media', label: 'Media', color: 'text-yellow-405' },
-                        { key: 'alta', label: 'Alta', color: 'text-rose-505' }
+                        { key: 'baja', label: 'Baja' },
+                        { key: 'media', label: 'Media' },
+                        { key: 'alta', label: 'Alta' }
                       ].map(item => (
                         <button
                           key={item.key}
@@ -804,8 +810,17 @@ export default function TaskDetailDrawer({
                             priority === item.key ? 'bg-[#2c2d34] text-emerald-450 font-bold' : 'text-zinc-300'
                           }`}
                         >
-                          <span>{item.label}</span>
-                          <span className={`h-2 w-2 rounded-full bg-current ${item.color}`} />
+                          <div className="flex items-center gap-2">
+                            {item.key === 'alta' ? (
+                              <ChevronsUp className="h-3.5 w-3.5 text-rose-500" />
+                            ) : item.key === 'media' ? (
+                              <Equal className="h-3.5 w-3.5 text-amber-500 rotate-90" />
+                            ) : (
+                              <ChevronDown className="h-3.5 w-3.5 text-blue-500" />
+                            )}
+                            <span>{item.label}</span>
+                          </div>
+                          {priority === item.key && <span className="h-1.5 w-1.5 rounded-full bg-emerald-450" />}
                         </button>
                       ))}
                     </div>
@@ -1126,6 +1141,31 @@ export default function TaskDetailDrawer({
                             {filename}
                           </a>
                           <span className="text-[9px] text-zinc-550 font-mono mt-0.5">Adjuntado</span>
+                          {isImage && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const isCurrentCover = localStorage.getItem(`task-cover-${task.id}`) === url;
+                                if (isCurrentCover) {
+                                  localStorage.removeItem(`task-cover-${task.id}`);
+                                } else {
+                                  localStorage.setItem(`task-cover-${task.id}`, url);
+                                }
+                                onTaskUpdated();
+                              }}
+                              className={`text-[9px] font-bold mt-1.5 w-fit px-2 py-0.5 rounded border transition-colors cursor-pointer ${
+                                (localStorage.getItem(`task-cover-${task.id}`) === url || 
+                                 (!localStorage.getItem(`task-cover-${task.id}`) && task.evidence_urls?.[0] === url))
+                                  ? 'bg-emerald-600/20 text-emerald-400 border-emerald-500/30'
+                                  : 'bg-zinc-800 text-zinc-400 border-zinc-700 hover:text-white hover:bg-zinc-750'
+                              }`}
+                            >
+                              {(localStorage.getItem(`task-cover-${task.id}`) === url || 
+                                (!localStorage.getItem(`task-cover-${task.id}`) && task.evidence_urls?.[0] === url))
+                                  ? 'Portada Activa'
+                                  : 'Hacer Portada'}
+                            </button>
+                          )}
                         </div>
                         <button
                           type="button"
