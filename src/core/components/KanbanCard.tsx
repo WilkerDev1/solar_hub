@@ -242,25 +242,6 @@ export default function KanbanCard({
               {task.description}
             </p>
           )}
-
-          {/* Expanding checklist items inside the card */}
-          {showLocalChecklist && subtasksCount > 0 && (
-            <div className="mt-3 pt-3 border-t border-zinc-800/85 space-y-2.5 text-left" onClick={(e) => e.stopPropagation()}>
-              {((task.subtasks || []) as any[]).map((subItem) => (
-                <div key={subItem.id} className="flex items-center gap-2.5 text-xs">
-                  <input
-                    type="checkbox"
-                    checked={subItem.completed}
-                    onChange={(e) => handleToggleSubtaskLocal(e as any, subItem.id, e.target.checked)}
-                    className="rounded border-zinc-700 bg-zinc-900 text-emerald-600 focus:ring-emerald-500/20 h-4 w-4 cursor-pointer"
-                  />
-                  <span className={`text-[11px] text-zinc-300 font-medium ${subItem.completed ? 'line-through text-zinc-500' : ''}`}>
-                    {subItem.title}
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
         </div>
 
         {/* Footer of Card: bottom row of dynamic indicators & assignee avatar */}
@@ -374,6 +355,25 @@ export default function KanbanCard({
             </div>
           </div>
         </div>
+
+        {/* Expanding checklist items inside the card, placed below footer and separated by a divider */}
+        {showLocalChecklist && subtasksCount > 0 && (
+          <div className="mt-3 pt-3 border-t border-zinc-800/85 space-y-2.5 text-left" onClick={(e) => e.stopPropagation()}>
+            {((task.subtasks || []) as any[]).map((subItem) => (
+              <div key={subItem.id} className="flex items-center gap-2.5 text-xs">
+                <input
+                  type="checkbox"
+                  checked={subItem.completed}
+                  onChange={(e) => handleToggleSubtaskLocal(e as any, subItem.id, e.target.checked)}
+                  className="rounded border-zinc-700 bg-zinc-900 text-emerald-600 focus:ring-emerald-500/20 h-4 w-4 cursor-pointer"
+                />
+                <span className={`text-[11px] text-zinc-300 font-medium ${subItem.completed ? 'line-through text-zinc-500' : ''}`}>
+                  {subItem.title}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </>
   );
