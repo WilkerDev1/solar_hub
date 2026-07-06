@@ -41,7 +41,7 @@ export default function KanbanView({
 
   return (
     <DragDropContext onDragEnd={onDragEnd}>
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 overflow-x-auto min-w-0 pb-4 h-[650px] items-stretch">
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 overflow-x-auto min-w-0 pb-4 h-full items-stretch">
         {columns.map(col => (
           <div key={col.id} className={`bg-[#1e1e24] border border-zinc-700 rounded-none flex flex-col min-h-0 h-full p-3.5 border-t-2 ${col.borderClass}`}>
             <div className="flex justify-between items-center mb-3 shrink-0 px-1">

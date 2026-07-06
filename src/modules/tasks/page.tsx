@@ -18,8 +18,6 @@ export default function TasksModule() {
   const t = useTasks();
 
   const scrollRef = useRef<HTMLDivElement>(null);
-  const [showHeader, setShowHeader] = useState(true);
-  const lastScrollTop = useRef(0);
 
   // Load friendly Keep-style font dynamically for testing
   useEffect(() => {
@@ -30,29 +28,6 @@ export default function TasksModule() {
     return () => {
       document.head.removeChild(link);
     };
-  }, []);
-
-  // Listen to scroll events in the inner viewport to dynamically shrink/hide header on scroll
-  useEffect(() => {
-    const container = scrollRef.current;
-    if (!container) return;
-
-    const handleScroll = () => {
-      const currentScroll = container.scrollTop;
-      if (currentScroll <= 15) {
-        setShowHeader(true);
-      } else if (currentScroll > lastScrollTop.current) {
-        // Scrolling down -> hide header
-        setShowHeader(false);
-      } else {
-        // Scrolling up -> show header
-        setShowHeader(true);
-      }
-      lastScrollTop.current = currentScroll;
-    };
-
-    container.addEventListener('scroll', handleScroll, { passive: true });
-    return () => container.removeEventListener('scroll', handleScroll);
   }, []);
 
   return (
@@ -70,14 +45,8 @@ export default function TasksModule() {
 
       {/* 1. Main Content Area */}
       <main className="flex-1 flex flex-col min-w-0 bg-[#121315] overflow-hidden">
-        {/* Top Header Banner — shrinks and expands dynamically on scroll */}
-        <div 
-          className={`transition-all duration-300 ease-in-out flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-zinc-700/60 pb-5 shrink-0 px-6 pt-6 ${
-            showHeader 
-              ? 'opacity-100 max-h-[160px] mb-6' 
-              : 'opacity-0 max-h-0 pb-0 mb-0 border-b-0 overflow-hidden pointer-events-none'
-          }`}
-        >
+        {/* Top Header Banner */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-zinc-700/60 pb-5 shrink-0 px-6 pt-6 mb-6">
           <div>
             <h1 className="text-2xl font-bold text-white tracking-wide flex items-center gap-2">
               <ClipboardList className="h-6 w-6 text-emerald-400" />
@@ -166,7 +135,11 @@ export default function TasksModule() {
         {/* Dynamic Inner Viewport */}
         <div 
           ref={scrollRef}
-          className="flex-1 overflow-y-auto min-h-0 px-6 pb-6 pr-5 scrollbar-thin scrollbar-thumb-zinc-900"
+          className={`flex-1 min-h-0 px-6 pb-6 pr-5 ${
+            t.viewMode === 'kanban' 
+              ? 'overflow-hidden' 
+              : 'overflow-y-auto scrollbar-thin scrollbar-thumb-zinc-900'
+          }`}
         >
           {t.loading ? (
             <div className="py-20 flex flex-col items-center justify-center space-y-3 bg-zinc-900/10 border border-zinc-850 rounded-2xl">
