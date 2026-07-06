@@ -5,7 +5,7 @@ import {
   X, Calendar, User, Tag, Clock, ClipboardList, AlertCircle, Plus, 
   Trash2, Upload, FileText, Check, MessageSquare, Briefcase, 
   RefreshCw, CheckSquare, Square, ChevronRight, Activity, Paperclip, Send,
-  Loader2, FolderKanban, Folder, Flag, Search, ChevronsUp, ChevronDown, Equal
+  Loader2, FolderKanban, Folder, Flag, Search, ChevronsUp, ChevronDown, Equal, ShieldAlert
 } from 'lucide-react';
 import { updateTask, auditTaskStatus, uploadTaskEvidence, deleteTask, TaskRow } from '@/core/services/tasks';
 import { Button } from '@/core/components/ui/button';
@@ -896,67 +896,19 @@ export default function TaskDetailDrawer({
                   />
                 </label>
 
-                {/* 8. Tipo & Auditoria Settings */}
-                <div className="relative">
-                  <button
-                    type="button"
-                    onClick={() => setActivePopover('tags')}
-                    className="flex items-center gap-1.5 px-3 py-1.5 bg-[#2c2d34] border border-[#3e3f4a] hover:bg-[#383948] text-[11px] font-bold text-[#10b981] hover:text-[#34d399] rounded-lg transition-all"
-                  >
-                    <Tag className="h-3.5 w-3.5" />
-                    <span>Tipo y Auditoría</span>
-                  </button>
-
-                  {activePopover === 'tags' && (
-                    <div className="absolute right-0 bottom-full mb-1.5 w-60 bg-[#25262c] border border-[#3c3d47] rounded-xl p-3.5 shadow-2xl z-50 flex flex-col gap-3">
-                      <div className="space-y-1.5">
-                        <label className="text-[9px] font-bold text-zinc-400 uppercase font-mono block">Tipo de Tarea</label>
-                        <div className="grid grid-cols-2 gap-1.5">
-                          <button
-                            type="button"
-                            onClick={() => handleTaskTypeChange('check')}
-                            className={`flex flex-col items-center justify-center p-2 rounded-lg border text-center transition-all ${
-                              taskType === 'check' 
-                                ? 'bg-[#16161c] border-emerald-600 text-emerald-450 font-bold' 
-                                : 'bg-[#16161c] border-[#2c2d34]/60 text-zinc-400 hover:border-[#3c3d47] text-xs'
-                            }`}
-                          >
-                            <CheckSquare className="h-4 w-4 mb-1" />
-                            <span className="text-[9.5px]">Check Rápido</span>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleTaskTypeChange('entregable')}
-                            className={`flex flex-col items-center justify-center p-2 rounded-lg border text-center transition-all ${
-                              taskType === 'entregable' 
-                                ? 'bg-[#16161c] border-emerald-600 text-emerald-450 font-bold' 
-                                : 'bg-[#16161c] border-[#2c2d34]/60 text-zinc-400 hover:border-[#3c3d47] text-xs'
-                            }`}
-                          >
-                            <FileText className="h-4 w-4 mb-1" />
-                            <span className="text-[9.5px]">Entregable</span>
-                          </button>
-                        </div>
-                      </div>
-
-                      <div className="pt-2 border-t border-[#2c2d34]/60 flex items-center gap-2">
-                        <input
-                          type="checkbox"
-                          id="drawer-requires-audit-checkbox"
-                          checked={requiresAudit}
-                          onChange={e => handleRequiresAuditToggle(e.target.checked)}
-                          className="rounded border-[#2c2d34]/60 bg-[#16161c] text-emerald-600 focus:ring-emerald-500/20 h-4 w-4 cursor-pointer"
-                        />
-                        <label 
-                          htmlFor="drawer-requires-audit-checkbox" 
-                          className="text-[10px] font-bold text-zinc-400 cursor-pointer select-none leading-tight"
-                        >
-                          Exigir Auditoría de Líder
-                        </label>
-                      </div>
-                    </div>
-                  )}
-                </div>
+                {/* 8. Auditoría Settings */}
+                <button
+                  type="button"
+                  onClick={() => handleRequiresAuditToggle(!requiresAudit)}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border transition-all text-[11px] font-bold cursor-pointer ${
+                    requiresAudit 
+                      ? 'bg-amber-500/20 text-amber-400 border-amber-500/30' 
+                      : 'bg-[#2c2d34] border border-[#3e3f4a] hover:bg-[#383948] text-zinc-300 hover:text-white'
+                  }`}
+                >
+                  <ShieldAlert className={`h-3.5 w-3.5 ${requiresAudit ? 'text-amber-500' : 'text-zinc-400'}`} />
+                  <span>Auditoría</span>
+                </button>
               </div>
             </div>
 

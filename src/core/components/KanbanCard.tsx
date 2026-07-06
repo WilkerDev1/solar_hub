@@ -3,7 +3,8 @@
 import React, { useState, useEffect } from 'react';
 import { Draggable } from '@hello-pangea/dnd';
 import { 
-  AlertCircle, Edit, Trash2, CheckSquare, Square, Clock, X, MessageSquare, Paperclip
+  AlertCircle, Edit, Trash2, CheckSquare, Square, Clock, X, MessageSquare, Paperclip,
+  Shield, Package, Cpu, Database, Tag, ShieldAlert, ShieldCheck, ChevronsUp, ChevronDown, Equal
 } from 'lucide-react';
 import { TaskRow } from '@/core/services/tasks';
 import { supabase } from '@/core/database/supabase';
@@ -47,13 +48,6 @@ export default function KanbanCard({
       setToken(session?.access_token || null);
     });
   }, []);
-
-  const borderAccentColor = 
-    task.area === 'legal' ? 'border-t-purple-500' :
-    task.area === 'almacen' ? 'border-t-blue-500' :
-    task.area === 'operaciones' ? 'border-t-cyan-500' :
-    task.area === 'administracion' ? 'border-t-amber-500' :
-    'border-t-emerald-500'; // general
 
   const taskProject = projects.find(p => p.id === task.project_id);
 
@@ -103,16 +97,20 @@ export default function KanbanCard({
     }
   };
 
-  // Area Color mapping for Trello label style pills
-  const getAreaColor = (a: string) => {
+  // Department icon mapping
+  const getDepartmentIcon = (a: string) => {
     switch (a) {
-      case 'legal': return 'bg-purple-500/20 text-purple-350 border border-purple-500/25';
-      case 'almacen': return 'bg-blue-500/20 text-blue-350 border border-blue-500/25';
-      case 'operaciones': return 'bg-cyan-500/20 text-cyan-350 border border-cyan-500/25';
-      case 'administracion': return 'bg-amber-500/20 text-amber-350 border border-amber-500/25';
+      case 'legal': 
+        return { icon: Shield, color: 'text-purple-400 hover:text-purple-300' };
+      case 'almacen': 
+        return { icon: Package, color: 'text-blue-400 hover:text-blue-300' };
+      case 'operaciones': 
+        return { icon: Cpu, color: 'text-cyan-400 hover:text-cyan-300' };
+      case 'administracion': 
+        return { icon: Database, color: 'text-amber-400 hover:text-amber-300' };
       case 'general':
       default:
-        return 'bg-emerald-500/20 text-emerald-350 border border-emerald-500/25';
+        return { icon: Tag, color: 'text-emerald-400 hover:text-emerald-300' };
     }
   };
 
@@ -157,7 +155,7 @@ export default function KanbanCard({
       {/* Content wrapper with padding */}
       <div className="p-4 flex-1 flex flex-col justify-between">
         <div className="space-y-3">
-          {/* Audit Status Alert Banner */}
+          {/* Audit Status Alert Banner (Shown only inside the card body when loading to highlight it) */}
           {task.requires_audit && task.audit_status === 'pendiente' && (
             <div className="mb-2 bg-amber-500/10 border border-amber-500/30 text-amber-400 px-2.5 py-1.5 rounded-lg text-[9px] font-bold flex items-center gap-1.5 animate-pulse">
               <AlertCircle className="h-3.5 w-3.5 shrink-0 text-amber-500" />
@@ -178,9 +176,6 @@ export default function KanbanCard({
                   {taskProject.name.toLowerCase()}
                 </span>
               )}
-              <span className={`text-[8.5px] font-bold uppercase px-2 py-0.5 rounded-full ${getAreaColor(task.area || 'general')}`} title={`Departamento: ${task.area || 'general'}`}>
-                {(task.area || 'general').toLowerCase()}
-              </span>
             </div>
 
             {/* Compact Edit/Delete Action Buttons */}
@@ -210,7 +205,7 @@ export default function KanbanCard({
             </div>
           </div>
 
-          {/* Task Title (Text only, no check square next to it) */}
+          {/* Task Title */}
           <div className="flex items-start">
             <span className={`font-bold text-xs text-white leading-snug text-left ${isCompleted ? 'line-through text-zinc-500' : ''}`}>
               {task.title}
@@ -254,6 +249,28 @@ export default function KanbanCard({
                 {new Date((task as any).due_date).toLocaleDateString([], { day: '2-digit', month: 'short' })}
               </span>
             )}
+            {/* Audit Status Icon: displayed on the card to indicate need of leader approval */}
+            {task.requires_audit && (
+              <span 
+                className={`flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold border ${
+                  task.audit_status === 'aceptado' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' :
+                  task.audit_status === 'denegado' ? 'bg-rose-500/10 text-rose-400 border-rose-500/20 animate-pulse' :
+                  'bg-amber-500/10 text-amber-400 border-amber-500/20 animate-pulse'
+                }`}
+                title={
+                  task.audit_status === 'aceptado' ? 'Auditoría Aprobada' :
+                  task.audit_status === 'denegado' ? 'Auditoría Rechazada' :
+                  'Requiere Auditoría de Líder'
+                }
+              >
+                {task.audit_status === 'aceptado' ? (
+                  <ShieldCheck className="h-3.5 w-3.5 shrink-0 text-emerald-450" />
+                ) : (
+                  <ShieldAlert className="h-3.5 w-3.5 shrink-0 text-amber-500" />
+                )}
+                <span>Auditar</span>
+              </span>
+            )}
             {commentsCount > 0 && (
               <span className="flex items-center gap-1 text-zinc-400" title="Comentarios">
                 <MessageSquare className="h-3.5 w-3.5 shrink-0" />
@@ -264,6 +281,20 @@ export default function KanbanCard({
               <span className="flex items-center gap-1 text-zinc-400" title="Adjuntos">
                 <Paperclip className="h-3.5 w-3.5 shrink-0" />
                 <span className="font-semibold text-[10px]">{filesCount}</span>
+              </span>
+            )}
+            {(task as any).priority && (
+              <span 
+                className="flex items-center" 
+                title={`Prioridad: ${(task as any).priority}`}
+              >
+                {(task as any).priority === 'alta' ? (
+                  <ChevronsUp className="h-4 w-4 text-rose-500 shrink-0" />
+                ) : (task as any).priority === 'media' ? (
+                  <Equal className="h-4 w-4 text-amber-500 rotate-90 shrink-0" />
+                ) : (
+                  <ChevronDown className="h-4 w-4 text-blue-500 shrink-0" />
+                )}
               </span>
             )}
             {subtasksCount > 0 && (
@@ -286,29 +317,42 @@ export default function KanbanCard({
             )}
           </div>
 
-          {/* Right side: Assignees circle avatar stack */}
-          <div className="flex -space-x-1.5 overflow-hidden">
-            {((task as any).assigned_to_ids && (task as any).assigned_to_ids.length > 0
-              ? (task as any).assigned_to_ids
-              : (task.assigned_to ? [task.assigned_to] : [])
-            ).slice(0, 3).map((id: string, i: number) => {
-              const emp = employees.find(e => e.id === id);
-              if (!emp) return null;
+          {/* Right side: Department Icon & Assignees circle avatar stack */}
+          <div className="flex items-center gap-2 shrink-0">
+            {/* Department Icon */}
+            {(() => {
+              const dept = getDepartmentIcon(task.area || 'general');
+              const DeptIcon = dept.icon;
               return (
-                <div
-                  key={i}
-                  className="h-5.5 w-5.5 rounded-full bg-zinc-900 border border-zinc-950 flex items-center justify-center text-[8px] font-bold text-zinc-300 ring-1 ring-zinc-800"
-                  title={emp.full_name}
-                >
-                  {emp.full_name?.charAt(0).toUpperCase()}
-                </div>
+                <span title={`Departamento: ${task.area || 'General'}`}>
+                  <DeptIcon className={`h-3.5 w-3.5 shrink-0 ${dept.color}`} />
+                </span>
               );
-            })}
-            {((task as any).assigned_to_ids?.length || 0) > 3 && (
-              <div className="h-5.5 w-5.5 rounded-full bg-zinc-900 border border-zinc-950 flex items-center justify-center text-[7px] font-bold text-zinc-500 ring-1 ring-zinc-800">
-                +{((task as any).assigned_to_ids?.length || 0) - 3}
-              </div>
-            )}
+            })()}
+
+            <div className="flex -space-x-1.5 overflow-hidden">
+              {((task as any).assigned_to_ids && (task as any).assigned_to_ids.length > 0
+                ? (task as any).assigned_to_ids
+                : (task.assigned_to ? [task.assigned_to] : [])
+              ).slice(0, 3).map((id: string, i: number) => {
+                const emp = employees.find(e => e.id === id);
+                if (!emp) return null;
+                return (
+                  <div
+                    key={i}
+                    className="h-5.5 w-5.5 rounded-full bg-zinc-900 border border-zinc-950 flex items-center justify-center text-[8px] font-bold text-zinc-300 ring-1 ring-zinc-800"
+                    title={emp.full_name}
+                  >
+                    {emp.full_name?.charAt(0).toUpperCase()}
+                  </div>
+                );
+              })}
+              {((task as any).assigned_to_ids?.length || 0) > 3 && (
+                <div className="h-5.5 w-5.5 rounded-full bg-zinc-900 border border-zinc-950 flex items-center justify-center text-[7px] font-bold text-zinc-500 ring-1 ring-zinc-800">
+                  +{((task as any).assigned_to_ids?.length || 0) - 3}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -319,7 +363,7 @@ export default function KanbanCard({
     return (
       <div
         onClick={onClick}
-        className={`bg-[#1c1c21] border-t-4 ${borderAccentColor} border-l border-r border-b border-zinc-800 p-0 rounded-none flex flex-col justify-between hover:border-zinc-500 transition-all select-none relative ${isCompleted ? 'opacity-65' : ''}`}
+        className={`bg-[#1c1c21] border-t border-t-zinc-800 border-l border-r border-b border-zinc-800 p-0 rounded-none flex flex-col justify-between hover:border-zinc-500 transition-all select-none relative ${isCompleted ? 'opacity-65' : ''}`}
       >
         {cardInner}
       </div>
@@ -334,7 +378,7 @@ export default function KanbanCard({
           {...provided.draggableProps}
           {...provided.dragHandleProps}
           onClick={onClick}
-          className={`bg-[#1c1c21] border-t-4 ${borderAccentColor} border-l border-r border-b border-zinc-800 p-0 rounded-none flex flex-col justify-between hover:border-zinc-500 transition-all select-none relative ${
+          className={`bg-[#1c1c21] border-t border-t-zinc-800 border-l border-r border-b border-zinc-800 p-0 rounded-none flex flex-col justify-between hover:border-zinc-500 transition-all select-none relative ${
             snapshot.isDragging ? 'shadow-2xl border-emerald-500 bg-zinc-800 scale-[1.02]' : ''
           } ${isCompleted ? 'opacity-65' : ''}`}
         >
