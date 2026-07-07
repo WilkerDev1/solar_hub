@@ -20,6 +20,8 @@ interface PlannerViewProps {
   handleEditTask: (task: TaskRow) => void;
   handleDeleteTask: (task: TaskRow) => void;
   user: any;
+  taskMapping: Record<string, string>;
+  saveTaskMapping: (mapping: Record<string, string>) => void;
 }
 
 interface PlannerColumn {
@@ -38,7 +40,9 @@ export default function PlannerView({
   loadTasks,
   handleEditTask,
   handleDeleteTask,
-  user
+  user,
+  taskMapping,
+  saveTaskMapping
 }: PlannerViewProps) {
   // 1. Planner columns state (loaded from localstorage)
   const [columns, setColumns] = useState<PlannerColumn[]>([
@@ -47,9 +51,6 @@ export default function PlannerView({
     { id: 'this_week', title: 'Esta semana' },
     { id: 'later', title: 'Más tarde' }
   ]);
-
-  // Task mapping state: taskId -> columnId (loaded from localstorage)
-  const [taskMapping, setTaskMapping] = useState<Record<string, string>>({});
 
   // Creator state for new columns
   const [isAddingList, setIsAddingList] = useState(false);
@@ -91,7 +92,7 @@ export default function PlannerView({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Load custom columns and task mappings from localStorage on mount
+  // Load custom columns from localStorage on mount
   useEffect(() => {
     const savedCustomCols = localStorage.getItem('solar_hub_planner_custom_columns');
     if (savedCustomCols) {
@@ -108,27 +109,12 @@ export default function PlannerView({
         console.error('Error loading custom planner columns:', e);
       }
     }
-
-    const savedMapping = localStorage.getItem('solar_hub_planner_task_mapping');
-    if (savedMapping) {
-      try {
-        setTaskMapping(JSON.parse(savedMapping));
-      } catch (e) {
-        console.error('Error loading planner task mappings:', e);
-      }
-    }
   }, []);
 
   // Helper to save custom columns
   const saveCustomColumns = (newCols: PlannerColumn[]) => {
     const customOnly = newCols.filter(col => col.isCustom);
     localStorage.setItem('solar_hub_planner_custom_columns', JSON.stringify(customOnly));
-  };
-
-  // Helper to save mapping
-  const saveTaskMapping = (newMapping: Record<string, string>) => {
-    localStorage.setItem('solar_hub_planner_task_mapping', JSON.stringify(newMapping));
-    setTaskMapping(newMapping);
   };
 
   // Create new custom column list
@@ -204,46 +190,6 @@ export default function PlannerView({
     } catch (e: any) {
       alert('Error creando tarea rápida: ' + e.message);
     }
-  };
-
-  // Auto organization logic
-  const handleAutoOrganize = () => {
-    if (!user) return;
-    
-    const updatedMapping = { ...taskMapping };
-    
-    // Parse helper
-    const todayStr = new Date().toISOString().split('T')[0];
-    const today = new Date(todayStr);
-
-    const oneWeekLater = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
-
-    // Loop through ALL tasks assigned to this user
-    filteredTasks.forEach(task => {
-      const isAssignedToMe = (task as any).assigned_to_ids?.includes(user.id) || task.assigned_to === user.id;
-      if (!isAssignedToMe) return;
-
-      const dueDate = (task as any).due_date;
-      if (!dueDate) {
-        // No due date -> Inbox
-        updatedMapping[task.id] = 'inbox';
-      } else {
-        const taskDate = new Date(dueDate);
-        if (taskDate <= today) {
-          // Today or past due -> Hoy
-          updatedMapping[task.id] = 'today';
-        } else if (taskDate <= oneWeekLater) {
-          // Within next 7 days -> Esta semana
-          updatedMapping[task.id] = 'this_week';
-        } else {
-          // Further out -> Más tarde
-          updatedMapping[task.id] = 'later';
-        }
-      }
-    });
-
-    saveTaskMapping(updatedMapping);
-    alert('¡Organización completada! Tus tareas personales se han clasificado por su fecha de vencimiento.');
   };
 
   // Filter tasks belonging to a column
@@ -349,22 +295,6 @@ export default function PlannerView({
 
   return (
     <div className="flex flex-col space-y-4 h-full min-h-0">
-      {/* Upper toolbar */}
-      <div className="flex justify-between items-center bg-zinc-900 border border-zinc-800/80 p-4 rounded-2xl shrink-0">
-        <div>
-          <h4 className="text-sm font-bold text-white">Planificador de Tareas</h4>
-          <p className="text-[10px] text-zinc-500 mt-0.5 font-mono">Organización cronológica y tableros personalizados de tus compromisos.</p>
-        </div>
-        <div className="flex items-center gap-3">
-          <button
-            onClick={handleAutoOrganize}
-            className="flex items-center gap-1.5 bg-indigo-650 hover:bg-indigo-600 text-white font-bold text-xs px-3.5 py-2 rounded-xl transition-all shadow-md active:scale-95 cursor-pointer border border-indigo-500/20"
-          >
-            <Sparkles className="h-3.5 w-3.5" /> Auto Organización
-          </button>
-        </div>
-      </div>
-
       <DragDropContext onDragEnd={onDragEndLocal}>
         <div className="flex-1 flex gap-4 overflow-x-auto pb-4 items-stretch select-none">
           {columns.map(col => {

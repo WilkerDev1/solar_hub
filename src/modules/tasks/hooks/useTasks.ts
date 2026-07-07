@@ -21,6 +21,7 @@ export function useTasks() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [documentMap, setDocumentMap] = useState<Record<string, { name: string; mime_type: string }>>({});
+  const [taskMapping, setTaskMapping] = useState<Record<string, string>>({});
   
   // Auxiliary lists
   const [employees, setEmployees] = useState<any[]>([]);
@@ -145,6 +146,18 @@ export function useTasks() {
     loadAuxiliaryData();
     loadTasks();
   }, [user]);
+
+  // Load task mapping on mount
+  useEffect(() => {
+    const savedMapping = localStorage.getItem('solar_hub_planner_task_mapping');
+    if (savedMapping) {
+      try {
+        setTaskMapping(JSON.parse(savedMapping));
+      } catch (e) {
+        console.error('Error loading planner task mappings:', e);
+      }
+    }
+  }, []);
 
   // Open task if taskId is provided in the URL query parameters
   useEffect(() => {
@@ -276,6 +289,43 @@ export function useTasks() {
     } catch (err: any) {
       alert('Error al crear tarea rápida: ' + err.message);
     }
+  };
+
+  const saveTaskMapping = (newMapping: Record<string, string>) => {
+    localStorage.setItem('solar_hub_planner_task_mapping', JSON.stringify(newMapping));
+    setTaskMapping(newMapping);
+  };
+
+  const handleAutoOrganize = () => {
+    if (!user) return;
+    const updatedMapping = { ...taskMapping };
+    
+    // Parse helper
+    const todayStr = new Date().toISOString().split('T')[0];
+    const today = new Date(todayStr);
+    const oneWeekLater = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
+
+    filteredTasks.forEach(task => {
+      const isAssignedToMe = (task as any).assigned_to_ids?.includes(user.id) || task.assigned_to === user.id;
+      if (!isAssignedToMe) return;
+
+      const dueDate = (task as any).due_date;
+      if (!dueDate) {
+        updatedMapping[task.id] = 'inbox';
+      } else {
+        const taskDate = new Date(dueDate);
+        if (taskDate <= today) {
+          updatedMapping[task.id] = 'today';
+        } else if (taskDate <= oneWeekLater) {
+          updatedMapping[task.id] = 'this_week';
+        } else {
+          updatedMapping[task.id] = 'later';
+        }
+      }
+    });
+
+    saveTaskMapping(updatedMapping);
+    alert('¡Organización completada! Tus tareas personales se han clasificado por su fecha de vencimiento.');
   };
 
   // DND Drag End Handler
@@ -421,6 +471,8 @@ export function useTasks() {
     handleToggleCheck,
     handleCreateSubmit,
     handleQuickCreate,
+    saveTaskMapping,
+    handleAutoOrganize,
     onDragEnd,
     // Computed values
     filteredTasks,
@@ -428,6 +480,7 @@ export function useTasks() {
     getCalendarDays,
     nextMonth,
     prevMonth,
-    getTasksForDate
+    getTasksForDate,
+    taskMapping
   };
 }

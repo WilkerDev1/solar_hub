@@ -11,7 +11,7 @@ import PlannerView from './components/PlannerView';
 import CreateTaskModal from './components/CreateTaskModal';
 import TaskDetailDrawer from '@/core/components/TaskDetailDrawer';
 import { 
-  ClipboardList, LayoutGrid, List, Calendar, StickyNote, Plus, Loader2, AlertCircle, SlidersHorizontal, CalendarRange
+  ClipboardList, LayoutGrid, List, Calendar, StickyNote, Plus, Loader2, AlertCircle, SlidersHorizontal, CalendarRange, Sparkles
 } from 'lucide-react';
 import { Button } from '@/core/components/ui/button';
 
@@ -47,7 +47,7 @@ export default function TasksModule() {
       {/* 1. Main Content Area */}
       <main className="flex-1 flex flex-col min-w-0 bg-[#121315] overflow-hidden">
         {/* Top Header Banner */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-zinc-700/60 pb-5 shrink-0 px-6 pt-6 mb-6">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-zinc-700/60 pb-3 shrink-0 px-6 pt-4 mb-4">
           <div>
             <h1 className="text-2xl font-bold text-white tracking-wide flex items-center gap-2">
               <ClipboardList className="h-6 w-6 text-emerald-400" />
@@ -138,6 +138,16 @@ export default function TasksModule() {
               <SlidersHorizontal className="h-4 w-4" />
             </button>
 
+            {t.viewMode === 'planner' && (
+              <button
+                onClick={t.handleAutoOrganize}
+                className="hidden lg:flex items-center gap-1.5 bg-indigo-650 hover:bg-indigo-600 text-white font-bold text-xs h-10 px-4 rounded-xl transition-all shadow-md active:scale-95 cursor-pointer border border-indigo-500/20"
+              >
+                <Sparkles className="h-4 w-4" />
+                Auto Organización
+              </button>
+            )}
+
             <Button onClick={() => t.setIsCreateOpen(true)} className="hidden lg:flex bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs h-10 px-4 rounded-xl">
               <Plus className="h-4 w-4 mr-1.5" /> Nueva Tarea
             </Button>
@@ -208,6 +218,8 @@ export default function TasksModule() {
                   handleEditTask={t.handleEditTask}
                   handleDeleteTask={t.handleDeleteTask}
                   user={t.user}
+                  taskMapping={t.taskMapping}
+                  saveTaskMapping={t.saveTaskMapping}
                 />
               )}
 
