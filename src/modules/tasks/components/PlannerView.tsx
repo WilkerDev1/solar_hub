@@ -28,6 +28,7 @@ interface PlannerColumn {
   id: string;
   title: string;
   isCustom?: boolean;
+  defaultColor: string;
 }
 
 export default function PlannerView({
@@ -46,11 +47,16 @@ export default function PlannerView({
 }: PlannerViewProps) {
   // 1. Planner columns state (loaded from localstorage)
   const [columns, setColumns] = useState<PlannerColumn[]>([
-    { id: 'inbox', title: 'Bandeja de entrada' },
-    { id: 'today', title: 'Hoy' },
-    { id: 'this_week', title: 'Esta semana' },
-    { id: 'later', title: 'Más tarde' }
+    { id: 'inbox', title: 'Bandeja de entrada', defaultColor: '#15803d' }, // Dark green by default
+    { id: 'today', title: 'Hoy', defaultColor: '#6366f1' },
+    { id: 'this_week', title: 'Esta semana', defaultColor: '#a855f7' },
+    { id: 'later', title: 'Más tarde', defaultColor: '#71717a' }
   ]);
+
+  // Column settings / filters state
+  const [colSearch, setColSearch] = useState<Record<string, string>>({});
+  const [colColors, setColColors] = useState<Record<string, string>>({});
+  const [activeMenuCol, setActiveMenuCol] = useState<string | null>(null);
 
   // Creator state for new columns
   const [isAddingList, setIsAddingList] = useState(false);
@@ -92,21 +98,35 @@ export default function PlannerView({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Load custom columns from localStorage on mount
+  // Load custom columns and colors from localStorage on mount
   useEffect(() => {
     const savedCustomCols = localStorage.getItem('solar_hub_planner_custom_columns');
     if (savedCustomCols) {
       try {
         const parsed = JSON.parse(savedCustomCols) as PlannerColumn[];
+        // Add defaultColor to parsed columns if they don't have one
+        const formatted = parsed.map(col => ({
+          ...col,
+          defaultColor: col.defaultColor || '#3f3f46'
+        }));
         setColumns([
-          { id: 'inbox', title: 'Bandeja de entrada' },
-          { id: 'today', title: 'Hoy' },
-          { id: 'this_week', title: 'Esta semana' },
-          { id: 'later', title: 'Más tarde' },
-          ...parsed
+          { id: 'inbox', title: 'Bandeja de entrada', defaultColor: '#15803d' },
+          { id: 'today', title: 'Hoy', defaultColor: '#6366f1' },
+          { id: 'this_week', title: 'Esta semana', defaultColor: '#a855f7' },
+          { id: 'later', title: 'Más tarde', defaultColor: '#71717a' },
+          ...formatted
         ]);
       } catch (e) {
         console.error('Error loading custom planner columns:', e);
+      }
+    }
+
+    const savedColors = localStorage.getItem('solar_hub_planner_col_colors');
+    if (savedColors) {
+      try {
+        setColColors(JSON.parse(savedColors));
+      } catch (e) {
+        console.error('Error loading planner column colors:', e);
       }
     }
   }, []);
@@ -117,6 +137,18 @@ export default function PlannerView({
     localStorage.setItem('solar_hub_planner_custom_columns', JSON.stringify(customOnly));
   };
 
+  // Helper to save column color settings
+  const saveColor = (colId: string, color: string | null) => {
+    const updated = { ...colColors };
+    if (color) {
+      updated[colId] = color;
+    } else {
+      delete updated[colId];
+    }
+    setColColors(updated);
+    localStorage.setItem('solar_hub_planner_col_colors', JSON.stringify(updated));
+  };
+
   // Create new custom column list
   const handleAddListSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -125,7 +157,7 @@ export default function PlannerView({
     const newColId = `col_${Date.now()}`;
     const updated = [
       ...columns,
-      { id: newColId, title: newListTitle.trim(), isCustom: true }
+      { id: newColId, title: newListTitle.trim(), isCustom: true, defaultColor: '#3f3f46' }
     ];
     setColumns(updated);
     saveCustomColumns(updated);
@@ -194,10 +226,20 @@ export default function PlannerView({
 
   // Filter tasks belonging to a column
   const getColTasks = (colId: string) => {
-    const tasksInCol = filteredTasks.filter(task => {
+    let tasksInCol = filteredTasks.filter(task => {
       const mappedCol = taskMapping[task.id] || 'inbox';
       return mappedCol === colId;
     });
+
+    // Apply column specific search keyword
+    const search = colSearch[colId];
+    if (search && search.trim()) {
+      const q = search.trim().toLowerCase();
+      tasksInCol = tasksInCol.filter(t => 
+        t.title.toLowerCase().includes(q) || 
+        t.description?.toLowerCase().includes(q)
+      );
+    }
 
     // If it's the Inbox, apply inbox specific filters
     if (colId === 'inbox') {
@@ -294,14 +336,27 @@ export default function PlannerView({
   };
 
   return (
-    <div className="flex flex-col space-y-4 h-full min-h-0">
+    <div className="flex flex-col space-y-4 h-full min-h-0 relative">
+      {/* Backdrop overlay to close menus when clicking outside */}
+      {activeMenuCol && (
+        <div 
+          className="fixed inset-0 z-40 bg-transparent cursor-default" 
+          onClick={() => setActiveMenuCol(null)} 
+        />
+      )}
+
       <DragDropContext onDragEnd={onDragEndLocal}>
         <div className="flex-1 flex gap-4 overflow-x-auto pb-4 items-stretch select-none">
           {columns.map(col => {
             const colTasks = getColTasks(col.id);
+            const currentColor = colColors[col.id] || col.defaultColor;
+
             return (
-              <div key={col.id} className="bg-[#1e1e24] border border-zinc-700 rounded-none flex flex-col min-h-0 h-full p-3 border-t-2 border-t-zinc-600 w-[280px] md:w-[320px] shrink-0">
-                
+              <div 
+                key={col.id} 
+                className="bg-[#1e1e24] border border-zinc-700 rounded-none flex flex-col min-h-0 h-full p-3 border-t-2 w-[280px] md:w-[320px] shrink-0"
+                style={{ borderTopColor: currentColor }}
+              >
                 {/* Column Header */}
                 <div className="flex justify-between items-center mb-3.5 shrink-0 px-1 relative">
                   {editingColId === col.id ? (
@@ -328,7 +383,7 @@ export default function PlannerView({
                     <>
                       <div className="flex items-center gap-1.5 min-w-0">
                         {col.id === 'inbox' && <Inbox className="h-3.5 w-3.5 text-zinc-400" />}
-                        <span className="text-[11px] font-bold text-zinc-300 uppercase tracking-widest font-mono truncate max-w-[130px] md:max-w-[170px]" title={col.title}>
+                        <span className="text-[11px] font-bold text-zinc-300 uppercase tracking-widest font-mono truncate max-w-[100px] md:max-w-[130px]" title={col.title}>
                           {col.title}
                         </span>
                         
@@ -489,25 +544,137 @@ export default function PlannerView({
                         )}
                       </div>
 
-                      <div className="flex items-center gap-1 shrink-0">
+                      <div className="flex items-center gap-1 shrink-0 z-10">
                         <span className="bg-zinc-900 text-zinc-400 px-2 py-0.5 rounded text-[10px] font-bold font-mono border border-zinc-700">
                           {colTasks.length}
                         </span>
+                        
+                        {/* Settings / Filters Button */}
+                        <div className="relative">
+                          <button
+                            onClick={() => setActiveMenuCol(activeMenuCol === col.id ? null : col.id)}
+                            className={`p-1 rounded hover:bg-zinc-800 transition-colors cursor-pointer ${
+                              colSearch[col.id] || colColors[col.id]
+                                ? 'text-emerald-500 bg-emerald-500/10'
+                                : 'text-zinc-550 hover:text-zinc-300'
+                            }`}
+                            title="Filtros y Ajustes de columna"
+                          >
+                            <SlidersHorizontal className="h-3 w-3" />
+                          </button>
+
+                          {/* Dropdown Menu */}
+                          {activeMenuCol === col.id && (
+                            <div className="absolute top-7 right-0 z-50 w-60 bg-zinc-900 border border-zinc-800 p-4 space-y-4 rounded-xl shadow-2xl text-zinc-300">
+                              <div className="flex justify-between items-center pb-2 border-b border-zinc-800">
+                                <span className="text-[10px] font-bold uppercase tracking-wider font-mono text-zinc-450">Filtros y Ajustes</span>
+                                <button 
+                                  type="button"
+                                  onClick={() => setActiveMenuCol(null)} 
+                                  className="text-zinc-550 hover:text-white"
+                                >
+                                  <X className="h-3.5 w-3.5" />
+                                </button>
+                              </div>
+
+                              {/* Keyword Search */}
+                              <div className="space-y-1.5 text-left">
+                                <label className="text-[9px] font-bold uppercase tracking-wider text-zinc-500 font-mono">Buscar en columna</label>
+                                <div className="relative">
+                                  <input
+                                    type="text"
+                                    placeholder="Buscar tarjetas..."
+                                    value={colSearch[col.id] || ''}
+                                    onChange={(e) => setColSearch({ ...colSearch, [col.id]: e.target.value })}
+                                    className="w-full bg-zinc-950 border border-zinc-800 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-zinc-700"
+                                  />
+                                  {colSearch[col.id] && (
+                                    <button
+                                      type="button"
+                                      onClick={() => setColSearch({ ...colSearch, [col.id]: '' })}
+                                      className="absolute right-2 top-2 text-zinc-500 hover:text-white"
+                                    >
+                                      <X className="h-3 w-3" />
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+
+                              {/* Color Selector */}
+                              <div className="space-y-1.5 text-left">
+                                <label className="text-[9px] font-bold uppercase tracking-wider text-zinc-500 font-mono">Color de columna</label>
+                                <div className="grid grid-cols-6 gap-1.5">
+                                  {[
+                                    { hex: '#15803d', name: 'Verde' },
+                                    { hex: '#eab308', name: 'Oro' },
+                                    { hex: '#f97316', name: 'Naranja' },
+                                    { hex: '#ef4444', name: 'Rojo' },
+                                    { hex: '#a855f7', name: 'Púrpura' },
+                                    { hex: '#3b82f6', name: 'Azul' },
+                                    { hex: '#14b8a6', name: 'Teal' },
+                                    { hex: '#84cc16', name: 'Lima' },
+                                    { hex: '#ec4899', name: 'Rosa' },
+                                    { hex: '#71717a', name: 'Gris' }
+                                  ].map(color => (
+                                    <button
+                                      key={color.hex}
+                                      type="button"
+                                      onClick={() => saveColor(col.id, color.hex)}
+                                      className="h-6 w-6 rounded-full border border-zinc-750 cursor-pointer hover:scale-110 active:scale-95 transition-all relative flex items-center justify-center shrink-0"
+                                      style={{ backgroundColor: color.hex }}
+                                      title={color.name}
+                                    >
+                                      {currentColor === color.hex && (
+                                        <span className="h-1.5 w-1.5 bg-white rounded-full animate-none" />
+                                      )}
+                                    </button>
+                                  ))}
+
+                                  {/* Custom Color Color Picker */}
+                                  <div className="relative h-6 w-6 rounded-full overflow-hidden border border-zinc-750 hover:scale-110 active:scale-95 transition-all flex items-center justify-center bg-gradient-to-tr from-rose-500 via-emerald-500 to-blue-500 cursor-pointer shrink-0">
+                                    <input
+                                      type="color"
+                                      value={colColors[col.id] || col.defaultColor}
+                                      onChange={(e) => saveColor(col.id, e.target.value)}
+                                      className="opacity-0 absolute inset-0 cursor-pointer w-full h-full"
+                                      title="Color personalizado"
+                                    />
+                                    {/* Custom check indicator */}
+                                    {colColors[col.id] && ![ '#15803d', '#eab308', '#f97316', '#ef4444', '#a855f7', '#3b82f6', '#14b8a6', '#84cc16', '#ec4899', '#71717a' ].includes(colColors[col.id]) && (
+                                      <span className="h-1.5 w-1.5 bg-white rounded-full z-10" />
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+
+                              {colColors[col.id] && (
+                                <button
+                                  type="button"
+                                  onClick={() => saveColor(col.id, null)}
+                                  className="w-full text-center py-1.5 border border-zinc-800 hover:bg-zinc-850 text-[9px] font-bold uppercase tracking-wider font-mono rounded cursor-pointer transition-colors"
+                                >
+                                  Quitar color
+                                </button>
+                              )}
+                            </div>
+                          )}
+                        </div>
+
                         {col.isCustom && (
-                          <div className="flex items-center ml-1">
+                          <div className="flex items-center ml-0.5">
                             <button
                               onClick={() => {
                                 setEditingColId(col.id);
                                 setEditingColTitle(col.title);
                               }}
-                              className="p-1 text-zinc-500 hover:text-white transition-colors cursor-pointer"
+                              className="p-1 text-zinc-550 hover:text-white transition-colors cursor-pointer"
                               title="Renombrar lista"
                             >
                               <Edit2 className="h-3 w-3" />
                             </button>
                             <button
                               onClick={() => handleDeleteCol(col.id)}
-                              className="p-1 text-zinc-500 hover:text-rose-500 transition-colors cursor-pointer"
+                              className="p-1 text-zinc-550 hover:text-rose-500 transition-colors cursor-pointer"
                               title="Eliminar lista"
                             >
                               <Trash2 className="h-3 w-3" />
@@ -560,8 +727,10 @@ export default function PlannerView({
                         {provided.placeholder}
                         
                         {colTasks.length === 0 && (
-                          <div className="py-8 flex flex-col items-center justify-center border border-dashed border-zinc-800 rounded-xl">
-                            <span className="text-zinc-650 text-[10px] italic font-mono font-bold">Columna vacía</span>
+                          <div className="py-8 flex flex-col items-center justify-center border border-dashed border-zinc-800 rounded-none">
+                            <span className="text-zinc-650 text-[10px] italic font-mono font-bold">
+                              {colSearch[col.id] ? 'No se encontraron tarjetas' : 'Columna vacía'}
+                            </span>
                           </div>
                         )}
                       </div>
