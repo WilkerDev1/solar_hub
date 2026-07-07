@@ -47,10 +47,10 @@ export default function PlannerView({
 }: PlannerViewProps) {
   // 1. Planner columns state (loaded from localstorage)
   const [columns, setColumns] = useState<PlannerColumn[]>([
-    { id: 'inbox', title: 'Bandeja de entrada', defaultColor: '#15803d' }, // Dark green by default
-    { id: 'today', title: 'Hoy', defaultColor: '#6366f1' },
-    { id: 'this_week', title: 'Esta semana', defaultColor: '#a855f7' },
-    { id: 'later', title: 'Más tarde', defaultColor: '#71717a' }
+    { id: 'inbox', title: 'Bandeja de entrada', defaultColor: '#143c24' }, // Default dark green background
+    { id: 'today', title: 'Hoy', defaultColor: '#1e1e24' },
+    { id: 'this_week', title: 'Esta semana', defaultColor: '#1e1e24' },
+    { id: 'later', title: 'Más tarde', defaultColor: '#1e1e24' }
   ]);
 
   // Column settings / filters state
@@ -98,6 +98,18 @@ export default function PlannerView({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  // Close column menu dropdown on window clicks outside active menu
+  useEffect(() => {
+    if (!activeMenuCol) return;
+    const handleOutsideClick = () => {
+      setActiveMenuCol(null);
+    };
+    document.addEventListener('click', handleOutsideClick);
+    return () => {
+      document.removeEventListener('click', handleOutsideClick);
+    };
+  }, [activeMenuCol]);
+
   // Load custom columns and colors from localStorage on mount
   useEffect(() => {
     const savedCustomCols = localStorage.getItem('solar_hub_planner_custom_columns');
@@ -107,13 +119,13 @@ export default function PlannerView({
         // Add defaultColor to parsed columns if they don't have one
         const formatted = parsed.map(col => ({
           ...col,
-          defaultColor: col.defaultColor || '#3f3f46'
+          defaultColor: col.defaultColor || '#1e1e24'
         }));
         setColumns([
-          { id: 'inbox', title: 'Bandeja de entrada', defaultColor: '#15803d' },
-          { id: 'today', title: 'Hoy', defaultColor: '#6366f1' },
-          { id: 'this_week', title: 'Esta semana', defaultColor: '#a855f7' },
-          { id: 'later', title: 'Más tarde', defaultColor: '#71717a' },
+          { id: 'inbox', title: 'Bandeja de entrada', defaultColor: '#143c24' },
+          { id: 'today', title: 'Hoy', defaultColor: '#1e1e24' },
+          { id: 'this_week', title: 'Esta semana', defaultColor: '#1e1e24' },
+          { id: 'later', title: 'Más tarde', defaultColor: '#1e1e24' },
           ...formatted
         ]);
       } catch (e) {
@@ -157,7 +169,7 @@ export default function PlannerView({
     const newColId = `col_${Date.now()}`;
     const updated = [
       ...columns,
-      { id: newColId, title: newListTitle.trim(), isCustom: true, defaultColor: '#3f3f46' }
+      { id: newColId, title: newListTitle.trim(), isCustom: true, defaultColor: '#1e1e24' }
     ];
     setColumns(updated);
     saveCustomColumns(updated);
@@ -337,14 +349,6 @@ export default function PlannerView({
 
   return (
     <div className="flex flex-col space-y-4 h-full min-h-0 relative">
-      {/* Backdrop overlay to close menus when clicking outside */}
-      {activeMenuCol && (
-        <div 
-          className="fixed inset-0 z-40 bg-transparent cursor-default" 
-          onClick={() => setActiveMenuCol(null)} 
-        />
-      )}
-
       <DragDropContext onDragEnd={onDragEndLocal}>
         <div className="flex-1 flex gap-4 overflow-x-auto pb-4 items-stretch select-none">
           {columns.map(col => {
@@ -354,8 +358,8 @@ export default function PlannerView({
             return (
               <div 
                 key={col.id} 
-                className="bg-[#1e1e24] border border-zinc-700 rounded-none flex flex-col min-h-0 h-full p-3 border-t-2 w-[280px] md:w-[320px] shrink-0"
-                style={{ borderTopColor: currentColor }}
+                className="border border-zinc-700 rounded-none flex flex-col min-h-0 h-full p-3 w-[280px] md:w-[320px] shrink-0 transition-colors duration-250"
+                style={{ backgroundColor: currentColor }}
               >
                 {/* Column Header */}
                 <div className="flex justify-between items-center mb-3.5 shrink-0 px-1 relative">
@@ -391,7 +395,10 @@ export default function PlannerView({
                         {col.id === 'inbox' && (
                           <div className="relative" ref={filterRef}>
                             <button
-                              onClick={() => setIsFilterOpen(!isFilterOpen)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setIsFilterOpen(!isFilterOpen);
+                              }}
                               className={`p-1 rounded hover:bg-zinc-800 transition-colors cursor-pointer ${
                                 inboxFilters.keyword || inboxFilters.createdDate !== 'all' || inboxFilters.completed !== 'all' || Object.values(inboxFilters.dueStatus).some(Boolean)
                                   ? 'text-emerald-500 bg-emerald-500/10'
@@ -404,7 +411,11 @@ export default function PlannerView({
 
                             {/* Inbox specific filters dropdown */}
                             {isFilterOpen && (
-                              <div className="absolute top-7 left-0 z-50 w-64 bg-zinc-900 border border-zinc-800 p-4 space-y-4 rounded-xl shadow-2xl text-zinc-300">
+                              <div 
+                                onClick={(e) => e.stopPropagation()}
+                                onMouseDown={(e) => e.stopPropagation()}
+                                className="absolute top-7 left-0 z-50 w-64 bg-zinc-900 border border-zinc-800 p-4 space-y-4 rounded-xl shadow-2xl text-zinc-300"
+                              >
                                 <div className="flex justify-between items-center pb-2 border-b border-zinc-800">
                                   <span className="text-[10px] font-bold uppercase tracking-wider font-mono text-zinc-450">Filtrar</span>
                                   <button onClick={() => setIsFilterOpen(false)} className="text-zinc-500 hover:text-white">
@@ -545,18 +556,21 @@ export default function PlannerView({
                       </div>
 
                       <div className="flex items-center gap-1 shrink-0 z-10">
-                        <span className="bg-zinc-900 text-zinc-400 px-2 py-0.5 rounded text-[10px] font-bold font-mono border border-zinc-700">
+                        <span className="bg-zinc-900/80 text-zinc-400 px-2 py-0.5 rounded text-[10px] font-bold font-mono border border-zinc-750">
                           {colTasks.length}
                         </span>
                         
                         {/* Settings / Filters Button */}
                         <div className="relative">
                           <button
-                            onClick={() => setActiveMenuCol(activeMenuCol === col.id ? null : col.id)}
-                            className={`p-1 rounded hover:bg-zinc-800 transition-colors cursor-pointer ${
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setActiveMenuCol(activeMenuCol === col.id ? null : col.id);
+                            }}
+                            className={`p-1 rounded hover:bg-zinc-800/85 transition-colors cursor-pointer ${
                               colSearch[col.id] || colColors[col.id]
                                 ? 'text-emerald-500 bg-emerald-500/10'
-                                : 'text-zinc-550 hover:text-zinc-300'
+                                : 'text-zinc-400 hover:text-zinc-200'
                             }`}
                             title="Filtros y Ajustes de columna"
                           >
@@ -565,13 +579,17 @@ export default function PlannerView({
 
                           {/* Dropdown Menu */}
                           {activeMenuCol === col.id && (
-                            <div className="absolute top-7 right-0 z-50 w-60 bg-zinc-900 border border-zinc-800 p-4 space-y-4 rounded-xl shadow-2xl text-zinc-300">
+                            <div 
+                              onClick={(e) => e.stopPropagation()}
+                              onMouseDown={(e) => e.stopPropagation()}
+                              className="absolute top-7 right-0 z-50 w-60 bg-zinc-900 border border-zinc-800 p-4 space-y-4 rounded-xl shadow-2xl text-zinc-300"
+                            >
                               <div className="flex justify-between items-center pb-2 border-b border-zinc-800">
                                 <span className="text-[10px] font-bold uppercase tracking-wider font-mono text-zinc-450">Filtros y Ajustes</span>
                                 <button 
                                   type="button"
                                   onClick={() => setActiveMenuCol(null)} 
-                                  className="text-zinc-550 hover:text-white"
+                                  className="text-zinc-555 hover:text-white"
                                 >
                                   <X className="h-3.5 w-3.5" />
                                 </button>
@@ -603,24 +621,24 @@ export default function PlannerView({
                               {/* Color Selector */}
                               <div className="space-y-1.5 text-left">
                                 <label className="text-[9px] font-bold uppercase tracking-wider text-zinc-500 font-mono">Color de columna</label>
-                                <div className="grid grid-cols-6 gap-1.5">
+                                <div className="grid grid-cols-5 gap-2">
                                   {[
-                                    { hex: '#15803d', name: 'Verde' },
-                                    { hex: '#eab308', name: 'Oro' },
-                                    { hex: '#f97316', name: 'Naranja' },
-                                    { hex: '#ef4444', name: 'Rojo' },
-                                    { hex: '#a855f7', name: 'Púrpura' },
-                                    { hex: '#3b82f6', name: 'Azul' },
-                                    { hex: '#14b8a6', name: 'Teal' },
-                                    { hex: '#84cc16', name: 'Lima' },
-                                    { hex: '#ec4899', name: 'Rosa' },
-                                    { hex: '#71717a', name: 'Gris' }
+                                    { hex: '#143c24', name: 'Verde oscuro' },
+                                    { hex: '#3a3000', name: 'Oro oscuro' },
+                                    { hex: '#422000', name: 'Naranja oscuro' },
+                                    { hex: '#441414', name: 'Rojo oscuro' },
+                                    { hex: '#38144c', name: 'Púrpura oscuro' },
+                                    { hex: '#002a6c', name: 'Azul oscuro' },
+                                    { hex: '#00384a', name: 'Teal oscuro' },
+                                    { hex: '#203414', name: 'Oliva oscuro' },
+                                    { hex: '#3c142c', name: 'Rosa oscuro' },
+                                    { hex: '#333333', name: 'Gris oscuro' }
                                   ].map(color => (
                                     <button
                                       key={color.hex}
                                       type="button"
                                       onClick={() => saveColor(col.id, color.hex)}
-                                      className="h-6 w-6 rounded-full border border-zinc-750 cursor-pointer hover:scale-110 active:scale-95 transition-all relative flex items-center justify-center shrink-0"
+                                      className="h-7 w-9 rounded border border-zinc-755 cursor-pointer hover:scale-105 active:scale-95 transition-all relative flex items-center justify-center shrink-0"
                                       style={{ backgroundColor: color.hex }}
                                       title={color.name}
                                     >
@@ -629,18 +647,20 @@ export default function PlannerView({
                                       )}
                                     </button>
                                   ))}
+                                </div>
 
-                                  {/* Custom Color Color Picker */}
-                                  <div className="relative h-6 w-6 rounded-full overflow-hidden border border-zinc-750 hover:scale-110 active:scale-95 transition-all flex items-center justify-center bg-gradient-to-tr from-rose-500 via-emerald-500 to-blue-500 cursor-pointer shrink-0">
+                                {/* Custom Color Input */}
+                                <div className="flex items-center gap-2 pt-1">
+                                  <span className="text-[9px] font-bold uppercase tracking-wider text-zinc-550 font-mono">Personalizado:</span>
+                                  <div className="relative h-6 w-12 rounded overflow-hidden border border-zinc-750 hover:scale-105 transition-all flex items-center justify-center bg-gradient-to-tr from-rose-500 via-emerald-500 to-blue-500 cursor-pointer shrink-0">
                                     <input
                                       type="color"
-                                      value={colColors[col.id] || col.defaultColor}
+                                      value={colColors[col.id] || '#1e1e24'}
                                       onChange={(e) => saveColor(col.id, e.target.value)}
                                       className="opacity-0 absolute inset-0 cursor-pointer w-full h-full"
-                                      title="Color personalizado"
+                                      title="Elegir color personalizado"
                                     />
-                                    {/* Custom check indicator */}
-                                    {colColors[col.id] && ![ '#15803d', '#eab308', '#f97316', '#ef4444', '#a855f7', '#3b82f6', '#14b8a6', '#84cc16', '#ec4899', '#71717a' ].includes(colColors[col.id]) && (
+                                    {colColors[col.id] && ![ '#143c24', '#3a3000', '#422000', '#441414', '#38144c', '#002a6c', '#00384a', '#203414', '#3c142c', '#333333' ].includes(colColors[col.id]) && (
                                       <span className="h-1.5 w-1.5 bg-white rounded-full z-10" />
                                     )}
                                   </div>
@@ -667,14 +687,14 @@ export default function PlannerView({
                                 setEditingColId(col.id);
                                 setEditingColTitle(col.title);
                               }}
-                              className="p-1 text-zinc-550 hover:text-white transition-colors cursor-pointer"
+                              className="p-1 text-zinc-400 hover:text-white transition-colors cursor-pointer"
                               title="Renombrar lista"
                             >
                               <Edit2 className="h-3 w-3" />
                             </button>
                             <button
                               onClick={() => handleDeleteCol(col.id)}
-                              className="p-1 text-zinc-550 hover:text-rose-500 transition-colors cursor-pointer"
+                              className="p-1 text-zinc-400 hover:text-rose-500 transition-colors cursor-pointer"
                               title="Eliminar lista"
                             >
                               <Trash2 className="h-3 w-3" />

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { supabase } from '@/core/database/supabase';
 
 export interface UserProfile {
@@ -35,6 +35,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [roles, setRoles] = useState<UserRole[]>([]);
   const [permissions, setPermissions] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
+
+  const userRef = useRef<UserProfile | null>(null);
+  useEffect(() => {
+    userRef.current = user;
+  }, [user]);
 
   const loadProfile = async (authUser: any) => {
     try {
@@ -195,6 +200,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       // Only trigger loader on explicit login/logout events to avoid startup redundancy
       if (event === 'SIGNED_IN' || event === 'SIGNED_OUT') {
+        const isSameUser = userRef.current && session?.user && userRef.current.id === session.user.id;
+        if (event === 'SIGNED_IN' && isSameUser) {
+          return;
+        }
+
         setLoading(true);
         try {
           if (session?.user) {

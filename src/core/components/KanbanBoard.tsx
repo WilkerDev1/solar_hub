@@ -44,11 +44,11 @@ export default function KanbanBoard({
   const [activeMenuCol, setActiveMenuCol] = useState<string | null>(null);
 
   const columns = [
-    { id: 'backlog', label: 'Backlog', defaultColor: '#15803d' }, // Dark green / emerald-700 by default
-    { id: 'pendiente', label: 'Por Hacer', defaultColor: '#6366f1' },
-    { id: 'en_progreso', label: 'En Progreso', defaultColor: '#a855f7' },
-    { id: 'bloqueada', label: 'Bloqueada', defaultColor: '#f43f5e' },
-    { id: 'completada', label: 'Hecha', defaultColor: '#3b82f6' }
+    { id: 'backlog', label: 'Backlog', defaultColor: '#143c24' }, // Default dark green background
+    { id: 'pendiente', label: 'Por Hacer', defaultColor: '#1e1e24' }, // Default normal column background
+    { id: 'en_progreso', label: 'En Progreso', defaultColor: '#1e1e24' },
+    { id: 'bloqueada', label: 'Bloqueada', defaultColor: '#1e1e24' },
+    { id: 'completada', label: 'Hecha', defaultColor: '#1e1e24' }
   ] as const;
 
   // Load custom colors from localStorage on mount
@@ -62,6 +62,18 @@ export default function KanbanBoard({
       }
     }
   }, []);
+
+  // Window click listener to close settings menu when clicking outside
+  useEffect(() => {
+    if (!activeMenuCol) return;
+    const handleOutsideClick = () => {
+      setActiveMenuCol(null);
+    };
+    document.addEventListener('click', handleOutsideClick);
+    return () => {
+      document.removeEventListener('click', handleOutsideClick);
+    };
+  }, [activeMenuCol]);
 
   const saveColor = (colId: string, color: string | null) => {
     const updated = { ...colColors };
@@ -100,14 +112,6 @@ export default function KanbanBoard({
 
   return (
     <DragDropContext onDragEnd={onDragEnd}>
-      {/* Backdrop overlay to close menu when clicking outside */}
-      {activeMenuCol && (
-        <div 
-          className="fixed inset-0 z-40 bg-transparent cursor-default" 
-          onClick={() => setActiveMenuCol(null)} 
-        />
-      )}
-
       <div className="flex gap-4 overflow-x-auto pb-4 h-full w-full scrollbar-thin scrollbar-thumb-zinc-800 items-stretch select-none">
         {columns.map(col => {
           const colTasks = getFilteredTasks(col.id);
@@ -116,28 +120,31 @@ export default function KanbanBoard({
           return (
             <div 
               key={col.id} 
-              className="bg-[#1e1e24] border border-zinc-700 rounded-none flex flex-col min-h-0 h-full p-3.5 border-t-2 w-[280px] md:w-[320px] shrink-0"
-              style={{ borderTopColor: currentColor }}
+              className="border border-zinc-700 rounded-none flex flex-col min-h-0 h-full p-3.5 w-[280px] md:w-[320px] shrink-0 transition-colors duration-250"
+              style={{ backgroundColor: currentColor }}
             >
               {/* Column Header */}
               <div className="flex justify-between items-center mb-3 shrink-0 px-1 relative">
-                <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest font-mono">
+                <span className="text-[10px] font-bold text-zinc-300 uppercase tracking-widest font-mono">
                   {col.label}
                 </span>
 
-                <div className="flex items-center gap-1.5 z-10">
-                  <span className="bg-zinc-900 text-zinc-400 px-2 py-0.5 rounded text-[10px] font-bold font-mono border border-zinc-700">
+                <div className="flex items-center gap-1.5">
+                  <span className="bg-zinc-900/80 text-zinc-400 px-2 py-0.5 rounded text-[10px] font-bold font-mono border border-zinc-750">
                     {colTasks.length}
                   </span>
 
                   {/* Settings / Filters Button */}
                   <div className="relative">
                     <button
-                      onClick={() => setActiveMenuCol(activeMenuCol === col.id ? null : col.id)}
-                      className={`p-1 rounded hover:bg-zinc-800 transition-colors cursor-pointer ${
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setActiveMenuCol(activeMenuCol === col.id ? null : col.id);
+                      }}
+                      className={`p-1 rounded hover:bg-zinc-800/80 transition-colors cursor-pointer ${
                         colSearch[col.id] || colColors[col.id]
                           ? 'text-emerald-500 bg-emerald-500/10'
-                          : 'text-zinc-550 hover:text-zinc-300'
+                          : 'text-zinc-400 hover:text-zinc-200'
                       }`}
                       title="Filtros y Ajustes de columna"
                     >
@@ -146,7 +153,11 @@ export default function KanbanBoard({
 
                     {/* Dropdown Menu */}
                     {activeMenuCol === col.id && (
-                      <div className="absolute top-7 right-0 z-50 w-60 bg-zinc-900 border border-zinc-800 p-4 space-y-4 rounded-xl shadow-2xl text-zinc-300">
+                      <div 
+                        onClick={(e) => e.stopPropagation()}
+                        onMouseDown={(e) => e.stopPropagation()}
+                        className="absolute top-7 right-0 z-50 w-60 bg-zinc-900 border border-zinc-800 p-4 space-y-4 rounded-xl shadow-2xl text-zinc-300"
+                      >
                         <div className="flex justify-between items-center pb-2 border-b border-zinc-800">
                           <span className="text-[10px] font-bold uppercase tracking-wider font-mono text-zinc-450">Filtros y Ajustes</span>
                           <button 
@@ -184,44 +195,46 @@ export default function KanbanBoard({
                         {/* Color Selector */}
                         <div className="space-y-1.5 text-left">
                           <label className="text-[9px] font-bold uppercase tracking-wider text-zinc-500 font-mono">Color de columna</label>
-                          <div className="grid grid-cols-6 gap-1.5">
+                          <div className="grid grid-cols-5 gap-2">
                             {[
-                              { hex: '#15803d', name: 'Verde' },
-                              { hex: '#eab308', name: 'Oro' },
-                              { hex: '#f97316', name: 'Naranja' },
-                              { hex: '#ef4444', name: 'Rojo' },
-                              { hex: '#a855f7', name: 'Púrpura' },
-                              { hex: '#3b82f6', name: 'Azul' },
-                              { hex: '#14b8a6', name: 'Teal' },
-                              { hex: '#84cc16', name: 'Lima' },
-                              { hex: '#ec4899', name: 'Rosa' },
-                              { hex: '#71717a', name: 'Gris' }
+                              { hex: '#143c24', name: 'Verde oscuro' },
+                              { hex: '#3a3000', name: 'Oro oscuro' },
+                              { hex: '#422000', name: 'Naranja oscuro' },
+                              { hex: '#441414', name: 'Rojo oscuro' },
+                              { hex: '#38144c', name: 'Púrpura oscuro' },
+                              { hex: '#002a6c', name: 'Azul oscuro' },
+                              { hex: '#00384a', name: 'Teal oscuro' },
+                              { hex: '#203414', name: 'Oliva oscuro' },
+                              { hex: '#3c142c', name: 'Rosa oscuro' },
+                              { hex: '#333333', name: 'Gris oscuro' }
                             ].map(color => (
                               <button
                                 key={color.hex}
                                 type="button"
                                 onClick={() => saveColor(col.id, color.hex)}
-                                className="h-6 w-6 rounded-full border border-zinc-750 cursor-pointer hover:scale-110 active:scale-95 transition-all relative flex items-center justify-center shrink-0"
+                                className="h-7 w-9 rounded border border-zinc-750 cursor-pointer hover:scale-105 active:scale-95 transition-all relative flex items-center justify-center shrink-0"
                                 style={{ backgroundColor: color.hex }}
                                 title={color.name}
                               >
-                                {currentColor === color.hex && (
-                                  <span className="h-1.5 w-1.5 bg-white rounded-full animate-none" />
+                                {colColors[col.id] === color.hex && (
+                                  <span className="h-1.5 w-1.5 bg-white rounded-full" />
                                 )}
                               </button>
                             ))}
+                          </div>
 
-                            {/* Custom Color Color Picker */}
-                            <div className="relative h-6 w-6 rounded-full overflow-hidden border border-zinc-750 hover:scale-110 active:scale-95 transition-all flex items-center justify-center bg-gradient-to-tr from-rose-500 via-emerald-500 to-blue-500 cursor-pointer shrink-0">
+                          {/* Custom Color Input */}
+                          <div className="flex items-center gap-2 pt-1">
+                            <span className="text-[9px] font-bold uppercase tracking-wider text-zinc-550 font-mono">Personalizado:</span>
+                            <div className="relative h-6 w-12 rounded overflow-hidden border border-zinc-750 hover:scale-105 transition-all flex items-center justify-center bg-gradient-to-tr from-rose-500 via-emerald-500 to-blue-500 cursor-pointer shrink-0">
                               <input
                                 type="color"
-                                value={colColors[col.id] || col.defaultColor}
+                                value={colColors[col.id] || '#1e1e24'}
                                 onChange={(e) => saveColor(col.id, e.target.value)}
                                 className="opacity-0 absolute inset-0 cursor-pointer w-full h-full"
-                                title="Color personalizado"
+                                title="Elegir color personalizado"
                               />
-                              {/* Custom check indicator */}
-                              {colColors[col.id] && ![ '#15803d', '#eab308', '#f97316', '#ef4444', '#a855f7', '#3b82f6', '#14b8a6', '#84cc16', '#ec4899', '#71717a' ].includes(colColors[col.id]) && (
+                              {colColors[col.id] && ![ '#143c24', '#3a3000', '#422000', '#441414', '#38144c', '#002a6c', '#00384a', '#203414', '#3c142c', '#333333' ].includes(colColors[col.id]) && (
                                 <span className="h-1.5 w-1.5 bg-white rounded-full z-10" />
                               )}
                             </div>
@@ -271,7 +284,7 @@ export default function KanbanBoard({
                       {provided.placeholder}
 
                       {colTasks.length === 0 && colSearch[col.id] && (
-                        <div className="py-6 text-center text-zinc-600 text-[10px] font-mono italic">
+                        <div className="py-6 text-center text-zinc-550 text-[10px] font-mono italic">
                           No se encontraron tarjetas
                         </div>
                       )}
@@ -283,7 +296,7 @@ export default function KanbanBoard({
                 {onQuickCreate && (
                   <div className="mt-1 pt-1.5 border-t border-zinc-800/40 shrink-0">
                     {activeCreatorCol === col.id ? (
-                      <div className="bg-zinc-900/80 border border-zinc-700/80 p-2 space-y-2 rounded">
+                      <div className="bg-zinc-900/85 border border-zinc-700/80 p-2 space-y-2 rounded">
                         <textarea
                           value={newCardTitle}
                           onChange={(e) => setNewCardTitle(e.target.value)}
@@ -328,14 +341,14 @@ export default function KanbanBoard({
                           setActiveCreatorCol(col.id);
                           setNewCardTitle('');
                         }}
-                        className="w-full flex items-center justify-between text-[10px] font-bold text-zinc-550 hover:text-zinc-350 hover:bg-zinc-800/40 p-1.5 transition-all group font-mono uppercase tracking-wider rounded-none"
+                        className="w-full flex items-center justify-between text-[10px] font-bold text-zinc-550 hover:text-zinc-350 hover:bg-zinc-850/40 p-1.5 transition-all group font-mono uppercase tracking-wider rounded-none"
                       >
                         <span className="flex items-center gap-1">
                           <Plus className="h-3.5 w-3.5" />
                           Añade una tarjeta
                         </span>
                         <span className="opacity-0 group-hover:opacity-100 transition-opacity">
-                          <Plus className="h-3 w-3 text-zinc-500" />
+                          <Plus className="h-3 w-3 text-zinc-550" />
                         </span>
                       </button>
                     )}
