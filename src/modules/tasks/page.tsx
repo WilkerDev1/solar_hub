@@ -7,10 +7,11 @@ import KanbanView from './components/KanbanView';
 import ListView from './components/ListView';
 import CalendarView from './components/CalendarView';
 import KeepView from './components/KeepView';
+import PlannerView from './components/PlannerView';
 import CreateTaskModal from './components/CreateTaskModal';
 import TaskDetailDrawer from '@/core/components/TaskDetailDrawer';
 import { 
-  ClipboardList, LayoutGrid, List, Calendar, StickyNote, Plus, Loader2, AlertCircle, SlidersHorizontal
+  ClipboardList, LayoutGrid, List, Calendar, StickyNote, Plus, Loader2, AlertCircle, SlidersHorizontal, CalendarRange
 } from 'lucide-react';
 import { Button } from '@/core/components/ui/button';
 
@@ -104,6 +105,17 @@ export default function TasksModule() {
               >
                 <Calendar className="h-4 w-4" />
               </button>
+              <button
+                onClick={() => t.setViewMode('planner')}
+                className={`hidden lg:flex p-2 rounded-lg text-xs font-bold transition-all items-center justify-center ${
+                  t.viewMode === 'planner' 
+                    ? 'bg-zinc-800 text-white shadow-inner' 
+                    : 'text-zinc-500 hover:text-zinc-300'
+                }`}
+                title="Vista Planificador"
+              >
+                <CalendarRange className="h-4 w-4" />
+              </button>
             </div>
 
             {/* If in Keep view, show keep-specific layout toggle */}
@@ -180,6 +192,22 @@ export default function TasksModule() {
                   documentMap={t.documentMap}
                   handleEditTask={t.handleEditTask}
                   handleDeleteTask={t.handleDeleteTask}
+                  onQuickCreate={t.handleQuickCreate}
+                />
+              )}
+
+              {t.viewMode === 'planner' && (
+                <PlannerView
+                  filteredTasks={t.filteredTasks}
+                  employees={t.employees}
+                  projects={t.projects}
+                  documentMap={t.documentMap}
+                  handleOpenTask={t.handleOpenTask}
+                  handleToggleCheck={t.handleToggleCheck}
+                  loadTasks={t.loadTasks}
+                  handleEditTask={t.handleEditTask}
+                  handleDeleteTask={t.handleDeleteTask}
+                  user={t.user}
                 />
               )}
 

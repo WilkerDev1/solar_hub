@@ -8,13 +8,13 @@ import { ProjectDetailContext } from '../hooks/useProjectDetail';
 type Props = Pick<ProjectDetailContext,
   'getColumnTasks' | 'employees' | 'setIsCreateOpen' | 'onDragEnd' | 'handleToggleCheck' |
   'handleOpenTask' | 'handleEditTask' | 'handleDeleteTask' |
-  'loadProjectTasks' | 'documentMap'
+  'loadProjectTasks' | 'documentMap' | 'handleQuickCreate'
 >;
 
 export default function KanbanTab({
   getColumnTasks, employees, setIsCreateOpen, onDragEnd, handleToggleCheck,
   handleOpenTask, handleEditTask, handleDeleteTask,
-  loadProjectTasks, documentMap
+  loadProjectTasks, documentMap, handleQuickCreate
 }: Props) {
   return (
     <div className="space-y-4 flex flex-col h-full min-h-0">
@@ -42,6 +42,7 @@ export default function KanbanTab({
           handleEditTask={handleEditTask}
           handleDeleteTask={handleDeleteTask}
           showProjectBadge={false}
+          onQuickCreate={handleQuickCreate}
         />
       </div>
     </div>

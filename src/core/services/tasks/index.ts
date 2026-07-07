@@ -72,6 +72,7 @@ export async function createTask(taskData: {
   delivery_date?: string | null;
   requires_audit?: boolean;
   audit_comments?: string | null;
+  status?: 'backlog' | 'pendiente' | 'en_progreso' | 'bloqueada' | 'completada';
 }): Promise<TaskRow> {
   // Get active session user
   const { data: { user }, error: userError } = await supabase.auth.getUser();
@@ -117,7 +118,7 @@ export async function createTask(taskData: {
     assigned_to_ids: assignedIds,
     project_id: taskData.project_id || null,
     area: taskData.area || 'general',
-    status: 'pendiente',
+    status: taskData.status || 'pendiente',
     audit_status: 'pendiente',
     audit_comments: taskData.audit_comments || null,
     requires_audit: taskData.requires_audit || false,

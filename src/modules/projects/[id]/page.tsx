@@ -95,6 +95,7 @@ export default function ProjectDetailModule({ projectId }: Props) {
             handleDeleteTask={ctx.handleDeleteTask}
             loadProjectTasks={ctx.loadProjectTasks}
             documentMap={ctx.documentMap}
+            handleQuickCreate={ctx.handleQuickCreate}
           />
         )}
 

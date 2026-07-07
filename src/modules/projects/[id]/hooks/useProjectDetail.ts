@@ -419,6 +419,25 @@ export function useProjectDetail(projectId: string) {
     }
   };
 
+  const handleQuickCreate = async (status: 'backlog' | 'pendiente' | 'en_progreso' | 'bloqueada' | 'completada', title: string) => {
+    if (!title.trim()) return;
+    try {
+      await createTask({
+        title: title.trim(),
+        status,
+        project_id: projectId,
+        origin: 'proyecto',
+        task_type: 'check',
+        assigned_to: currentUser?.id || '',
+        priority: 'media',
+        area: 'general'
+      });
+      loadProjectTasks();
+    } catch (err: any) {
+      alert('Error al crear tarea rápida: ' + err.message);
+    }
+  };
+
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newMessage.trim() || sendingMsg) return;
@@ -827,6 +846,7 @@ export function useProjectDetail(projectId: string) {
     handleUploadBanner,
     handleUploadGalleryImage,
     handleCreateSubmit,
+    handleQuickCreate,
     handleSendMessage,
     handleToggleCheck,
     handleOpenTask, handleEditTask, handleDeleteTask,

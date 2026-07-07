@@ -11,7 +11,7 @@ import {
 } from '@/core/services/tasks';
 import { supabase } from '@/core/database/supabase';
 
-export type ViewMode = 'kanban' | 'list' | 'calendar' | 'keep';
+export type ViewMode = 'kanban' | 'list' | 'calendar' | 'keep' | 'planner';
 
 export function useTasks() {
   const { user } = useAuth();
@@ -260,6 +260,24 @@ export function useTasks() {
     }
   };
 
+  const handleQuickCreate = async (status: 'backlog' | 'pendiente' | 'en_progreso' | 'bloqueada' | 'completada', title: string) => {
+    if (!title.trim()) return;
+    try {
+      await createTask({
+        title: title.trim(),
+        status,
+        origin: 'proyecto',
+        task_type: 'check',
+        assigned_to: user?.id || '',
+        priority: 'media',
+        area: 'general'
+      });
+      loadTasks();
+    } catch (err: any) {
+      alert('Error al crear tarea rápida: ' + err.message);
+    }
+  };
+
   // DND Drag End Handler
   const onDragEnd = async (result: any) => {
     const { destination, source, draggableId } = result;
@@ -402,6 +420,7 @@ export function useTasks() {
     handleDrawerClose,
     handleToggleCheck,
     handleCreateSubmit,
+    handleQuickCreate,
     onDragEnd,
     // Computed values
     filteredTasks,
