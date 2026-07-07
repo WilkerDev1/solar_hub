@@ -101,7 +101,7 @@ export default function KanbanBoard({
 
               {/* Inline quick creator at the bottom of the column */}
               {onQuickCreate && (
-                <div className="mt-2 pt-2 border-t border-zinc-800/60 shrink-0">
+                <div className="mt-1 pt-1.5 border-t border-zinc-800/40 shrink-0">
                   {activeCreatorCol === col.id ? (
                     <div className="bg-zinc-900/80 border border-zinc-700/80 p-2 space-y-2 rounded">
                       <textarea
@@ -148,7 +148,7 @@ export default function KanbanBoard({
                         setActiveCreatorCol(col.id);
                         setNewCardTitle('');
                       }}
-                      className="w-full flex items-center justify-between text-[10px] font-bold text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/40 p-2 transition-all group font-mono uppercase tracking-wider rounded"
+                      className="w-full flex items-center justify-between text-[10px] font-bold text-zinc-550 hover:text-zinc-350 hover:bg-zinc-800/40 p-1.5 transition-all group font-mono uppercase tracking-wider rounded-none"
                     >
                       <span className="flex items-center gap-1">
                         <Plus className="h-3.5 w-3.5" />

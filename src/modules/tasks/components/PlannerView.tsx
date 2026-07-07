@@ -300,7 +300,7 @@ export default function PlannerView({
           {columns.map(col => {
             const colTasks = getColTasks(col.id);
             return (
-              <div key={col.id} className="bg-[#1e1e24] border border-zinc-700 rounded-2xl flex flex-col min-h-0 h-full p-4 border-t-2 border-t-zinc-600 w-[280px] md:w-[320px] shrink-0">
+              <div key={col.id} className="bg-[#1e1e24] border border-zinc-700 rounded-none flex flex-col min-h-0 h-full p-3 border-t-2 border-t-zinc-600 w-[280px] md:w-[320px] shrink-0">
                 
                 {/* Column Header */}
                 <div className="flex justify-between items-center mb-3.5 shrink-0 px-1 relative">
@@ -569,7 +569,7 @@ export default function PlannerView({
                   </Droppable>
 
                   {/* Inline quick creator at the bottom of the column */}
-                  <div className="mt-2 pt-2 border-t border-zinc-800/60 shrink-0">
+                  <div className="mt-1 pt-1.5 border-t border-zinc-800/40 shrink-0">
                     {activeCreatorCol === col.id ? (
                       <div className="bg-zinc-900/80 border border-zinc-700/80 p-2 space-y-2 rounded">
                         <textarea
@@ -616,7 +616,7 @@ export default function PlannerView({
                           setActiveCreatorCol(col.id);
                           setNewCardTitle('');
                         }}
-                        className="w-full flex items-center justify-between text-[10px] font-bold text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/40 p-2 transition-all group font-mono uppercase tracking-wider rounded"
+                        className="w-full flex items-center justify-between text-[10px] font-bold text-zinc-550 hover:text-zinc-350 hover:bg-zinc-800/40 p-1.5 transition-all group font-mono uppercase tracking-wider rounded-none"
                       >
                         <span className="flex items-center gap-1">
                           <Plus className="h-3.5 w-3.5" />
@@ -639,7 +639,7 @@ export default function PlannerView({
             {isAddingList ? (
               <form 
                 onSubmit={handleAddListSubmit}
-                className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 space-y-3 text-left"
+                className="bg-zinc-900 border border-zinc-800 rounded-none p-3 space-y-3 text-left"
               >
                 <input
                   type="text"
@@ -672,7 +672,7 @@ export default function PlannerView({
               <button
                 type="button"
                 onClick={() => setIsAddingList(true)}
-                className="w-full flex items-center justify-center gap-2 bg-[#1e1e24]/40 hover:bg-[#1e1e24]/75 border border-dashed border-zinc-850 hover:border-zinc-750 text-[10px] font-bold text-zinc-450 hover:text-white py-4 px-6 rounded-2xl transition-all font-mono uppercase tracking-wider shrink-0 cursor-pointer"
+                className="w-full flex items-center justify-center gap-2 bg-[#1e1e24]/40 hover:bg-[#1e1e24]/75 border border-dashed border-zinc-850 hover:border-zinc-750 text-[10px] font-bold text-zinc-450 hover:text-white py-3 px-4 rounded-none transition-all font-mono uppercase tracking-wider shrink-0 cursor-pointer"
               >
                 <Plus className="h-4 w-4" /> Agregar nueva lista
               </button>
