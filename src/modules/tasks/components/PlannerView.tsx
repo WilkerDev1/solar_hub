@@ -716,33 +716,21 @@ export default function PlannerView({
                         className="flex-1 overflow-y-auto space-y-3 pb-2 min-h-[150px] scrollbar-thin scrollbar-thumb-zinc-850 pr-1 text-left"
                       >
                         {colTasks.map((task, index) => (
-                          <Draggable key={task.id} draggableId={task.id} index={index}>
-                            {(draggableProvided, snapshot) => (
-                              <div
-                                ref={draggableProvided.innerRef}
-                                {...draggableProvided.draggableProps}
-                                {...draggableProvided.dragHandleProps}
-                                className={`rounded transition-transform select-none ${
-                                  snapshot.isDragging ? 'shadow-2xl scale-[1.02] border-emerald-500' : ''
-                                }`}
-                              >
-                                <KanbanCard
-                                  task={task}
-                                  index={index}
-                                  onClick={() => handleOpenTask(task)}
-                                  handleToggleCheck={handleToggleCheck}
-                                  employees={employees}
-                                  projects={projects}
-                                  showProjectBadge={true}
-                                  showStatus={true}
-                                  onUploadSuccess={loadTasks}
-                                  documentMap={documentMap}
-                                  onEditClick={handleEditTask}
-                                  onDeleteClick={handleDeleteTask}
-                                />
-                              </div>
-                            )}
-                          </Draggable>
+                          <KanbanCard
+                            key={task.id}
+                            task={task}
+                            index={index}
+                            onClick={() => handleOpenTask(task)}
+                            handleToggleCheck={handleToggleCheck}
+                            employees={employees}
+                            projects={projects}
+                            showProjectBadge={true}
+                            showStatus={true}
+                            onUploadSuccess={loadTasks}
+                            documentMap={documentMap}
+                            onEditClick={handleEditTask}
+                            onDeleteClick={handleDeleteTask}
+                          />
                         ))}
                         {provided.placeholder}
                         

@@ -397,8 +397,8 @@ export default function KanbanCard({
           {...provided.draggableProps}
           {...provided.dragHandleProps}
           onClick={onClick}
-          className={`bg-[#27272f] border-t border-t-zinc-800 border-l border-r border-b border-zinc-800 p-0 rounded-none flex flex-col justify-between hover:border-zinc-500 transition-all select-none relative group ${
-            snapshot.isDragging ? 'shadow-2xl border-emerald-500 bg-zinc-800 scale-[1.02]' : ''
+          className={`bg-[#27272f] border-t border-t-zinc-800 border-l border-r border-b border-zinc-800 p-0 rounded-none flex flex-col justify-between hover:border-zinc-500 select-none relative group ${
+            snapshot.isDragging ? 'shadow-2xl border-emerald-500 bg-zinc-800 scale-[1.02]' : 'transition-all'
           } ${isCompleted ? 'opacity-65' : ''}`}
         >
           {cardInner}
