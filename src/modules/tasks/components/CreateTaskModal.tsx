@@ -414,7 +414,14 @@ export default function CreateTaskModal({
                         type="date"
                         value={createForm.due_date}
                         onChange={e => setCreateForm({ ...createForm, due_date: e.target.value })}
-                        className="bg-[#16161c] border border-[#2c2d34]/60 text-xs text-white rounded-lg p-2 focus:outline-none focus:border-emerald-500 w-full"
+                        className="bg-[#16161c] border border-[#2c2d34]/60 text-xs text-white rounded-lg p-2 focus:outline-none focus:border-emerald-500 w-full cursor-pointer"
+                        autoFocus
+                        onClick={(e) => {
+                          try { (e.target as any).showPicker?.(); } catch(err) {}
+                        }}
+                        onFocus={(e) => {
+                          try { (e.target as any).showPicker?.(); } catch(err) {}
+                        }}
                       />
                       <div className="flex justify-between items-center gap-2 pt-1">
                         <button
