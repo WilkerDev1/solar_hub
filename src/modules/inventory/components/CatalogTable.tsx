@@ -137,13 +137,7 @@ export function CatalogTable({
       <table className="w-full text-left border-collapse">
         <thead>
           <tr className="bg-[#121214]/60 border-b border-zinc-800 text-[10px] font-bold uppercase tracking-wider text-zinc-450">
-            <th className="px-6 py-4 w-20">Imagen</th>
-            <th className="px-6 py-4">SKU & Nombre</th>
-            <th className="px-6 py-4">Categoría</th>
-            <th className="px-6 py-4">Stock Actual</th>
-            <th className="px-6 py-4">Métrica</th>
-            <th className="px-6 py-4">Proveedor</th>
-            <th className="px-6 py-4 text-center w-16">
+            <th className="px-4 py-3.5 text-center w-12">
               <input
                 type="checkbox"
                 checked={items.length > 0 && selectedItemIds.length === items.length}
@@ -151,7 +145,13 @@ export function CatalogTable({
                 className="rounded border-zinc-800 bg-zinc-950 text-emerald-600 focus:ring-emerald-500/20 h-3.5 w-3.5 cursor-pointer"
               />
             </th>
-            <th className="px-6 py-4 text-right w-20">Acciones</th>
+            <th className="px-6 py-3.5 w-32">Imagen</th>
+            <th className="px-6 py-3.5">SKU & Nombre</th>
+            <th className="px-6 py-3.5">Categoría</th>
+            <th className="px-6 py-3.5">Stock Actual</th>
+            <th className="px-6 py-3.5">Métrica</th>
+            <th className="px-6 py-3.5">Proveedor</th>
+            <th className="px-6 py-3.5 text-right w-20">Acciones</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-zinc-800/80 text-xs">
@@ -166,9 +166,19 @@ export function CatalogTable({
                   isSelected ? 'bg-amber-500/5' : ''
                 }`}
               >
+                {/* Checkbox */}
+                <td className="px-4 py-3 text-center">
+                  <input
+                    type="checkbox"
+                    checked={isSelected}
+                    onChange={() => handleToggleSelectItem(item.id)}
+                    className="rounded border-zinc-800 bg-zinc-950 text-emerald-600 focus:ring-emerald-500/20 h-3.5 w-3.5 cursor-pointer"
+                  />
+                </td>
+
                 {/* Imagen */}
                 <td className="px-6 py-3">
-                  <div className="h-10 w-10 bg-zinc-950 border border-zinc-850 rounded-none overflow-hidden flex items-center justify-center">
+                  <div className="h-16 w-24 bg-zinc-950 border border-zinc-850 rounded-none overflow-hidden flex items-center justify-center shrink-0">
                     {item.image_urls?.[0] || item.image_url ? (
                       <img 
                         src={item.image_urls?.[0] || item.image_url || undefined} 
@@ -176,17 +186,17 @@ export function CatalogTable({
                         className="h-full w-full object-cover" 
                       />
                     ) : (
-                      <Archive className="h-4 w-4 text-zinc-650" />
+                      <Archive className="h-6 w-6 text-zinc-650" />
                     )}
                   </div>
                 </td>
 
                 {/* SKU & Nombre */}
                 <td className="px-6 py-3">
-                  <div className="font-bold text-white text-xs leading-tight">
+                  <div className="font-bold text-white text-sm leading-snug">
                     {item.name}
                   </div>
-                  <div className="text-[9px] text-zinc-550 font-mono mt-0.5 tracking-wider uppercase">
+                  <div className="text-[10px] text-zinc-500 font-mono mt-1 tracking-wider uppercase">
                     {item.sku}
                   </div>
                 </td>
@@ -211,16 +221,6 @@ export function CatalogTable({
                   {item.providers?.[0] || 'N/A'}
                 </td>
 
-                {/* Checkbox */}
-                <td className="px-6 py-3 text-center">
-                  <input
-                    type="checkbox"
-                    checked={isSelected}
-                    onChange={() => handleToggleSelectItem(item.id)}
-                    className="rounded border-zinc-800 bg-zinc-950 text-emerald-600 focus:ring-emerald-500/20 h-3.5 w-3.5 cursor-pointer"
-                  />
-                </td>
-
                 {/* Acciones */}
                 <td className="px-6 py-3 text-right relative">
                   <div className="flex justify-end items-center">
@@ -230,7 +230,7 @@ export function CatalogTable({
                         e.stopPropagation();
                         setActiveMenuId(activeMenuId === item.id ? null : item.id);
                       }}
-                      className="p-1 rounded hover:bg-zinc-850 text-zinc-500 hover:text-white transition-colors cursor-pointer"
+                      className="p-1 rounded hover:bg-zinc-855 text-zinc-500 hover:text-white transition-colors cursor-pointer"
                     >
                       <MoreVertical className="h-4 w-4" />
                     </button>

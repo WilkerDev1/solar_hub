@@ -189,69 +189,19 @@ export default function InventoryModule() {
   };
 
   return (
-    <div className="space-y-6 text-left pb-12">
+    <div className="space-y-4 text-left pb-4">
       
       {/* ========================================================================= */}
       {/* 1. DESKTOP VIEW LAYOUT (hidden on mobile screen sizes) */}
       {/* ========================================================================= */}
-      <div className="hidden md:block space-y-6">
+      <div className="hidden md:block space-y-4">
         
-        {/* Top Header / WMS Consolidated Panel */}
-        <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 border-b border-zinc-800 pb-5">
-          <div>
-            <h1 className="text-2xl font-bold text-white tracking-wide flex items-center gap-2">
-              <Archive className="h-6 w-6 text-emerald-400" />
-              Consola WMS Orion
-            </h1>
-            <p className="text-zinc-400 text-xs mt-1">
-              Gestión logística centralizada de materiales, stocks críticos, conciliación y auditoría de Kardex.
-            </p>
-          </div>
-          
-          <div className="flex gap-2 shrink-0">
-            <Button 
-              onClick={handleRefresh} 
-              variant="outline" 
-              className="bg-[#121214] border border-zinc-808 text-zinc-400 hover:text-white rounded-lg h-10 font-bold text-xs" 
-              disabled={refreshing}
-            >
-              {refreshing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-1.5" />}
-              Sincronizar
-            </Button>
-
-            <RequirePermission action="inventory:write">
-              <Button 
-                onClick={openBulkAdjustment} 
-                className={`font-bold text-xs h-10 px-4 rounded-lg transition-all ${
-                  selectedItemIds.length > 0
-                    ? 'bg-amber-500 text-black hover:bg-amber-400 animate-pulse'
-                    : 'bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 text-zinc-350 hover:text-white'
-                }`}
-              >
-                <Sliders className="h-4 w-4 mr-1.5" /> Ajuste Masivo {selectedItemIds.length > 0 ? `(${selectedItemIds.length})` : ''}
-              </Button>
-              <Button 
-                onClick={() => setIsConfigModalOpen(true)} 
-                className="bg-zinc-900 border border-zinc-800 text-zinc-350 hover:text-white font-bold text-xs h-10 px-4 rounded-lg"
-              >
-                <Settings className="h-4 w-4 mr-1.5" /> Configurar WMS
-              </Button>
-              <Button 
-                onClick={() => setIsAddModalOpen(true)} 
-                className="bg-amber-500 hover:bg-amber-400 text-black font-bold text-xs h-10 px-4 rounded-lg cursor-pointer"
-              >
-                <Plus className="h-4 w-4 mr-1.5 font-extrabold" /> Nuevo Material
-              </Button>
-            </RequirePermission>
-          </div>
-        </div>
-
-        {/* Dynamic Metric Cards Row */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* Dynamic Metric Cards Row & Action Buttons */}
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
           {/* CARD 1: TOTAL ITEMS */}
-          <div className="bg-[#15161c] border border-zinc-800/80 p-5 rounded-none flex items-center justify-between shadow-lg">
-            <div className="space-y-2">
-              <div className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest font-mono">Total Items</div>
+          <div className="bg-[#15161c] border border-zinc-800/80 p-4.5 rounded-none flex items-center justify-between shadow-lg">
+            <div className="space-y-1">
+              <div className="text-[10px] font-bold text-zinc-550 uppercase tracking-widest font-mono">Total Items</div>
               <div className="text-2xl font-bold text-white leading-none font-mono">
                 {totalStockQty.toLocaleString()}
               </div>
@@ -259,13 +209,13 @@ export default function InventoryModule() {
                 <span className="text-emerald-450 font-bold font-mono">+{items.length}</span> SKUs activos en catálogo
               </div>
             </div>
-            <Archive className="h-8 w-8 text-emerald-400 opacity-60" />
+            <Archive className="h-7 w-7 text-emerald-400 opacity-60" />
           </div>
 
           {/* CARD 2: STOCK CRITICO */}
-          <div className="bg-[#15161c] border border-zinc-800/80 p-5 rounded-none flex items-center justify-between shadow-lg">
-            <div className="space-y-2">
-              <div className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest font-mono">Stock Crítico</div>
+          <div className="bg-[#15161c] border border-zinc-800/80 p-4.5 rounded-none flex items-center justify-between shadow-lg">
+            <div className="space-y-1">
+              <div className="text-[10px] font-bold text-zinc-550 uppercase tracking-widest font-mono">Stock Crítico</div>
               <div className={`text-2xl font-bold leading-none font-mono ${lowStockCount > 0 ? 'text-amber-500' : 'text-white'}`}>
                 {lowStockCount} SKU
               </div>
@@ -273,13 +223,13 @@ export default function InventoryModule() {
                 {lowStockCount > 0 ? '⚠️ Acción inmediata requerida' : '✓ Niveles de stock saludables'}
               </div>
             </div>
-            <AlertTriangle className={`h-8 w-8 opacity-60 ${lowStockCount > 0 ? 'text-amber-500 animate-pulse' : 'text-zinc-600'}`} />
+            <AlertTriangle className={`h-7 w-7 opacity-60 ${lowStockCount > 0 ? 'text-amber-500 animate-pulse' : 'text-zinc-650'}`} />
           </div>
 
           {/* CARD 3: VALOR ESTIMADO */}
-          <div className="bg-[#15161c] border border-zinc-800/80 p-5 rounded-none flex items-center justify-between shadow-lg">
-            <div className="space-y-2">
-              <div className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest font-mono">Valor Estimado</div>
+          <div className="bg-[#15161c] border border-zinc-800/80 p-4.5 rounded-none flex items-center justify-between shadow-lg">
+            <div className="space-y-1">
+              <div className="text-[10px] font-bold text-zinc-550 uppercase tracking-widest font-mono">Valor Estimado</div>
               <div className="text-2xl font-bold text-white leading-none font-mono">
                 {formatValue(estimatedVal)}
               </div>
@@ -287,7 +237,47 @@ export default function InventoryModule() {
                 Valorización total de activos WMS
               </div>
             </div>
-            <DollarSign className="h-8 w-8 text-emerald-400 opacity-60" />
+            <DollarSign className="h-7 w-7 text-emerald-400 opacity-60" />
+          </div>
+
+          {/* CARD 4: ACCIONES DEL SISTEMA */}
+          <div className="bg-[#15161c] border border-zinc-800/80 p-4.5 rounded-none flex flex-col justify-center shadow-lg">
+            <div className="grid grid-cols-2 gap-2 w-full">
+              <Button 
+                onClick={handleRefresh} 
+                variant="outline" 
+                className="bg-[#121214] border border-zinc-808 text-zinc-400 hover:text-white rounded-none h-8 py-0.5 text-[9.5px] font-bold font-mono uppercase tracking-wider flex items-center justify-center gap-1 cursor-pointer" 
+                disabled={refreshing}
+              >
+                {refreshing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
+                Sincronizar
+              </Button>
+
+              <RequirePermission action="inventory:write">
+                <Button 
+                  onClick={openBulkAdjustment} 
+                  className={`font-bold font-mono text-[9.5px] uppercase tracking-wider h-8 py-0.5 rounded-none transition-all flex items-center justify-center gap-1 cursor-pointer ${
+                    selectedItemIds.length > 0
+                      ? 'bg-amber-500 text-black hover:bg-amber-400 animate-pulse'
+                      : 'bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 text-zinc-350 hover:text-white'
+                  }`}
+                >
+                  <Sliders className="h-3 w-3" /> Ajuste Masivo {selectedItemIds.length > 0 ? `(${selectedItemIds.length})` : ''}
+                </Button>
+                <Button 
+                  onClick={() => setIsConfigModalOpen(true)} 
+                  className="bg-zinc-900 border border-zinc-800 text-zinc-350 hover:text-white font-bold font-mono text-[9.5px] uppercase tracking-wider h-8 py-0.5 rounded-none flex items-center justify-center gap-1 cursor-pointer"
+                >
+                  <Settings className="h-3 w-3" /> Configurar WMS
+                </Button>
+                <Button 
+                  onClick={() => setIsAddModalOpen(true)} 
+                  className="bg-amber-500 hover:bg-amber-400 text-black font-bold font-mono text-[9.5px] uppercase tracking-wider h-8 py-0.5 rounded-none flex items-center justify-center gap-1 cursor-pointer"
+                >
+                  <Plus className="h-3 w-3 font-extrabold" /> Nuevo Material
+                </Button>
+              </RequirePermission>
+            </div>
           </div>
         </div>
 
