@@ -10,12 +10,14 @@ import { Button } from '@/core/components/ui/button';
 import { RequirePermission, useAuth } from '@/core/auth/AuthContext';
 import { useInventory } from './hooks/useInventory';
 import { getAllInventoryTransactions } from '@/core/services/inventory';
+import { supabase } from '@/core/database/supabase';
+import { getApiUrl } from '@/core/utils/api';
 
 // Subcomponents
 import { CatalogTable } from './components/CatalogTable';
 import { TransactionHistory } from './components/TransactionHistory';
 import { AddMaterialModal } from './components/AddMaterialModal';
-import { ConfigWMSModal } from './components/ConfigWMSModal';
+import { ConfigWMSModal, getGlobalProviders, saveGlobalProviders } from './components/ConfigWMSModal';
 import { BulkAdjustmentModal } from './components/BulkAdjustmentModal';
 import { MaterialDetailDrawer } from './components/MaterialDetailDrawer';
 import { MobileInventoryDashboard } from './components/MobileInventoryDashboard';
@@ -92,11 +94,58 @@ export default function InventoryModule() {
     loadData
   } = useInventory();
 
+  // Supabase session token state for authorizing storage file paths in static-export
+  const [token, setToken] = useState<string | null>(null);
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setToken(session?.access_token || null);
+    });
+  }, []);
+
+  // Helper to resolve absolute URL with token
+  const resolveImageUrl = (url: string | null) => {
+    if (!url) return null;
+    if (url.startsWith('/api/storage/file/')) {
+      return getApiUrl(`${url}${url.includes('?') ? '&' : '?'}token=${token || ''}`);
+    }
+    return url;
+  };
+
   // Desktop active tab
   const [activeTab, setActiveTab] = useState<'catalog' | 'history'>('catalog');
 
   // Mobile active bottom tab
   const [mobileTab, setMobileTab] = useState<'home' | 'items' | 'logs' | 'config'>('home');
+
+  // Mobile-specific providers manager states (Requirement 4)
+  const [mobileProviders, setMobileProviders] = useState<string[]>([]);
+  const [mobileNewProvider, setMobileNewProvider] = useState('');
+
+  useEffect(() => {
+    if (mobileTab === 'config') {
+      setMobileProviders(getGlobalProviders());
+    }
+  }, [mobileTab]);
+
+  const handleMobileAddProvider = () => {
+    const name = mobileNewProvider.trim();
+    if (!name) return;
+    if (mobileProviders.includes(name)) {
+      alert('Este proveedor ya está registrado.');
+      return;
+    }
+    const updated = [...mobileProviders, name];
+    setMobileProviders(updated);
+    saveGlobalProviders(updated);
+    setMobileNewProvider('');
+  };
+
+  const handleMobileDeleteProvider = (name: string) => {
+    if (!confirm(`¿Seguro que deseas eliminar al proveedor "${name}"?`)) return;
+    const updated = mobileProviders.filter(p => p !== name);
+    setMobileProviders(updated);
+    saveGlobalProviders(updated);
+  };
 
   // Extra filter modes
   const [stockFilterMode, setStockFilterMode] = useState<'all' | 'low' | 'nominal' | 'out'>('all');
@@ -268,7 +317,7 @@ export default function InventoryModule() {
                   onClick={() => setIsConfigModalOpen(true)} 
                   className="bg-zinc-900 border border-zinc-800 text-zinc-350 hover:text-white font-bold font-mono text-[9.5px] uppercase tracking-wider h-8 py-0.5 rounded-none flex items-center justify-center gap-1 cursor-pointer"
                 >
-                  <Settings className="h-3 w-3" /> Configurar WMS
+                  <Settings className="h-3 w-3" /> Configuración
                 </Button>
                 <Button 
                   onClick={() => setIsAddModalOpen(true)} 
@@ -516,7 +565,7 @@ export default function InventoryModule() {
                       {/* Image Thumbnail */}
                       <div className="h-12 w-12 rounded-lg bg-zinc-950 border border-zinc-850 overflow-hidden flex items-center justify-center shrink-0">
                         {item.image_urls?.[0] || item.image_url ? (
-                          <img src={item.image_urls?.[0] || item.image_url || undefined} alt={item.name} className="h-full w-full object-cover" />
+                          <img src={resolveImageUrl(item.image_urls?.[0] || item.image_url) || undefined} alt={item.name} className="h-full w-full object-cover" />
                         ) : (
                           <Archive className="h-5 w-5 text-zinc-650" />
                         )}
@@ -689,6 +738,43 @@ export default function InventoryModule() {
                     <span className="text-zinc-300 font-semibold">{tag.name}</span>
                     <button 
                       onClick={() => handleDeleteTagAction(tag.id)}
+                      className="text-zinc-550 hover:text-rose-500 p-1 cursor-pointer"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Providers manager */}
+            <div className="bg-[#15161c] border border-zinc-800 p-4.5 rounded-xl space-y-3.5">
+              <div className="text-xs font-bold text-white font-mono uppercase tracking-wider flex items-center gap-1.5">
+                <User className="h-4 w-4 text-emerald-400" /> Proveedores
+              </div>
+
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  placeholder="Nuevo proveedor..."
+                  value={mobileNewProvider}
+                  onChange={e => setMobileNewProvider(e.target.value)}
+                  className="flex-1 bg-zinc-950 border border-zinc-850 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none"
+                />
+                <Button 
+                  onClick={handleMobileAddProvider}
+                  className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold px-3.5 h-8.5 rounded-lg"
+                >
+                  Agregar
+                </Button>
+              </div>
+
+              <div className="space-y-1.5 max-h-40 overflow-y-auto pr-1">
+                {mobileProviders.map(p => (
+                  <div key={p} className="flex justify-between items-center text-xs py-1.5 border-b border-zinc-850">
+                    <span className="text-zinc-300 font-semibold">{p}</span>
+                    <button 
+                      onClick={() => handleMobileDeleteProvider(p)}
                       className="text-zinc-550 hover:text-rose-500 p-1 cursor-pointer"
                     >
                       <X className="h-3.5 w-3.5" />

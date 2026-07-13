@@ -3,8 +3,8 @@
 import React, { useState, useEffect } from 'react';
 import { 
   ArrowLeft, Edit3, Trash2, Plus, Loader2, History, User, 
-  Archive, FileText, Check, Settings, Eye, HelpCircle, 
-  MoreHorizontal, ChevronUp, ChevronDown, CheckSquare, PlusCircle
+  Archive, FileText, X, Settings, MoreHorizontal, ChevronUp, ChevronDown,
+  Trash, PlusCircle
 } from 'lucide-react';
 import { Button } from '@/core/components/ui/button';
 import { RequirePermission, useAuth } from '@/core/auth/AuthContext';
@@ -14,6 +14,9 @@ import {
   InventoryTagRow, 
   InventoryTransactionWithUser 
 } from '@/core/services/inventory';
+import { getGlobalProviders } from './ConfigWMSModal';
+import { getApiUrl } from '@/core/utils/api';
+import { supabase } from '@/core/database/supabase';
 
 interface MaterialDetailDrawerProps {
   isDetailDrawerOpen: boolean;
@@ -76,43 +79,81 @@ export function MaterialDetailDrawer({
   const [notes, setNotes] = useState<LocalNote[]>([]);
   const [newNoteContent, setNewNoteContent] = useState('');
 
-  // Load local notes on item change
+  // Supabase access token for images previsualización
+  const [token, setToken] = useState<string | null>(null);
+
+  // Dynamic multiple providers editing state
+  const [localProvidersList, setLocalProvidersList] = useState<{ name: string; price: number }[]>([]);
+
+  // Load session token on mount
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setToken(session?.access_token || null);
+    });
+  }, []);
+
+  // Load notes on item change (no fake defaults!)
   useEffect(() => {
     if (selectedItem) {
       const stored = localStorage.getItem(`solar_hub_item_notes_${selectedItem.id}`);
       if (stored) {
         setNotes(JSON.parse(stored));
       } else {
-        // Default initial notes
-        setNotes([
-          {
-            id: '1',
-            userName: 'Johnson Corn',
-            userAvatar: null,
-            createdAt: new Date(Date.now() - 86400000 * 2).toISOString(),
-            content: 'Material verificado en control de calidad. Óptimas condiciones para instalación de inversores.'
-          },
-          {
-            id: '2',
-            userName: 'Emily John Stones',
-            userAvatar: null,
-            createdAt: new Date(Date.now() - 86400000).toISOString(),
-            content: 'Se requiere mantener bajo techo seco para prevenir oxidación en conectores de cobre.'
-          }
-        ]);
+        setNotes([]); // Clean empty slate!
       }
       setIsActive(selectedItem.stock > 0);
     }
   }, [selectedItem, isDetailDrawerOpen]);
 
-  // Save notes helper
-  const saveNotes = (updatedNotes: LocalNote[]) => {
-    if (selectedItem) {
-      localStorage.setItem(`solar_hub_item_notes_${selectedItem.id}`, JSON.stringify(updatedNotes));
-      setNotes(updatedNotes);
+  // Sync editForm to local providers editor when starting to edit
+  useEffect(() => {
+    if (isEditing && selectedItem) {
+      const list = (selectedItem.providers || []).map(p => {
+        const parts = p.split(' - $');
+        if (parts.length === 2) {
+          return { name: parts[0].trim(), price: parseFloat(parts[1]) || selectedItem.cost };
+        }
+        return { name: p.trim(), price: selectedItem.cost };
+      });
+      setLocalProvidersList(list);
     }
+  }, [isEditing, selectedItem]);
+
+  // Helper to resolve and authorize relative image URLs in static-export
+  const resolveImageUrl = (url: string | null) => {
+    if (!url) return null;
+    if (url.startsWith('/api/storage/file/')) {
+      return getApiUrl(`${url}${url.includes('?') ? '&' : '?'}token=${token || ''}`);
+    }
+    return url;
   };
 
+  // Helper to calculate cheapest price dynamically
+  const getCheapestPrice = () => {
+    if (isEditing) {
+      if (localProvidersList.length === 0) return editForm.cost;
+      return Math.min(...localProvidersList.map(x => x.price));
+    }
+    if (!selectedItem) return 0;
+    if (!selectedItem.providers || selectedItem.providers.length === 0) return selectedItem.cost;
+    const prices = selectedItem.providers.map(p => {
+      const parts = p.split(' - $');
+      if (parts.length === 2) return parseFloat(parts[1]) || selectedItem.cost;
+      return selectedItem.cost;
+    });
+    return Math.min(...prices);
+  };
+
+  // Helper to parse provider string for display in the table/details
+  const parseProviderForDisplay = (providerStr: string) => {
+    const parts = providerStr.split(' - $');
+    if (parts.length === 2) {
+      return { name: parts[0].trim(), price: parseFloat(parts[1]) || 0 };
+    }
+    return { name: providerStr.trim(), price: selectedItem?.cost || 0 };
+  };
+
+  // Add new note to local list
   const handleAddNote = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newNoteContent.trim()) return;
@@ -126,20 +167,57 @@ export function MaterialDetailDrawer({
     };
 
     const updated = [newNote, ...notes];
-    saveNotes(updated);
+    if (selectedItem) {
+      localStorage.setItem(`solar_hub_item_notes_${selectedItem.id}`, JSON.stringify(updated));
+    }
+    setNotes(updated);
     setNewNoteContent('');
+  };
+
+  // Handle saving the edited material form (Requirement 6)
+  const handleSubmitForm = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    // Format local providers array back into comma-separated string format for useInventory service compatibility
+    const formattedProviders = localProvidersList.map(x => `${x.name} - $${x.price.toFixed(2)}`);
+    const cheapestPrice = localProvidersList.length > 0 
+      ? Math.min(...localProvidersList.map(x => x.price)) 
+      : editForm.cost;
+
+    // We must update the form in parent state and then trigger the submit
+    setEditForm({
+      ...editForm,
+      providers: formattedProviders.join(', '),
+      cost: cheapestPrice
+    });
+
+    // Short timeout to let react state flush before submitting
+    setTimeout(() => {
+      handleSaveEdit(e);
+    }, 50);
+  };
+
+  const handleAddProviderRow = () => {
+    const globalProviders = getGlobalProviders();
+    const firstProvider = globalProviders[0] || 'Proveedor Genérico';
+    setLocalProvidersList([...localProvidersList, { name: firstProvider, price: selectedItem?.cost || 0 }]);
+  };
+
+  const handleUpdateProviderRow = (idx: number, field: 'name' | 'price', val: any) => {
+    const updated = [...localProvidersList];
+    updated[idx] = { ...updated[idx], [field]: val };
+    setLocalProvidersList(updated);
+  };
+
+  const handleRemoveProviderRow = (idx: number) => {
+    setLocalProvidersList(localProvidersList.filter((_, i) => i !== idx));
   };
 
   if (!isDetailDrawerOpen || !selectedItem) return null;
 
   const category = categories.find(c => c.id === selectedItem.category_id);
-
-  // Split stock dynamically to simulate warehouses for aesthetics
-  const totalStock = selectedItem.stock;
-  const whBDG = Math.round(totalStock * 0.5);
-  const whJKT = Math.round(totalStock * 0.25);
-  const whMLG = Math.round(totalStock * 0.15);
-  const whSBY = Math.max(totalStock - (whBDG + whJKT + whMLG), 0);
+  const cheapestPrice = getCheapestPrice();
+  const resolvedMainImage = resolveImageUrl(activeImgUrl);
 
   return (
     <>
@@ -152,13 +230,13 @@ export function MaterialDetailDrawer({
       {/* Main Drawer container */}
       <div className="fixed inset-y-0 right-0 w-full max-w-4xl bg-[#121318] border-l border-zinc-850 shadow-2xl flex flex-col z-50 transform transition-transform duration-300">
         
-        {/* TOP STATUS BAR BAR */}
+        {/* TOP STATUS BAR */}
         <div className="p-4 border-b border-zinc-850/80 flex justify-between items-center bg-[#15171d] shrink-0">
           {/* Back button */}
           <button 
             type="button"
             onClick={() => setIsDetailDrawerOpen(false)} 
-            className="h-8 w-8 rounded-lg hover:bg-zinc-850 text-zinc-400 hover:text-white flex items-center justify-center transition-colors cursor-pointer"
+            className="h-8 w-8 rounded-lg hover:bg-zinc-855 text-zinc-405 hover:text-white flex items-center justify-center transition-colors cursor-pointer"
             title="Volver"
           >
             <ArrowLeft className="h-5 w-5" />
@@ -228,7 +306,7 @@ export function MaterialDetailDrawer({
 
         {/* MATERIAL TITLE HEADER SECTION */}
         <div className="px-6 pt-5 pb-3 border-b border-zinc-850/50 bg-[#121318] shrink-0 text-left space-y-1">
-          <h1 className="text-2xl font-bold text-white tracking-wide">
+          <h1 className="text-xl font-bold text-white tracking-wide">
             {isEditing ? editForm.name : selectedItem.name}
           </h1>
           <div className="flex items-center gap-2 text-xs text-zinc-450 font-mono">
@@ -236,14 +314,14 @@ export function MaterialDetailDrawer({
             <span>•</span>
             <span>{category ? category.name : 'Sin categoría'}</span>
             <span>•</span>
-            <span className="bg-zinc-900 border border-zinc-800 text-[10px] px-2 py-0.5 rounded text-zinc-400 font-semibold uppercase tracking-wider">
+            <span className="bg-zinc-900 border border-zinc-800 text-[9px] px-2 py-0.5 rounded text-zinc-400 font-semibold uppercase tracking-wider font-mono">
               Stocked Product
             </span>
           </div>
         </div>
 
         {/* TAB SWITCHER */}
-        <div className="px-6 bg-[#121318] flex gap-2 border-b border-zinc-850/50 shrink-0">
+        <div className="px-6 bg-[#121318] flex gap-2 border-b border-zinc-855 shrink-0">
           <button
             onClick={() => {
               setIsEditing(false);
@@ -286,7 +364,7 @@ export function MaterialDetailDrawer({
         </div>
 
         {/* BODY CONTENT SCROLLABLE PANEL */}
-        <div className="flex-1 overflow-y-auto p-6 scrollbar-thin scrollbar-thumb-zinc-900">
+        <div className="flex-1 overflow-y-auto p-6 scrollbar-thin scrollbar-thumb-zinc-900 bg-[#121318]">
           
           {/* ========================================================================= */}
           {/* TAB 1: GENERAL INFORMATION */}
@@ -294,10 +372,14 @@ export function MaterialDetailDrawer({
           {activeTab === 'info' && (
             <>
               {isEditing ? (
-                /* Editing mode form styled inside the modern cards */
-                <form onSubmit={handleSaveEdit} className="space-y-6 text-left">
-                  <div className="bg-[#15171d] border border-zinc-800/80 p-5 space-y-4 shadow-lg">
-                    <h3 className="text-xs font-bold text-white uppercase font-mono tracking-wider">Identificación y Categoría</h3>
+                /* Dynamic cards-based inline editing form (Requirement 6) */
+                <form onSubmit={handleSubmitForm} className="space-y-6 text-left">
+                  
+                  {/* Card 1: Core Fields */}
+                  <div className="bg-[#15171d] border border-zinc-800/80 p-5 space-y-4 shadow-lg rounded-none">
+                    <h3 className="text-xs font-bold text-white uppercase font-mono tracking-wider border-b border-zinc-850/40 pb-2">
+                      Identificación y Categoría
+                    </h3>
                     
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-1">
@@ -317,7 +399,7 @@ export function MaterialDetailDrawer({
                           type="text"
                           value={editForm.sku}
                           onChange={e => setEditForm({...editForm, sku: e.target.value})}
-                          className="w-full bg-zinc-950 border border-zinc-850 rounded p-2.5 text-xs text-white focus:outline-none focus:border-emerald-500"
+                          className="w-full bg-zinc-950 border border-zinc-850 rounded p-2.5 text-xs text-white focus:outline-none focus:border-emerald-500 font-mono uppercase"
                         />
                       </div>
                     </div>
@@ -353,21 +435,84 @@ export function MaterialDetailDrawer({
                     </div>
                   </div>
 
-                  <div className="bg-[#15171d] border border-zinc-800/80 p-5 space-y-4 shadow-lg">
-                    <h3 className="text-xs font-bold text-white uppercase font-mono tracking-wider">Especificaciones de Dimensiones y Costos</h3>
+                  {/* Card 2: Dynamic Multi-providers & Prices (Requirement 6) */}
+                  <div className="bg-[#15171d] border border-zinc-800/80 p-5 space-y-4 shadow-lg rounded-none">
+                    <div className="flex justify-between items-center border-b border-zinc-850/40 pb-2">
+                      <h3 className="text-xs font-bold text-white uppercase font-mono tracking-wider">
+                        Proveedores y Precios de Adquisición
+                      </h3>
+                      <button
+                        type="button"
+                        onClick={handleAddProviderRow}
+                        className="text-[10px] font-bold text-emerald-450 hover:text-emerald-400 font-mono uppercase tracking-wider flex items-center gap-1 cursor-pointer"
+                      >
+                        <PlusCircle className="h-4 w-4" /> Añadir Proveedor
+                      </button>
+                    </div>
+
+                    <div className="space-y-3">
+                      {localProvidersList.map((row, idx) => {
+                        const globalList = getGlobalProviders();
+                        return (
+                          <div key={idx} className="flex items-center gap-3 bg-zinc-950 p-3 border border-zinc-850">
+                            {/* Supplier Selector */}
+                            <div className="flex-1 space-y-1 text-left">
+                              <label className="text-[9px] font-bold text-zinc-550 uppercase font-mono">Proveedor</label>
+                              <select
+                                value={row.name}
+                                onChange={e => handleUpdateProviderRow(idx, 'name', e.target.value)}
+                                className="w-full bg-[#121318] border border-zinc-800 rounded p-1.5 text-xs text-white focus:outline-none font-semibold cursor-pointer"
+                              >
+                                {globalList.map(prov => (
+                                  <option key={prov} value={prov}>{prov}</option>
+                                ))}
+                              </select>
+                            </div>
+
+                            {/* Purchase Price Input */}
+                            <div className="w-32 space-y-1 text-left">
+                              <label className="text-[9px] font-bold text-zinc-550 uppercase font-mono">Precio Unitario ($)</label>
+                              <input
+                                required
+                                type="number"
+                                step="0.01"
+                                value={row.price}
+                                onChange={e => handleUpdateProviderRow(idx, 'price', parseFloat(e.target.value) || 0)}
+                                className="w-full bg-[#121318] border border-zinc-800 rounded p-1.5 text-xs text-white focus:outline-none font-mono font-bold"
+                              />
+                            </div>
+
+                            {/* Remove row button */}
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveProviderRow(idx)}
+                              className="mt-5 p-1.5 hover:bg-zinc-900 rounded text-rose-500 hover:text-rose-455 transition-colors cursor-pointer"
+                            >
+                              <Trash className="h-4 w-4" />
+                            </button>
+                          </div>
+                        );
+                      })}
+
+                      {localProvidersList.length === 0 && (
+                        <div className="py-6 text-center text-zinc-650 text-xs italic font-mono border border-dashed border-zinc-850 rounded">
+                          No hay proveedores vinculados a este material. Haz clic en "Añadir Proveedor" arriba.
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="text-[10px] text-zinc-500 font-mono font-semibold pt-1 text-left">
+                      💡 El costo unitario de visualización se autocalculará como el **mínimo costo de adquisición** registrado (${cheapestPrice.toFixed(2)}).
+                    </div>
+                  </div>
+
+                  {/* Card 3: Dimensions / Specifications */}
+                  <div className="bg-[#15171d] border border-zinc-800/80 p-5 space-y-4 shadow-lg rounded-none">
+                    <h3 className="text-xs font-bold text-white uppercase font-mono tracking-wider border-b border-zinc-850/40 pb-2">
+                      Ficha de Medición
+                    </h3>
                     
                     <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-zinc-500 uppercase font-mono">Costo Unitario ($) *</label>
-                        <input
-                          required
-                          type="number"
-                          step="0.01"
-                          value={editForm.cost}
-                          onChange={e => setEditForm({...editForm, cost: Number(e.target.value)})}
-                          className="w-full bg-zinc-950 border border-zinc-850 rounded p-2.5 text-xs text-white focus:outline-none font-mono"
-                        />
-                      </div>
                       <div className="space-y-1">
                         <label className="text-[10px] font-bold text-zinc-500 uppercase font-mono">Punto de Reorden (Min. Requerido)</label>
                         <input
@@ -377,18 +522,19 @@ export function MaterialDetailDrawer({
                           className="w-full bg-zinc-950 border border-zinc-850 rounded p-2.5 text-xs text-white focus:outline-none font-mono"
                         />
                       </div>
-                    </div>
-
-                    <div className="grid grid-cols-3 gap-4">
                       <div className="space-y-1">
                         <label className="text-[10px] font-bold text-zinc-500 uppercase font-mono">Embalaje</label>
                         <input
                           type="text"
+                          placeholder="Caja, Rollo, etc."
                           value={editForm.packaging}
                           onChange={e => setEditForm({...editForm, packaging: e.target.value})}
                           className="w-full bg-zinc-955 border border-zinc-850 rounded p-2.5 text-xs text-white focus:outline-none"
                         />
                       </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-1">
                         <label className="text-[10px] font-bold text-zinc-500 uppercase font-mono">Longitud (m)</label>
                         <input
@@ -410,20 +556,6 @@ export function MaterialDetailDrawer({
                         />
                       </div>
                     </div>
-                  </div>
-
-                  <div className="bg-[#15171d] border border-zinc-800/80 p-5 space-y-4 shadow-lg">
-                    <h3 className="text-xs font-bold text-white uppercase font-mono tracking-wider">Multimedia y Datos Técnicos</h3>
-
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-zinc-500 uppercase font-mono">Proveedores (Separados por coma)</label>
-                      <input
-                        type="text"
-                        value={editForm.providers}
-                        onChange={e => setEditForm({...editForm, providers: e.target.value})}
-                        className="w-full bg-zinc-950 border border-zinc-855 rounded p-2.5 text-xs text-white focus:outline-none"
-                      />
-                    </div>
 
                     <div className="space-y-1">
                       <label className="text-[10px] font-bold text-zinc-500 uppercase font-mono">Descripción Técnica</label>
@@ -433,14 +565,20 @@ export function MaterialDetailDrawer({
                         className="w-full bg-zinc-955 border border-zinc-850 rounded p-2.5 text-xs text-white focus:outline-none h-16 resize-none"
                       />
                     </div>
+                  </div>
 
-                    {/* Image uploads preview */}
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold text-zinc-500 uppercase font-mono">Imágenes del Material</label>
-                      <div className="bg-zinc-950 border border-zinc-850 rounded p-3 flex flex-wrap gap-2.5 items-center">
-                        {(editForm.image_urls || []).map((url: string, idx: number) => (
+                  {/* Card 4: Multimedia Uploads */}
+                  <div className="bg-[#15171d] border border-zinc-800/80 p-5 space-y-4 shadow-lg rounded-none">
+                    <h3 className="text-xs font-bold text-white uppercase font-mono tracking-wider border-b border-zinc-850/40 pb-2">
+                      Fotografías del Material
+                    </h3>
+
+                    <div className="bg-zinc-950 border border-zinc-850 rounded p-3 flex flex-wrap gap-2.5 items-center">
+                      {(editForm.image_urls || []).map((url: string, idx: number) => {
+                        const previewUrl = resolveImageUrl(url);
+                        return (
                           <div key={idx} className="relative h-16 w-16 bg-zinc-900 border border-zinc-800 rounded group overflow-hidden">
-                            <img src={url} alt={`Preview ${idx}`} className="h-full w-full object-cover" />
+                            {previewUrl && <img src={previewUrl} alt={`Preview ${idx}`} className="h-full w-full object-cover" />}
                             <button
                               type="button"
                               onClick={() => setEditForm((prev: any) => ({
@@ -452,27 +590,27 @@ export function MaterialDetailDrawer({
                               <Trash2 className="h-4 w-4" />
                             </button>
                           </div>
-                        ))}
-                        
-                        <label className="h-16 w-16 border border-dashed border-zinc-800 hover:border-emerald-500/50 rounded flex flex-col items-center justify-center text-zinc-500 hover:text-emerald-400 transition-all cursor-pointer">
-                          <input
-                            type="file"
-                            multiple
-                            accept="image/*"
-                            onChange={handleEditImageUpload}
-                            className="hidden"
-                            disabled={uploadingImage}
-                          />
-                          {uploadingImage ? (
-                            <Loader2 className="h-4 w-4 animate-spin text-emerald-500" />
-                          ) : (
-                            <>
-                              <Plus className="h-4 w-4" />
-                              <span className="text-[8px] font-bold uppercase mt-1">Subir</span>
-                            </>
-                          )}
-                        </label>
-                      </div>
+                        );
+                      })}
+                      
+                      <label className="h-16 w-16 border border-dashed border-zinc-800 hover:border-emerald-500/50 rounded flex flex-col items-center justify-center text-zinc-500 hover:text-emerald-400 transition-all cursor-pointer">
+                        <input
+                          type="file"
+                          multiple
+                          accept="image/*"
+                          onChange={handleEditImageUpload}
+                          className="hidden"
+                          disabled={uploadingImage}
+                        />
+                        {uploadingImage ? (
+                          <Loader2 className="h-4 w-4 animate-spin text-emerald-500" />
+                        ) : (
+                          <>
+                            <Plus className="h-4 w-4" />
+                            <span className="text-[8px] font-bold uppercase mt-1">Subir</span>
+                          </>
+                        )}
+                      </label>
                     </div>
                   </div>
 
@@ -496,8 +634,8 @@ export function MaterialDetailDrawer({
                     <div className="flex gap-4 items-start">
                       {/* Main Image */}
                       <div className="flex-1 aspect-[4/3] bg-zinc-950 border border-zinc-850 rounded-2xl overflow-hidden flex items-center justify-center shadow-inner relative">
-                        {activeImgUrl ? (
-                          <img src={activeImgUrl} alt={selectedItem.name} className="h-full w-full object-contain" />
+                        {resolvedMainImage ? (
+                          <img src={resolvedMainImage} alt={selectedItem.name} className="h-full w-full object-contain" />
                         ) : (
                           <div className="flex flex-col items-center justify-center text-zinc-700">
                             <Archive className="h-12 w-12 mb-2" />
@@ -511,19 +649,22 @@ export function MaterialDetailDrawer({
                         <div className="flex flex-col gap-2 shrink-0 items-center">
                           <button type="button" className="text-zinc-550 hover:text-white cursor-pointer"><ChevronUp className="h-4 w-4" /></button>
                           <div className="flex flex-col gap-2 max-h-[170px] overflow-y-auto pr-1 scrollbar-none">
-                            {(selectedItem.image_urls || []).map((url, idx) => (
-                              <button
-                                key={idx}
-                                onClick={() => setActiveImgUrl(url)}
-                                className={`h-11 w-11 rounded-lg overflow-hidden border shrink-0 transition-all cursor-pointer ${
-                                  activeImgUrl === url 
-                                    ? 'border-emerald-500 scale-95 ring-2 ring-emerald-500/20' 
-                                    : 'border-zinc-800 opacity-60 hover:opacity-100'
-                                }`}
-                              >
-                                <img src={url} alt={`Thumbnail ${idx}`} className="h-full w-full object-cover" />
-                              </button>
-                            ))}
+                            {(selectedItem.image_urls || []).map((url, idx) => {
+                              const thumbUrl = resolveImageUrl(url);
+                              return (
+                                <button
+                                  key={idx}
+                                  onClick={() => setActiveImgUrl(url)}
+                                  className={`h-11 w-11 rounded-lg overflow-hidden border shrink-0 transition-all cursor-pointer ${
+                                    activeImgUrl === url 
+                                      ? 'border-emerald-500 scale-95 ring-2 ring-emerald-500/20' 
+                                      : 'border-zinc-800 opacity-60 hover:opacity-100'
+                                  }`}
+                                >
+                                  {thumbUrl && <img src={thumbUrl} alt={`Thumbnail ${idx}`} className="h-full w-full object-cover" />}
+                                </button>
+                              );
+                            })}
                           </div>
                           <button type="button" className="text-zinc-550 hover:text-white cursor-pointer"><ChevronDown className="h-4 w-4" /></button>
                         </div>
@@ -537,7 +678,7 @@ export function MaterialDetailDrawer({
                       </h3>
                       <div className="grid grid-cols-2 gap-x-6 gap-y-3.5 text-xs">
                         <div className="space-y-0.5">
-                          <div className="text-[9.5px] font-bold text-zinc-550 uppercase tracking-wide font-mono">TOTAL BE PACKED</div>
+                          <div className="text-[9.5px] font-bold text-zinc-550 uppercase tracking-wide font-mono">PRODUCT TYPE</div>
                           <div className="text-white font-medium">Stocked Product</div>
                         </div>
                         <div className="space-y-0.5">
@@ -545,7 +686,7 @@ export function MaterialDetailDrawer({
                           <div className="text-white font-medium">{category ? category.name : 'N/A'}</div>
                         </div>
                         <div className="space-y-0.5">
-                          <div className="text-[9.5px] font-bold text-zinc-550 uppercase tracking-wide font-mono">BARCODE / SKU</div>
+                          <div className="text-[9.5px] font-bold text-zinc-550 uppercase tracking-wide font-mono">SKU / CODE</div>
                           <div className="text-white font-mono">{selectedItem.sku}</div>
                         </div>
                         <div className="space-y-0.5">
@@ -589,59 +730,38 @@ export function MaterialDetailDrawer({
                     </div>
 
                     {/* Purchase & Financial Information Card */}
-                    <div className="bg-[#15171d]/60 border border-zinc-850/50 p-5 rounded-2xl space-y-3.5">
-                      <h3 className="text-xs font-bold text-white font-mono uppercase tracking-widest border-b border-zinc-850/30 pb-2">
-                        Purchase Information
-                      </h3>
-                      <div className="grid grid-cols-2 gap-4 text-xs">
-                        <div className="space-y-0.5">
-                          <div className="text-[9.5px] font-bold text-zinc-550 uppercase tracking-wide font-mono">PURCHASE COST</div>
-                          <div className="text-white font-mono font-bold text-sm">
-                            ${selectedItem.cost.toFixed(2)}
-                          </div>
-                        </div>
-                        <div className="space-y-0.5">
-                          <div className="text-[9.5px] font-bold text-zinc-550 uppercase tracking-wide font-mono">PRIMARY VENDOR</div>
-                          <div className="text-white font-medium">
-                            {selectedItem.providers?.[0] || 'Sin proveedor'}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Sales Information (Value metrics) Card */}
                     <div className="bg-[#15171d]/60 border border-zinc-850/50 p-5 rounded-2xl space-y-4">
                       <h3 className="text-xs font-bold text-white font-mono uppercase tracking-widest border-b border-zinc-850/30 pb-2">
-                        Sales Information & Valuation
+                        Valores Financieros de Adquisición
                       </h3>
                       <div className="grid grid-cols-3 gap-6 text-xs font-mono">
                         <div className="space-y-1">
-                          <div className="text-[9.5px] font-bold text-zinc-550 uppercase tracking-wide">EST. VALUE / UNIT</div>
+                          <div className="text-[9.5px] font-bold text-zinc-550 uppercase tracking-wide">EST. MIN COST / UNIT</div>
                           <div className="text-white font-bold text-sm">
-                            ${selectedItem.cost.toFixed(2)}
+                            ${cheapestPrice.toFixed(2)}
                           </div>
-                          <div className="text-[8px] text-zinc-500 uppercase tracking-wider">Margin (35%)</div>
+                          <div className="text-[8px] text-zinc-500 uppercase tracking-wider">Costo Más Barato</div>
                         </div>
                         <div className="space-y-1">
                           <div className="text-[9.5px] font-bold text-zinc-550 uppercase tracking-wide">TOTAL STOCK VALUE</div>
                           <div className="text-white font-bold text-sm">
-                            ${(selectedItem.cost * selectedItem.stock).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                            ${(cheapestPrice * selectedItem.stock).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                           </div>
-                          <div className="text-[8px] text-zinc-500 uppercase tracking-wider">Asset Valuation</div>
+                          <div className="text-[8px] text-zinc-500 uppercase tracking-wider">Valor en Almacén</div>
                         </div>
                         <div className="space-y-1">
-                          <div className="text-[9.5px] font-bold text-zinc-550 uppercase tracking-wide">TOTAL MARGIN (35%)</div>
-                          <div className="text-emerald-450 font-bold text-sm">
-                            ${(selectedItem.cost * selectedItem.stock * 0.35).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                          <div className="text-[9.5px] font-bold text-zinc-550 uppercase tracking-wide">PUNTO REORDEN</div>
+                          <div className="text-amber-500 font-bold text-sm">
+                            {selectedItem.min_stock} {selectedItem.unit}
                           </div>
-                          <div className="text-[8px] text-emerald-550 uppercase tracking-wider">Est. Profit</div>
+                          <div className="text-[8px] text-amber-550 uppercase tracking-wider">Mínimo Crítico</div>
                         </div>
                       </div>
                     </div>
 
                   </div>
 
-                  {/* Right Column (Sidebar - Stock & Reorder Points) */}
+                  {/* Right Column (Sidebar - Stock & Providers list) */}
                   <div className="lg:col-span-1 space-y-6">
                     
                     {/* Stock Card */}
@@ -665,7 +785,6 @@ export function MaterialDetailDrawer({
                           type="button"
                           onClick={() => {
                             setIsDetailDrawerOpen(false);
-                            // Set selected items list to this item only and open bulk adjustment
                             alert('Abriendo ajuste rápido de Kardex para este material...');
                           }}
                           className="w-full h-10 border border-emerald-500/30 bg-emerald-500/5 hover:bg-emerald-500/10 text-emerald-400 font-bold font-mono text-xs uppercase tracking-wider rounded-xl transition-colors cursor-pointer flex items-center justify-center gap-1"
@@ -673,79 +792,33 @@ export function MaterialDetailDrawer({
                           Adjust Stock
                         </button>
                       </RequirePermission>
-
-                      {/* Warehouse stock split */}
-                      <div className="space-y-2 pt-2 border-t border-zinc-850 text-xs font-mono">
-                        <div className="flex justify-between items-center text-[11px] py-1">
-                          <span className="text-zinc-450">Warehouse <strong className="text-amber-500 font-bold">•BDG</strong></span>
-                          <span className="text-white font-bold">{whBDG}</span>
-                        </div>
-                        <div className="flex justify-between items-center text-[11px] py-1">
-                          <span className="text-zinc-450">Warehouse <strong className="text-blue-400 font-bold">•JKT</strong></span>
-                          <span className="text-white font-bold">{whJKT}</span>
-                        </div>
-                        <div className="flex justify-between items-center text-[11px] py-1">
-                          <span className="text-zinc-450">Warehouse <strong className="text-purple-400 font-bold">•MLG</strong></span>
-                          <span className="text-white font-bold">{whMLG}</span>
-                        </div>
-                        <div className="flex justify-between items-center text-[11px] py-1">
-                          <span className="text-zinc-450">Warehouse <strong className="text-emerald-400 font-bold">•SBY</strong></span>
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-white font-bold">{whSBY}</span>
-                            {whSBY <= selectedItem.min_stock && (
-                              <span className="bg-rose-500/20 text-rose-455 text-[8.5px] px-1 py-0.5 rounded font-extrabold uppercase scale-90">
-                                low
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
                     </div>
 
-                    {/* Reorder Points Card */}
+                    {/* Providers & Prices Card (Requirement 3: Removed Reorder points, kept suppliers) */}
                     <div className="bg-[#15171d] border border-zinc-800 p-5 rounded-2xl space-y-4 shadow-xl text-left">
-                      <span className="text-xs font-bold text-white font-mono uppercase tracking-widest">Reorder Points</span>
+                      <span className="text-xs font-bold text-white font-mono uppercase tracking-widest">Proveedores Vinculados</span>
 
-                      <div className="space-y-4 pt-2 font-mono">
-                        {/* BDG Reorder details */}
-                        <div className="space-y-2 text-xs">
-                          <div className="flex items-center gap-1.5 text-zinc-300 font-bold">
-                            <Archive className="h-3.5 w-3.5 text-zinc-550" />
-                            <span>Warehouse <strong className="text-amber-500">•BDG</strong></span>
-                          </div>
-                          
-                          <div className="grid grid-cols-2 gap-2 text-[10.5px] bg-[#121318] p-2.5 rounded-lg border border-zinc-850">
-                            <div>
-                              <div className="text-[8.5px] text-zinc-500 uppercase font-bold">REORDER POINT</div>
-                              <div className="text-white font-bold mt-0.5">{selectedItem.min_stock}</div>
-                            </div>
-                            <div>
-                              <div className="text-[8.5px] text-zinc-500 uppercase font-bold">REORDER QTY</div>
-                              <div className="text-white font-bold mt-0.5">{selectedItem.min_stock * 2}</div>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* JKT Reorder details */}
-                        <div className="space-y-2 text-xs">
-                          <div className="flex items-center gap-1.5 text-zinc-300 font-bold">
-                            <Archive className="h-3.5 w-3.5 text-zinc-550" />
-                            <span>Warehouse <strong className="text-blue-400">•JKT</strong></span>
-                          </div>
-
-                          <div className="grid grid-cols-2 gap-2 text-[10.5px] bg-[#121318] p-2.5 rounded-lg border border-zinc-850">
-                            <div>
-                              <div className="text-[8.5px] text-zinc-500 uppercase font-bold">REORDER METHOD</div>
-                              <div className="text-white font-bold mt-0.5">Purchase Order</div>
-                            </div>
-                            <div>
-                              <div className="text-[8.5px] text-zinc-500 uppercase font-bold">VENDOR</div>
-                              <div className="text-white font-bold mt-0.5 truncate max-w-[80px]" title={selectedItem.providers?.[0] || 'N/A'}>
-                                {selectedItem.providers?.[0] || 'N/A'}
+                      <div className="space-y-3 pt-2">
+                        {selectedItem.providers && selectedItem.providers.length > 0 ? (
+                          selectedItem.providers.map((pStr, idx) => {
+                            const parsed = parseProviderForDisplay(pStr);
+                            return (
+                              <div key={idx} className="flex justify-between items-center text-xs border-b border-zinc-850 pb-2">
+                                <div className="space-y-0.5">
+                                  <div className="font-bold text-white">{parsed.name}</div>
+                                  <div className="text-[8.5px] text-zinc-500 font-mono uppercase">Proveedor registrado</div>
+                                </div>
+                                <span className="font-mono text-sm font-bold text-emerald-405">
+                                  ${parsed.price.toFixed(2)}
+                                </span>
                               </div>
-                            </div>
+                            );
+                          })
+                        ) : (
+                          <div className="text-xs italic text-zinc-600 py-2 font-mono">
+                            Sin proveedores vinculados.
                           </div>
-                        </div>
+                        )}
                       </div>
                     </div>
 
@@ -767,12 +840,12 @@ export function MaterialDetailDrawer({
                   <span className="text-xs text-zinc-500">Cargando Kardex...</span>
                 </div>
               ) : itemTransactions.length === 0 ? (
-                <div className="py-12 text-center text-zinc-650 italic text-xs font-mono">
+                <div className="py-12 text-center text-zinc-650 italic text-xs font-mono border border-dashed border-zinc-850 rounded">
                   No hay movimientos registrados en Kardex para este material.
                 </div>
               ) : (
                 <div className="relative border-l border-zinc-800 ml-4 pl-6 space-y-7">
-                  {itemTransactions.map((tx, idx) => {
+                  {itemTransactions.map((tx) => {
                     const dateStr = new Date(tx.created_at).toLocaleString([], {
                       weekday: 'short',
                       day: 'numeric',
@@ -804,7 +877,7 @@ export function MaterialDetailDrawer({
                               : `Ajuste de stock: ${tx.quantity} ${selectedItem.unit}`
                             }
                           </div>
-                          <p className="text-[11px] text-zinc-400 leading-relaxed font-sans">{tx.reason}</p>
+                          <p className="text-[11px] text-zinc-405 leading-relaxed font-sans">{tx.reason}</p>
                           <div className="flex items-center gap-1 text-[9.5px] text-zinc-550 font-mono">
                             <User className="h-3 w-3 shrink-0" />
                             <span>Por: {tx.profiles?.full_name || 'Sistema / API'}</span>
@@ -833,7 +906,7 @@ export function MaterialDetailDrawer({
                     placeholder="Add notes here..."
                     value={newNoteContent}
                     onChange={e => setNewNoteContent(e.target.value)}
-                    className="w-full bg-[#15171d] border border-zinc-800 rounded-xl p-3 text-xs text-white placeholder-zinc-600 focus:outline-none focus:border-zinc-700 h-24 resize-none"
+                    className="w-full bg-[#15171d] border border-zinc-800 rounded-xl p-3 text-xs text-white placeholder-zinc-650 focus:outline-none focus:border-zinc-700 h-24 resize-none"
                   />
                 </div>
                 <Button 
@@ -844,7 +917,7 @@ export function MaterialDetailDrawer({
                 </Button>
               </form>
 
-              {/* Notes Feed list */}
+              {/* Notes Feed list (Requirement 5: No simulated default comments!) */}
               <div className="space-y-3">
                 {notes.map((note) => {
                   const timeAgoStr = new Date(note.createdAt).toLocaleDateString([], {
@@ -872,7 +945,7 @@ export function MaterialDetailDrawer({
                             <div className="text-xs font-bold text-white leading-tight">
                               {note.userName}
                             </div>
-                            <div className="text-[8.5px] text-zinc-500 font-mono mt-0.5">
+                            <div className="text-[8.5px] text-zinc-550 font-mono mt-0.5">
                               {timeAgoStr}
                             </div>
                           </div>
@@ -885,6 +958,12 @@ export function MaterialDetailDrawer({
                     </div>
                   );
                 })}
+
+                {notes.length === 0 && (
+                  <div className="py-12 text-center text-zinc-600 text-xs italic font-mono border border-dashed border-zinc-850 rounded">
+                    No hay notas registradas para este material. Escribe una nota arriba para comenzar.
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -903,7 +982,7 @@ export function MaterialDetailDrawer({
               </Button>
             ) : (
               <Button
-                onClick={handleSaveEdit}
+                onClick={handleSubmitForm}
                 disabled={actionLoading}
                 className="bg-emerald-600 hover:bg-emerald-500 text-white font-mono text-[10px] font-bold uppercase tracking-wider h-9 px-4.5 rounded cursor-pointer"
               >
@@ -913,7 +992,7 @@ export function MaterialDetailDrawer({
           </RequirePermission>
           <Button 
             onClick={() => setIsDetailDrawerOpen(false)} 
-            className="bg-zinc-900 border border-zinc-800 text-zinc-450 hover:text-white font-mono text-[10px] font-bold uppercase tracking-wider h-9 px-4 rounded"
+            className="bg-zinc-900 border border-zinc-800 text-zinc-455 hover:text-white font-mono text-[10px] font-bold uppercase tracking-wider h-9 px-4 rounded"
           >
             Close
           </Button>

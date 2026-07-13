@@ -1,10 +1,11 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Loader2, Archive, PackageCheck, MoreVertical } from 'lucide-react';
-import { Button } from '@/core/components/ui/button';
+import { Loader2, Archive, MoreVertical } from 'lucide-react';
 import { RequirePermission } from '@/core/auth/AuthContext';
 import { InventoryItemRow, InventoryCategoryRow } from '@/core/services/inventory';
+import { getApiUrl } from '@/core/utils/api';
+import { supabase } from '@/core/database/supabase';
 
 interface CatalogTableProps {
   items: InventoryItemRow[];
@@ -21,7 +22,6 @@ interface CatalogTableProps {
 export function CatalogTable({
   items,
   categories,
-  latestTxMap,
   loading,
   selectedItemIds,
   handleToggleSelectItem,
@@ -31,45 +31,83 @@ export function CatalogTable({
 }: CatalogTableProps) {
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const [token, setToken] = useState<string | null>(null);
   const itemsPerPage = 8;
+
+  // Retrieve Supabase token on mount to authorize static-export API file requests
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setToken(session?.access_token || null);
+    });
+  }, []);
 
   // Reset page when items filter changes
   useEffect(() => {
     setCurrentPage(1);
   }, [items]);
 
+  // Helper to resolve and authorize relative image URLs in production
+  const resolveImageUrl = (url: string | null) => {
+    if (!url) return null;
+    if (url.startsWith('/api/storage/file/')) {
+      return getApiUrl(`${url}${url.includes('?') ? '&' : '?'}token=${token || ''}`);
+    }
+    return url;
+  };
+
+  // Helper to calculate the lowest price among all providers (Requirement 6)
+  const getLowestPrice = (item: InventoryItemRow) => {
+    if (!item.providers || item.providers.length === 0) return item.cost;
+    
+    const parsedPrices = item.providers.map(p => {
+      const parts = p.split(' - $');
+      if (parts.length === 2) {
+        return parseFloat(parts[1]) || item.cost;
+      }
+      return item.cost;
+    });
+
+    return Math.min(...parsedPrices);
+  };
+
+  // Helper to get raw provider name (without the price suffix)
+  const getCleanProviderName = (providerStr: string) => {
+    const parts = providerStr.split(' - $');
+    return parts[0].trim();
+  };
+
   const getCategoryBadge = (categoryName?: string) => {
     const name = categoryName?.toLowerCase() || '';
     if (name.includes('indust')) {
       return (
-        <span className="px-2 py-0.5 text-[9px] font-bold tracking-wider uppercase bg-blue-500/10 text-blue-400 border border-blue-500/25 rounded-md">
+        <span className="px-2.5 py-0.5 text-[9px] font-bold tracking-wider uppercase bg-blue-500/10 text-blue-400 border border-blue-500/25 rounded-md">
           INDUSTRIAL
         </span>
       );
     }
     if (name.includes('comm') || name.includes('comerc')) {
       return (
-        <span className="px-2 py-0.5 text-[9px] font-bold tracking-wider uppercase bg-purple-500/10 text-purple-400 border border-purple-500/25 rounded-md">
+        <span className="px-2.5 py-0.5 text-[9px] font-bold tracking-wider uppercase bg-purple-500/10 text-purple-400 border border-purple-500/25 rounded-md">
           COMMERCIAL
         </span>
       );
     }
     if (name.includes('resid') || name.includes('hogar')) {
       return (
-        <span className="px-2 py-0.5 text-[9px] font-bold tracking-wider uppercase bg-emerald-500/10 text-emerald-400 border border-emerald-500/25 rounded-md">
+        <span className="px-2.5 py-0.5 text-[9px] font-bold tracking-wider uppercase bg-emerald-500/10 text-emerald-400 border border-emerald-500/25 rounded-md">
           RESIDENTIAL
         </span>
       );
     }
     if (name.includes('herram') || name.includes('tool') || name.includes('equip')) {
       return (
-        <span className="px-2 py-0.5 text-[9px] font-bold tracking-wider uppercase bg-zinc-500/10 text-zinc-400 border border-zinc-500/25 rounded-md">
+        <span className="px-2.5 py-0.5 text-[9px] font-bold tracking-wider uppercase bg-zinc-500/10 text-zinc-400 border border-zinc-500/25 rounded-md">
           TOOLS
         </span>
       );
     }
     return (
-      <span className="px-2 py-0.5 text-[9px] font-bold tracking-wider uppercase bg-zinc-800 text-zinc-400 border border-zinc-700/50 rounded-md">
+      <span className="px-2.5 py-0.5 text-[9px] font-bold tracking-wider uppercase bg-zinc-800 text-zinc-400 border border-zinc-700/50 rounded-md">
         {categoryName?.toUpperCase() || 'GENERAL'}
       </span>
     );
@@ -137,7 +175,7 @@ export function CatalogTable({
       <table className="w-full text-left border-collapse">
         <thead>
           <tr className="bg-[#121214]/60 border-b border-zinc-800 text-[10px] font-bold uppercase tracking-wider text-zinc-450">
-            <th className="px-4 py-3.5 text-center w-12">
+            <th className="px-4 py-3.5 text-center w-12" onClick={e => e.stopPropagation()}>
               <input
                 type="checkbox"
                 checked={items.length > 0 && selectedItemIds.length === items.length}
@@ -150,7 +188,7 @@ export function CatalogTable({
             <th className="px-6 py-3.5">Categoría</th>
             <th className="px-6 py-3.5">Stock Actual</th>
             <th className="px-6 py-3.5">Métrica</th>
-            <th className="px-6 py-3.5">Proveedor</th>
+            <th className="px-6 py-3.5">Proveedor (Mínimo Costo)</th>
             <th className="px-6 py-3.5 text-right w-20">Acciones</th>
           </tr>
         </thead>
@@ -158,16 +196,19 @@ export function CatalogTable({
           {paginatedItems.map((item) => {
             const category = categories.find(c => c.id === item.category_id);
             const isSelected = selectedItemIds.includes(item.id);
+            const lowestPrice = getLowestPrice(item);
+            const imageUrl = resolveImageUrl(item.image_urls?.[0] || item.image_url);
 
             return (
               <tr 
                 key={item.id} 
-                className={`hover:bg-zinc-800/10 transition-colors ${
+                onClick={() => handleOpenDetail(item)}
+                className={`hover:bg-zinc-800/10 cursor-pointer transition-colors ${
                   isSelected ? 'bg-amber-500/5' : ''
                 }`}
               >
-                {/* Checkbox */}
-                <td className="px-4 py-3 text-center">
+                {/* Checkbox (Stop propagation so row click is not triggered) */}
+                <td className="px-4 py-3 text-center" onClick={e => e.stopPropagation()}>
                   <input
                     type="checkbox"
                     checked={isSelected}
@@ -179,9 +220,9 @@ export function CatalogTable({
                 {/* Imagen */}
                 <td className="px-6 py-3">
                   <div className="h-16 w-24 bg-zinc-950 border border-zinc-850 rounded-none overflow-hidden flex items-center justify-center shrink-0">
-                    {item.image_urls?.[0] || item.image_url ? (
+                    {imageUrl ? (
                       <img 
-                        src={item.image_urls?.[0] || item.image_url || undefined} 
+                        src={imageUrl} 
                         alt={item.name} 
                         className="h-full w-full object-cover" 
                       />
@@ -196,8 +237,10 @@ export function CatalogTable({
                   <div className="font-bold text-white text-sm leading-snug">
                     {item.name}
                   </div>
-                  <div className="text-[10px] text-zinc-500 font-mono mt-1 tracking-wider uppercase">
-                    {item.sku}
+                  <div className="text-[10px] text-zinc-500 font-mono mt-1 tracking-wider uppercase flex items-center gap-1.5">
+                    <span>{item.sku}</span>
+                    <span>•</span>
+                    <span className="text-amber-500 font-bold">Desde ${lowestPrice.toFixed(2)}</span>
                   </div>
                 </td>
 
@@ -216,13 +259,24 @@ export function CatalogTable({
                   {item.unit}
                 </td>
 
-                {/* Proveedor */}
-                <td className="px-6 py-3 text-zinc-450 font-medium max-w-[130px] truncate" title={item.providers?.[0] || 'N/A'}>
-                  {item.providers?.[0] || 'N/A'}
+                {/* Proveedor (Displays the supplier offering the cheapest price) */}
+                <td className="px-6 py-3 text-zinc-450 font-medium max-w-[150px] truncate" title={item.providers?.[0] || 'N/A'}>
+                  {item.providers && item.providers.length > 0 ? (
+                    <div className="space-y-0.5">
+                      <div className="text-white font-bold">{getCleanProviderName(item.providers[0])}</div>
+                      {item.providers.length > 1 && (
+                        <div className="text-[9px] text-zinc-500 font-mono font-bold uppercase">
+                          +{item.providers.length - 1} PROVEEDORES
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    'N/A'
+                  )}
                 </td>
 
-                {/* Acciones */}
-                <td className="px-6 py-3 text-right relative">
+                {/* Acciones (Stop propagation so row click is not triggered) */}
+                <td className="px-6 py-3 text-right relative" onClick={e => e.stopPropagation()}>
                   <div className="flex justify-end items-center">
                     <button
                       type="button"
