@@ -734,3 +734,33 @@ export async function getProjectDispatchHistory(projectId: string): Promise<Proj
     profiles: row.profiles || null
   }));
 }
+
+/**
+ * Retrieve transactions audit log for all items in the inventory.
+ */
+export async function getAllInventoryTransactions(): Promise<(InventoryTransactionWithUser & { inventory_items: { name: string; sku: string } | null })[]> {
+  const { data, error } = await supabase
+    .from('inventory_transactions')
+    .select(`
+      *,
+      profiles:created_by (
+        full_name
+      ),
+      inventory_items:item_id (
+        name,
+        sku
+      )
+    `)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error('Error fetching all inventory transactions:', error);
+    throw new Error(error.message);
+  }
+
+  return (data as any[] || []).map(row => ({
+    ...row,
+    profiles: row.profiles || null,
+    inventory_items: row.inventory_items || null
+  }));
+}
