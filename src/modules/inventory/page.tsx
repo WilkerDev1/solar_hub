@@ -21,6 +21,7 @@ import { ConfigWMSModal, getGlobalProviders, saveGlobalProviders } from './compo
 import { BulkAdjustmentModal } from './components/BulkAdjustmentModal';
 import { MaterialDetailDrawer } from './components/MaterialDetailDrawer';
 import { MobileInventoryDashboard } from './components/MobileInventoryDashboard';
+import { ProjectDispatchTab } from './components/ProjectDispatchTab';
 
 export default function InventoryModule() {
   const { user } = useAuth();
@@ -112,7 +113,7 @@ export default function InventoryModule() {
   };
 
   // Desktop active tab
-  const [activeTab, setActiveTab] = useState<'catalog' | 'history'>('catalog');
+  const [activeTab, setActiveTab] = useState<'catalog' | 'history' | 'dispatch'>('catalog');
 
   // Mobile active bottom tab
   const [mobileTab, setMobileTab] = useState<'home' | 'items' | 'logs' | 'config'>('home');
@@ -352,10 +353,20 @@ export default function InventoryModule() {
           >
             Historial de Movimientos
           </button>
+          <button
+            onClick={() => setActiveTab('dispatch')}
+            className={`px-5 py-3.5 text-xs font-bold font-mono uppercase tracking-wider border-b-2 cursor-pointer transition-colors ${
+              activeTab === 'dispatch'
+                ? 'border-amber-500 text-amber-500'
+                : 'border-transparent text-zinc-500 hover:text-zinc-300'
+            }`}
+          >
+            Gestión de Despachos
+          </button>
         </div>
 
         {/* Tab contents */}
-        {activeTab === 'catalog' ? (
+        {activeTab === 'catalog' && (
           <div className="space-y-4">
             {/* Redesigned horizontal filter toolbar directly above the table */}
             <div className="bg-[#1c1c21] border border-zinc-800 p-4 rounded-none flex flex-wrap items-center gap-3 w-full">
@@ -447,9 +458,19 @@ export default function InventoryModule() {
               handleOpenDetail={handleOpenDetail}
             />
           </div>
-        ) : (
-          /* Transaction history log view */
+        )}
+
+        {activeTab === 'history' && (
           <TransactionHistory />
+        )}
+
+        {activeTab === 'dispatch' && (
+          <ProjectDispatchTab
+            items={items}
+            categories={categories}
+            token={token}
+            loadData={loadData}
+          />
         )}
       </div>
 
@@ -891,6 +912,8 @@ export default function InventoryModule() {
         actionLoading={actionLoading}
         selectedItemIds={selectedItemIds}
         handleSaveBulk={handleSaveBulk}
+        loadData={loadData}
+        setSelectedItemIds={setSelectedItemIds}
       />
 
       {/* DRAWER: DETALLE DEL MATERIAL Y KARDEX */}
