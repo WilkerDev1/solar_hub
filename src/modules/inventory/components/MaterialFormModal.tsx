@@ -140,9 +140,15 @@ export function MaterialFormModal({
   };
 
   return (
-    <div className="fixed inset-0 bg-[#051424]/85 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      {/* Modal Container */}
-      <main className="relative w-full max-w-4xl max-h-[90vh] bg-[#1E293B] border border-[#475569] rounded-xl shadow-[0_8px_32px_rgba(0,0,0,0.5)] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+    <>
+      {/* Backdrop overlay */}
+      <div 
+        onClick={() => setIsOpen(false)} 
+        className="fixed inset-0 bg-black/75 backdrop-blur-xs z-[55] transition-opacity" 
+      />
+
+      {/* Main Drawer container */}
+      <div className="fixed inset-y-0 right-0 w-full max-w-4xl bg-[#1E293B] border-l border-[#475569] shadow-2xl flex flex-col z-[60] transform transition-transform duration-300 animate-in slide-in-from-right duration-300">
         
         {/* Header */}
         <header className="flex items-center justify-between px-6 py-4 border-b border-[#334155] bg-[#1c2b3c] shrink-0">
@@ -619,7 +625,7 @@ export function MaterialFormModal({
             
           </form>
         </div>
-      </main>
-    </div>
+      </div>
+    </>
   );
 }
