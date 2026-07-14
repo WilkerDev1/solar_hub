@@ -46,26 +46,45 @@ export function ProjectDispatchTab({
   const [selectedDispatchDetail, setSelectedDispatchDetail] = useState<any | null>(null);
 
   // Requisiciones pendientes de aprobación (Requirement: prepared materials converted into pending approvals list)
-  const [pendingLists, setPendingLists] = useState<any[]>([
-    {
-      id: 'REQ-1092',
-      title: 'Kit Inversores y Cableado S1',
-      date: '14/07, 10:15 AM',
-      items: [
-        { sku: 'REO-8821', name: 'Inverter Bank Type-C', qty: 12 },
-        { sku: 'REO-8824', name: 'Heavy Duty Solar Wire 10AWG', qty: 15 }
-      ]
-    },
-    {
-      id: 'REQ-1093',
-      title: 'Paneles de Expansión Beta',
-      date: '14/07, 11:30 AM',
-      items: [
-        { sku: 'REO-8822', name: 'Monocrystalline Panels 400W', qty: 45 },
-        { sku: 'REO-8823', name: 'Aluminum Panel Racking System', qty: 10 }
-      ]
+  const [pendingLists, setPendingLists] = useState<any[]>([]);
+  const [draftTitle, setDraftTitle] = useState('');
+
+  // Hydrate pendingLists on client-side mount
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('wms_pending_lists');
+      if (saved) {
+        try {
+          setPendingLists(JSON.parse(saved));
+        } catch (e) {
+          console.error(e);
+        }
+      } else {
+        const defaults = [
+          {
+            id: 'REQ-1092',
+            title: 'Kit Inversores y Cableado S1',
+            date: '14/07, 10:15 AM',
+            items: [
+              { sku: 'REO-8821', name: 'Inverter Bank Type-C', qty: 12 },
+              { sku: 'REO-8824', name: 'Heavy Duty Solar Wire 10AWG', qty: 15 }
+            ]
+          },
+          {
+            id: 'REQ-1093',
+            title: 'Paneles de Expansión Beta',
+            date: '14/07, 11:30 AM',
+            items: [
+              { sku: 'REO-8822', name: 'Monocrystalline Panels 400W', qty: 45 },
+              { sku: 'REO-8823', name: 'Aluminum Panel Racking System', qty: 10 }
+            ]
+          }
+        ];
+        setPendingLists(defaults);
+        localStorage.setItem('wms_pending_lists', JSON.stringify(defaults));
+      }
     }
-  ]);
+  }, []);
 
   // Selected pending list for direct approval card
   const [selectedPendingList, setSelectedPendingList] = useState<any | null>(null);
@@ -345,7 +364,44 @@ export function ProjectDispatchTab({
 
     setSelectedItemIds(ids);
     setDispatchQuantities(qtys);
+    setDraftTitle(list.title); // prefill title for editing/saving draft
     setViewMode('active');
+  };
+
+  const handleSaveDraftList = () => {
+    if (selectedItemIds.length === 0) {
+      alert('Debes seleccionar al menos un material para guardar la lista.');
+      return;
+    }
+
+    const title = draftTitle.trim() || `Requisición de Materiales (${selectedItemIds.length} ítems)`;
+    const now = new Date();
+    const timeStr = now.toLocaleDateString([], { day: '2-digit', month: '2-digit' }) + ', ' + now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+    const newRequest = {
+      id: `REQ-${Math.floor(1000 + Math.random() * 9000)}`,
+      title,
+      date: timeStr,
+      items: selectedItemIds.map(id => {
+        const item = items.find(x => x.id === id);
+        return {
+          sku: item?.sku || 'N/A',
+          name: item?.name || 'Material',
+          qty: dispatchQuantities[id] || 1
+        };
+      })
+    };
+
+    const updated = [...pendingLists, newRequest];
+    setPendingLists(updated);
+    localStorage.setItem('wms_pending_lists', JSON.stringify(updated));
+
+    // Clear wizard states
+    setSelectedItemIds([]);
+    setDispatchQuantities({});
+    setDraftTitle('');
+    setViewMode('passive');
+    alert(`Listado "${title}" guardado en pendientes por aprobar.`);
   };
 
   const renderStockProgress = (stock: number, minStock: number) => {
@@ -815,6 +871,33 @@ export function ProjectDispatchTab({
                 </button>
               </div>
 
+              {/* Guardar Listado/Requisición Card */}
+              <div className="bg-[#1c1c21] border border-zinc-800 p-5 space-y-4 shadow-xl text-left">
+                <span className="text-xs font-bold text-white font-mono uppercase tracking-widest block border-b border-zinc-850 pb-2">
+                  Guardar Requisición
+                </span>
+
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold text-zinc-500 uppercase font-mono">Título del Listado *</label>
+                  <input
+                    type="text"
+                    value={draftTitle}
+                    onChange={e => setDraftTitle(e.target.value)}
+                    placeholder="Ej: Kit Inversores Sector Norte"
+                    className="w-full bg-zinc-950 border border-zinc-850 rounded p-2 text-xs text-white placeholder-zinc-700 focus:outline-none focus:border-amber-500/50 font-semibold"
+                  />
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleSaveDraftList}
+                  disabled={selectedItemIds.length === 0}
+                  className="w-full h-9 bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 disabled:opacity-30 disabled:cursor-not-allowed text-zinc-350 hover:text-white font-bold font-mono text-[10px] uppercase tracking-wider rounded cursor-pointer transition-colors flex items-center justify-center"
+                >
+                  Guardar para Aprobar Más Tarde
+                </button>
+              </div>
+
               {/* Selected items summary */}
               <div className="bg-[#1c1c21] border border-zinc-800 p-5 space-y-4 shadow-xl text-left">
                 <span className="text-xs font-bold text-white font-mono uppercase tracking-widest block border-b border-zinc-850 pb-2">
@@ -861,9 +944,7 @@ export function ProjectDispatchTab({
               </div>
 
             </div>
-
           </div>
-
         </div>
       )}
 
