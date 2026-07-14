@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Archive, Plus, Search, Loader2, ClipboardList, CheckCircle2, 
-  ArrowLeft, QrCode, Trash2, Download, AlertTriangle, Layers, Info
+  ArrowLeft, QrCode, Trash2, Download, AlertTriangle, Layers, Info, Eye, X
 } from 'lucide-react';
 import { Button } from '@/core/components/ui/button';
 import { supabase } from '@/core/database/supabase';
@@ -41,7 +41,34 @@ export function ProjectDispatchTab({
   const [recentDispatches, setRecentDispatches] = useState<any[]>([]);
   const [loadingDispatches, setLoadingDispatches] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
-  const [successData, setSuccessData] = useState<{ projectName: string; items: any[] } | null>(null);
+  
+  // Selection detail modal for past dispatches
+  const [selectedDispatchDetail, setSelectedDispatchDetail] = useState<any | null>(null);
+
+  // Requisiciones pendientes de aprobación (Requirement: prepared materials converted into pending approvals list)
+  const [pendingLists, setPendingLists] = useState<any[]>([
+    {
+      id: 'REQ-1092',
+      title: 'Kit Inversores y Cableado S1',
+      date: '14/07, 10:15 AM',
+      items: [
+        { sku: 'REO-8821', name: 'Inverter Bank Type-C', qty: 12 },
+        { sku: 'REO-8824', name: 'Heavy Duty Solar Wire 10AWG', qty: 15 }
+      ]
+    },
+    {
+      id: 'REQ-1093',
+      title: 'Paneles de Expansión Beta',
+      date: '14/07, 11:30 AM',
+      items: [
+        { sku: 'REO-8822', name: 'Monocrystalline Panels 400W', qty: 45 },
+        { sku: 'REO-8823', name: 'Aluminum Panel Racking System', qty: 10 }
+      ]
+    }
+  ]);
+
+  // Selected pending list for direct approval card
+  const [selectedPendingList, setSelectedPendingList] = useState<any | null>(null);
 
   // Pagination for catalog inside active mode
   const [currentPage, setCurrentPage] = useState(1);
@@ -70,7 +97,10 @@ export function ProjectDispatchTab({
           *,
           inventory_items (
             name,
-            sku
+            sku,
+            cost,
+            image_url,
+            image_urls
           )
         `)
         .not('project_id', 'is', null)
@@ -90,10 +120,19 @@ export function ProjectDispatchTab({
           
           const matchedProj = projectsList.find(p => p.id === tx.project_id);
           const projectName = matchedProj ? matchedProj.name : 'Proyecto Desconocido';
+          
+          const detailItem = {
+            sku: tx.inventory_items?.sku || 'N/A',
+            name: tx.inventory_items?.name || 'Material Desconocido',
+            qty: Math.abs(tx.quantity),
+            cost: tx.inventory_items?.cost || 0,
+            imageUrl: tx.inventory_items?.image_urls?.[0] || tx.inventory_items?.image_url || null
+          };
 
           if (match) {
             match.itemsCount += Math.abs(tx.quantity);
             match.itemsList.push(`${tx.inventory_items?.name || 'Item'} (${Math.abs(tx.quantity)} pcs)`);
+            match.details.push(detailItem);
           } else {
             grouped.push({
               id: `DSP-${tx.id.substring(0, 4).toUpperCase()}`,
@@ -102,7 +141,8 @@ export function ProjectDispatchTab({
               itemsCount: Math.abs(tx.quantity),
               createdAt: tx.created_at,
               status: 'ENTREGADO',
-              itemsList: [`${tx.inventory_items?.name || 'Item'} (${Math.abs(tx.quantity)} pcs)`]
+              itemsList: [`${tx.inventory_items?.name || 'Item'} (${Math.abs(tx.quantity)} pcs)`],
+              details: [detailItem]
             });
           }
         });
@@ -138,7 +178,6 @@ export function ProjectDispatchTab({
   const handleToggleSelect = (id: string) => {
     if (selectedItemIds.includes(id)) {
       setSelectedItemIds(selectedItemIds.filter(x => x !== id));
-      // Reset dispatch qty
       const updatedQ = { ...dispatchQuantities };
       delete updatedQ[id];
       setDispatchQuantities(updatedQ);
@@ -178,7 +217,7 @@ export function ProjectDispatchTab({
         const qty = dispatchQuantities[id] || 0;
         if (!item || qty <= 0) continue;
 
-        // Perform RPC dispatch to project (decrements global stock and populates project BOM)
+        // Perform RPC dispatch to project
         await dispatchMaterialToProject({
           projectId: selectedProjectId,
           itemId: id,
@@ -194,12 +233,6 @@ export function ProjectDispatchTab({
         });
       }
 
-      // Save for CSV export
-      setSuccessData({
-        projectName,
-        items: dispatchedList
-      });
-
       // Reload global inventories
       await loadData();
       
@@ -213,8 +246,64 @@ export function ProjectDispatchTab({
 
       // Return to passive view
       setViewMode('passive');
+      alert('Despacho a proyecto completado con éxito. Se ha descargado el reporte CSV.');
     } catch (err: any) {
       alert('Error ejecutando el despacho: ' + err.message);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // Direct approval of a pending list from dashboard card
+  const handleApprovePendingList = async () => {
+    if (!selectedPendingList) return;
+    if (!selectedProjectId) {
+      alert('Por favor selecciona un proyecto de destino.');
+      return;
+    }
+
+    const project = projects.find(p => p.id === selectedProjectId);
+    const projectName = project ? project.name : 'Proyecto';
+
+    setActionLoading(true);
+    try {
+      const dispatchedList: any[] = [];
+
+      for (const pItem of selectedPendingList.items) {
+        const match = items.find(x => x.sku === pItem.sku || x.name.toLowerCase() === pItem.name.toLowerCase());
+        if (!match) continue;
+
+        const qty = Math.min(pItem.qty, match.stock);
+        if (qty <= 0) continue;
+
+        await dispatchMaterialToProject({
+          projectId: selectedProjectId,
+          itemId: match.id,
+          quantity: qty,
+          reason: `Despacho de Requisición Aprobada ${selectedPendingList.id} a obra ${projectName}`
+        });
+
+        dispatchedList.push({
+          sku: match.sku,
+          name: match.name,
+          dispatchQuantity: qty,
+          cost: match.cost
+        });
+      }
+
+      // Download CSV
+      exportToCSV(dispatchedList, projectName);
+
+      // Remove from pending list
+      setPendingLists(pendingLists.filter(x => x.id !== selectedPendingList.id));
+      setSelectedPendingList(null);
+      setSelectedProjectId('');
+
+      // Reload global inventories
+      await loadData();
+      alert('Requisición despachada y aprobada exitosamente.');
+    } catch (err: any) {
+      alert('Error al aprobar despacho: ' + err.message);
     } finally {
       setActionLoading(false);
     }
@@ -225,9 +314,9 @@ export function ProjectDispatchTab({
     const rows = dispatchItems.map(item => [
       `"${item.sku}"`,
       `"${item.name}"`,
-      item.dispatchQuantity,
+      item.dispatchQuantity || item.qty,
       item.cost.toFixed(2),
-      (item.cost * item.dispatchQuantity).toFixed(2)
+      ((item.cost) * (item.dispatchQuantity || item.qty)).toFixed(2)
     ]);
     
     const csvContent = "\uFEFF" + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
@@ -241,21 +330,22 @@ export function ProjectDispatchTab({
     document.body.removeChild(link);
   };
 
-  // Helper to load a mockup approval request
-  const loadMockupRequest = () => {
-    // Select first few items and prefill quantities
-    const firstTwo = items.slice(0, 2);
-    if (firstTwo.length > 0) {
-      const ids = firstTwo.map(x => x.id);
-      setSelectedItemIds(ids);
-      const qtys: any = {};
-      firstTwo.forEach(x => {
-        qtys[x.id] = Math.min(x.stock, 10);
-      });
-      setDispatchQuantities(qtys);
-      setViewMode('active');
-      alert('Cargada solicitud pendiente. Revisa cantidades y selecciona el proyecto destino para despachar.');
-    }
+  // Prefill the active dispatch wizard with the items of a pending list
+  const loadPendingListToWizard = (list: any) => {
+    const ids: string[] = [];
+    const qtys: { [itemId: string]: number } = {};
+    
+    list.items.forEach((pItem: any) => {
+      const match = items.find(item => item.sku === pItem.sku || item.name.toLowerCase() === pItem.name.toLowerCase());
+      if (match) {
+        ids.push(match.id);
+        qtys[match.id] = Math.min(pItem.qty, match.stock);
+      }
+    });
+
+    setSelectedItemIds(ids);
+    setDispatchQuantities(qtys);
+    setViewMode('active');
   };
 
   const renderStockProgress = (stock: number, minStock: number) => {
@@ -341,9 +431,9 @@ export function ProjectDispatchTab({
                 </div>
               ) : (
                 <div className="border border-zinc-800 rounded overflow-x-auto bg-zinc-950/10">
-                  <table className="w-full text-xs">
+                  <table className="w-full text-xs cursor-pointer">
                     <thead>
-                      <tr className="bg-zinc-900/60 border-b border-zinc-800 text-[10px] font-bold text-zinc-450 uppercase tracking-wider">
+                      <tr className="bg-zinc-900/60 border-b border-zinc-800 text-[10px] font-bold text-zinc-455 uppercase tracking-wider">
                         <th className="px-4 py-3 text-left">ID</th>
                         <th className="px-4 py-3 text-left">Proyecto Destino</th>
                         <th className="px-4 py-3 text-left">Materiales Enviados</th>
@@ -353,10 +443,17 @@ export function ProjectDispatchTab({
                     </thead>
                     <tbody className="divide-y divide-zinc-800/80 font-mono text-zinc-300">
                       {recentDispatches.map((disp, idx) => (
-                        <tr key={idx} className="hover:bg-zinc-800/10">
-                          <td className="px-4 py-3 font-bold text-white">{disp.id}</td>
+                        <tr 
+                          key={idx} 
+                          onClick={() => setSelectedDispatchDetail(disp)}
+                          className="hover:bg-zinc-800/20 transition-colors"
+                        >
+                          <td className="px-4 py-3 font-bold text-amber-500 flex items-center gap-1">
+                            <Eye className="h-3.5 w-3.5 text-zinc-500 shrink-0" />
+                            {disp.id}
+                          </td>
                           <td className="px-4 py-3 text-zinc-200 font-semibold font-sans">{disp.projectName}</td>
-                          <td className="px-4 py-3 text-zinc-400 font-sans max-w-[200px] truncate" title={disp.itemsList.join(', ')}>
+                          <td className="px-4 py-3 text-zinc-450 font-sans max-w-[200px] truncate" title={disp.itemsList.join(', ')}>
                             <strong className="text-white font-bold font-mono">{disp.itemsCount}</strong> unidades ({disp.itemsList.join(', ')})
                           </td>
                           <td className="px-4 py-3 text-zinc-500">
@@ -375,7 +472,7 @@ export function ProjectDispatchTab({
               )}
             </div>
 
-            {/* Sidebar Alerts / Mock queues (Right) */}
+            {/* Sidebar Alerts / Approval and Pending Queues (Right) */}
             <div className="lg:col-span-1 space-y-6">
               
               {/* Pendiente de Aprobación card */}
@@ -383,56 +480,125 @@ export function ProjectDispatchTab({
                 <div className="flex items-center justify-between border-b border-zinc-850 pb-2.5">
                   <div className="flex items-center gap-1.5">
                     <AlertTriangle className="h-4.5 w-4.5 text-amber-500" />
-                    <h3 className="text-xs font-bold text-white font-mono uppercase tracking-wider">Pendiente de Aprobación</h3>
+                    <h3 className="text-xs font-bold text-white font-mono uppercase tracking-wider">Aprobación de Despacho</h3>
                   </div>
                   <span className="bg-amber-500/20 text-amber-400 text-[9px] font-extrabold px-1.5 py-0.5 rounded font-mono">
-                    1 Solicitud
+                    {selectedPendingList ? 'Seleccionado' : 'Ninguno'}
                   </span>
                 </div>
                 
-                <p className="text-zinc-500 text-[11px] leading-relaxed">
-                  Los despachos de componentes de alto valor requieren validación secundaria por parte del encargado WMS.
-                </p>
+                {selectedPendingList ? (
+                  <div className="space-y-3.5 text-xs text-left">
+                    <div className="bg-zinc-950 p-3 border border-zinc-850 space-y-2 rounded">
+                      <div className="flex justify-between items-center text-[10px] text-zinc-500 font-mono">
+                        <span>REQ ID: {selectedPendingList.id}</span>
+                        <span>{selectedPendingList.date}</span>
+                      </div>
+                      <div className="font-bold text-white leading-tight font-sans">{selectedPendingList.title}</div>
+                      
+                      <div className="border-t border-zinc-850 pt-2 space-y-1">
+                        {selectedPendingList.items.map((i: any, k: number) => (
+                          <div key={k} className="flex justify-between text-zinc-400 text-[10.5px] font-mono">
+                            <span className="truncate max-w-[150px]">{i.name}</span>
+                            <span className="font-bold text-white">{i.qty} pcs</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
 
-                <button
-                  type="button"
-                  onClick={loadMockupRequest}
-                  className="w-full h-9 bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 text-zinc-300 hover:text-white font-bold font-mono text-[10px] uppercase tracking-wider rounded transition-colors cursor-pointer flex items-center justify-center"
-                >
-                  Revisar Solicitudes
-                </button>
+                    <div className="space-y-1">
+                      <label className="text-[9px] font-bold text-zinc-500 uppercase font-mono">Asignar a Proyecto *</label>
+                      <select
+                        value={selectedProjectId}
+                        onChange={e => setSelectedProjectId(e.target.value)}
+                        className="w-full bg-zinc-950 border border-zinc-850 rounded p-2 text-xs text-white focus:outline-none font-semibold cursor-pointer"
+                      >
+                        <option value="">Seleccionar Proyecto</option>
+                        {projects.map(p => (
+                          <option key={p.id} value={p.id}>{p.name}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="flex gap-2 pt-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedPendingList(null);
+                          setSelectedProjectId('');
+                        }}
+                        className="flex-1 h-9 bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 text-zinc-400 font-bold font-mono text-[10px] uppercase tracking-wider rounded cursor-pointer"
+                      >
+                        Descartar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleApprovePendingList}
+                        disabled={actionLoading || !selectedProjectId}
+                        className="flex-1 h-9 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold font-mono text-[10px] uppercase tracking-wider rounded disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                      >
+                        {actionLoading ? <Loader2 className="h-3 w-3 animate-spin mx-auto" /> : 'Confirmar'}
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center py-6 border border-dashed border-zinc-850 rounded text-zinc-550 text-[11px] font-mono">
+                    Toca un listado pendiente abajo para configurar su proyecto y aprobar su despacho.
+                  </div>
+                )}
               </div>
 
-              {/* Materiales Preparados list */}
+              {/* Listados de Materiales Pendientes por Aprobar (Requirement: renamed & click handler) */}
               <div className="bg-[#1c1c21] border border-zinc-800 p-5 space-y-4 shadow-xl">
                 <h3 className="text-xs font-bold text-white font-mono uppercase tracking-wider border-b border-zinc-850 pb-2.5">
-                  Materiales Preparados
+                  Listados Pendientes por Aprobar
                 </h3>
 
                 <div className="space-y-3 font-mono">
-                  {/* Prepared item 1 */}
-                  <div className="bg-zinc-950 p-3 border border-zinc-850 flex justify-between items-center text-xs">
-                    <div>
-                      <div className="text-[9px] text-zinc-500 uppercase font-bold">REO-8821</div>
-                      <div className="text-white font-bold font-sans">Inverter Bank Type-C</div>
-                      <div className="text-[9.5px] text-zinc-400 mt-0.5">Cant: <strong className="text-white">24</strong></div>
-                    </div>
-                    <span className="bg-[#121318] text-purple-400 border border-purple-500/10 text-[8.5px] px-2 py-0.5 rounded font-extrabold uppercase font-mono">
-                      Zona B-4
-                    </span>
-                  </div>
+                  {pendingLists.map((list) => {
+                    const isSelected = selectedPendingList?.id === list.id;
 
-                  {/* Prepared item 2 */}
-                  <div className="bg-zinc-950 p-3 border border-zinc-850 flex justify-between items-center text-xs">
-                    <div>
-                      <div className="text-[9px] text-zinc-500 uppercase font-bold">REO-8822</div>
-                      <div className="text-white font-bold font-sans">Monocrystalline Panels 400W</div>
-                      <div className="text-[9.5px] text-zinc-400 mt-0.5">Cant: <strong className="text-white">120</strong></div>
+                    return (
+                      <div 
+                        key={list.id} 
+                        onClick={() => {
+                          setSelectedPendingList(list);
+                          setSelectedProjectId('');
+                        }}
+                        className={`bg-zinc-950 p-3 border hover:border-amber-500/50 transition-colors text-xs text-left cursor-pointer space-y-2 rounded ${
+                          isSelected ? 'border-amber-500/80 bg-amber-500/5' : 'border-zinc-850'
+                        }`}
+                      >
+                        <div className="flex justify-between items-center text-[9px] text-zinc-500">
+                          <span className="font-bold text-amber-500">{list.id}</span>
+                          <span>{list.date}</span>
+                        </div>
+                        <div className="text-white font-bold font-sans truncate">{list.title}</div>
+                        <div className="text-[10px] text-zinc-450 leading-relaxed font-sans">
+                          {list.items.map((i: any) => `${i.name} (${i.qty})`).join(', ')}
+                        </div>
+                        
+                        <div className="flex justify-end pt-1">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              loadPendingListToWizard(list);
+                            }}
+                            className="bg-zinc-900 hover:bg-zinc-850 border border-zinc-800 text-[9px] text-amber-400 font-bold uppercase tracking-wider px-2 py-1 rounded cursor-pointer transition-colors"
+                          >
+                            Editar en Creador masivo &rarr;
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                  {pendingLists.length === 0 && (
+                    <div className="text-center py-8 text-zinc-650 italic text-[11px] border border-dashed border-zinc-850 rounded font-sans">
+                      No quedan listados pendientes por aprobar.
                     </div>
-                    <span className="bg-[#121318] text-purple-400 border border-purple-500/10 text-[8.5px] px-2 py-0.5 rounded font-extrabold uppercase font-mono">
-                      Zona A-1
-                    </span>
-                  </div>
+                  )}
                 </div>
               </div>
 
@@ -633,13 +799,11 @@ export function ProjectDispatchTab({
                   </select>
                 </div>
 
-                {/* Banner notice warning */}
                 <div className="bg-amber-500/10 border border-amber-500/20 text-amber-400 p-3 text-[10px] flex gap-2 font-medium">
                   <Info className="h-4 w-4 shrink-0 text-amber-500" />
                   <span>Estos materiales se descontarán del stock global y se asignarán al BOM del proyecto seleccionado.</span>
                 </div>
 
-                {/* Submit button */}
                 <button
                   type="button"
                   onClick={handleExecuteDispatch}
@@ -700,6 +864,112 @@ export function ProjectDispatchTab({
 
           </div>
 
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* MODAL OVERLAY: COMPLETED DISPATCH DETAIL LOOKUP (Requirement: click to inspect) */}
+      {/* ========================================================================= */}
+      {selectedDispatchDetail && (
+        <div className="fixed inset-0 bg-black/85 backdrop-blur-xs flex items-center justify-center z-55 p-4 text-left font-sans">
+          <div className="bg-[#1c1c21] border border-zinc-800 rounded w-full max-w-lg shadow-2xl flex flex-col max-h-[80vh] overflow-hidden">
+            
+            {/* Header */}
+            <div className="p-4 border-b border-zinc-850 flex justify-between items-center bg-[#151518]">
+              <div>
+                <span className="bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[9px] font-mono font-bold px-2 py-0.5 rounded tracking-wide uppercase">
+                  Detalle de Envío {selectedDispatchDetail.id}
+                </span>
+                <h3 className="text-xs font-bold text-white mt-1 uppercase font-mono tracking-wider">
+                  Asignación a Obra
+                </h3>
+              </div>
+              <button 
+                onClick={() => setSelectedDispatchDetail(null)}
+                className="text-zinc-500 hover:text-white p-1 transition-colors cursor-pointer"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="p-5 overflow-y-auto space-y-4">
+              
+              {/* Destination metadata */}
+              <div className="bg-zinc-950 p-3 border border-zinc-850 space-y-2 rounded font-mono text-xs">
+                <div className="flex justify-between">
+                  <span className="text-zinc-550">Proyecto Destino:</span>
+                  <strong className="text-white font-sans">{selectedDispatchDetail.projectName}</strong>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-zinc-550">Fecha de Despacho:</span>
+                  <span className="text-zinc-300">
+                    {new Date(selectedDispatchDetail.createdAt).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-zinc-550">Estado actual:</span>
+                  <span className="text-emerald-400 font-bold uppercase tracking-wider">{selectedDispatchDetail.status}</span>
+                </div>
+              </div>
+
+              {/* Items List */}
+              <div className="space-y-2">
+                <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider font-mono block">
+                  Materiales Entregados ({selectedDispatchDetail.details?.length || 0})
+                </label>
+                
+                <div className="divide-y divide-zinc-850 bg-zinc-950/20 border border-zinc-850 rounded overflow-hidden">
+                  {selectedDispatchDetail.details?.map((detailItem: any, k: number) => {
+                    const itemImageUrl = resolveImageUrl(detailItem.imageUrl);
+                    return (
+                      <div key={k} className="p-3 flex items-center gap-3">
+                        {/* Image */}
+                        <div className="h-8 w-11 bg-zinc-950 border border-zinc-850 overflow-hidden flex items-center justify-center shrink-0">
+                          {itemImageUrl ? (
+                            <img src={itemImageUrl} alt={detailItem.name} className="h-full w-full object-cover" />
+                          ) : (
+                            <Archive className="h-4 w-4 text-zinc-650" />
+                          )}
+                        </div>
+                        {/* Name SKU */}
+                        <div className="flex-1 min-w-0 text-xs">
+                          <div className="font-bold text-white truncate">{detailItem.name}</div>
+                          <div className="text-[9px] font-mono text-zinc-500 uppercase">{detailItem.sku}</div>
+                        </div>
+                        {/* Quantity and value */}
+                        <div className="text-right font-mono text-xs shrink-0">
+                          <div className="font-bold text-white">{detailItem.qty} pcs</div>
+                          <div className="text-[9.5px] text-zinc-500">${(detailItem.cost * detailItem.qty).toFixed(2)}</div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+            </div>
+
+            {/* Footer */}
+            <div className="p-4 border-t border-zinc-850 flex justify-between items-center bg-[#151518] shrink-0 font-mono text-xs">
+              <button
+                type="button"
+                onClick={() => exportToCSV(selectedDispatchDetail.details, selectedDispatchDetail.projectName)}
+                className="text-amber-400 hover:text-amber-300 font-bold uppercase tracking-wider flex items-center gap-1.5 cursor-pointer bg-zinc-900 border border-zinc-800 px-3 py-1.5 rounded transition-all hover:border-amber-500/20"
+              >
+                <Download className="h-3.5 w-3.5" /> CSV Report
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setSelectedDispatchDetail(null)}
+                className="bg-zinc-900 hover:bg-zinc-850 text-zinc-400 border border-zinc-800 font-bold uppercase tracking-wider px-3.5 py-1.5 rounded cursor-pointer transition-colors"
+              >
+                Cerrar
+              </button>
+            </div>
+
+          </div>
         </div>
       )}
 

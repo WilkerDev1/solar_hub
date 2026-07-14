@@ -306,13 +306,11 @@ export default function InventoryModule() {
               <RequirePermission action="inventory:write">
                 <Button 
                   onClick={openBulkAdjustment} 
-                  className={`font-bold font-mono text-[9.5px] uppercase tracking-wider h-8 py-0.5 rounded-none transition-all flex items-center justify-center gap-1 cursor-pointer ${
-                    selectedItemIds.length > 0
-                      ? 'bg-amber-500 text-black hover:bg-amber-400 animate-pulse'
-                      : 'bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 text-zinc-350 hover:text-white'
+                  className={`font-bold font-mono text-[9.5px] uppercase tracking-wider h-8 py-0.5 rounded-none transition-all flex items-center justify-center gap-1 cursor-pointer bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-950/20 ${
+                    selectedItemIds.length > 0 ? 'animate-pulse' : ''
                   }`}
                 >
-                  <Sliders className="h-3 w-3" /> Ajuste Masivo {selectedItemIds.length > 0 ? `(${selectedItemIds.length})` : ''}
+                  <Sliders className="h-3 w-3" /> Ajuste de Stock {selectedItemIds.length > 0 ? `(${selectedItemIds.length})` : ''}
                 </Button>
                 <Button 
                   onClick={() => setIsConfigModalOpen(true)} 
