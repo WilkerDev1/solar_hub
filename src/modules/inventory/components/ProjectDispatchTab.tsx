@@ -633,17 +633,33 @@ export function ProjectDispatchTab({
                         <div className="text-[10px] text-zinc-450 leading-relaxed font-sans">
                           {list.items.map((i: any) => `${i.name} (${i.qty})`).join(', ')}
                         </div>
-                        
-                        <div className="flex justify-end pt-1">
+                        <div className="flex justify-end gap-2 pt-1">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (confirm(`¿Seguro que deseas eliminar el listado "${list.title}"?`)) {
+                                const updated = pendingLists.filter(x => x.id !== list.id);
+                                setPendingLists(updated);
+                                localStorage.setItem('wms_pending_lists', JSON.stringify(updated));
+                                if (selectedPendingList?.id === list.id) {
+                                  setSelectedPendingList(null);
+                                }
+                              }
+                            }}
+                            className="bg-zinc-900 hover:bg-rose-950/20 border border-zinc-800 hover:border-rose-500/30 text-[9px] text-rose-450 font-bold uppercase tracking-wider px-2.5 py-1 rounded cursor-pointer transition-colors"
+                          >
+                            Eliminar
+                          </button>
                           <button
                             type="button"
                             onClick={(e) => {
                               e.stopPropagation();
                               loadPendingListToWizard(list);
                             }}
-                            className="bg-zinc-900 hover:bg-zinc-850 border border-zinc-800 text-[9px] text-amber-400 font-bold uppercase tracking-wider px-2 py-1 rounded cursor-pointer transition-colors"
+                            className="bg-zinc-900 hover:bg-zinc-850 border border-zinc-800 text-[9px] text-amber-450 font-bold uppercase tracking-wider px-2.5 py-1 rounded cursor-pointer transition-colors"
                           >
-                            Editar en Creador masivo &rarr;
+                            Ajustar Listado
                           </button>
                         </div>
                       </div>
