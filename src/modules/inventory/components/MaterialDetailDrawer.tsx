@@ -37,6 +37,7 @@ interface MaterialDetailDrawerProps {
   handleStartEdit: () => void;
   handleSaveEdit: (e: React.FormEvent) => Promise<void>;
   handleEditImageUpload: (e: React.ChangeEvent<HTMLInputElement>) => Promise<void>;
+  openBulkAdjustment?: (overrideItems?: any[]) => void;
 }
 
 interface LocalNote {
@@ -65,7 +66,8 @@ export function MaterialDetailDrawer({
   tags,
   handleStartEdit,
   handleSaveEdit,
-  handleEditImageUpload
+  handleEditImageUpload,
+  openBulkAdjustment
 }: MaterialDetailDrawerProps) {
   const { user } = useAuth();
   
@@ -785,7 +787,9 @@ export function MaterialDetailDrawer({
                           type="button"
                           onClick={() => {
                             setIsDetailDrawerOpen(false);
-                            alert('Abriendo ajuste rápido de Kardex para este material...');
+                            if (openBulkAdjustment && selectedItem) {
+                              openBulkAdjustment([selectedItem]);
+                            }
                           }}
                           className="w-full h-10 border border-emerald-500/30 bg-emerald-500/5 hover:bg-emerald-500/10 text-emerald-400 font-bold font-mono text-xs uppercase tracking-wider rounded-xl transition-colors cursor-pointer flex items-center justify-center gap-1"
                         >

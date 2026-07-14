@@ -934,6 +934,7 @@ export default function InventoryModule() {
         handleStartEdit={handleStartEdit}
         handleSaveEdit={handleSaveEdit}
         handleEditImageUpload={handleEditImageUpload}
+        openBulkAdjustment={openBulkAdjustment}
       />
     </div>
   );

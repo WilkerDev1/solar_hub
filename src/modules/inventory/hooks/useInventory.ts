@@ -409,10 +409,13 @@ export function useInventory() {
   };
 
   // Setup Bulk Adjustment Modal
-  const openBulkAdjustment = () => {
-    const itemsToAdjust = selectedItemIds.length > 0
-      ? items.filter(item => selectedItemIds.includes(item.id))
-      : items;
+  const openBulkAdjustment = (overrideItems?: any) => {
+    const isOverride = Array.isArray(overrideItems);
+    const itemsToAdjust = isOverride
+      ? overrideItems
+      : (selectedItemIds.length > 0
+        ? items.filter(item => selectedItemIds.includes(item.id))
+        : items);
 
     const list = itemsToAdjust.map(item => ({
       id: item.id,
