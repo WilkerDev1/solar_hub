@@ -120,14 +120,14 @@ export function MaterialDetailDrawer({
       {/* Backdrop overlay */}
       <div 
         onClick={() => setIsDetailDrawerOpen(false)} 
-        className="fixed inset-0 bg-black/75 backdrop-blur-xs z-40 transition-opacity" 
+        className="fixed top-16 inset-x-0 bottom-0 bg-black/75 backdrop-blur-xs z-40 transition-opacity" 
       />
 
       {/* Main Drawer container - compact right panel w-[500px] */}
-      <div className="fixed inset-y-0 right-0 w-full md:w-[500px] bg-[#051424] border-l border-[#4f4633] shadow-2xl flex flex-col z-50 transform transition-transform duration-300 animate-in slide-in-from-right duration-300">
+      <div className="fixed top-16 bottom-0 right-0 w-full md:w-[500px] bg-[#051424] border-l border-zinc-800 shadow-2xl flex flex-col z-50 transform transition-transform duration-300 animate-in slide-in-from-right duration-300">
         
         {/* Sticky Header */}
-        <header className="sticky top-0 bg-[#051424]/80 backdrop-blur-sm border-b border-[#4f4633] p-4 flex justify-between items-center z-10 shrink-0">
+        <header className="sticky top-0 bg-[#051424]/80 backdrop-blur-sm border-b border-zinc-800 p-4 flex justify-between items-center z-10 shrink-0">
           <div className="flex items-center gap-2">
             <button 
               type="button"
@@ -146,7 +146,7 @@ export function MaterialDetailDrawer({
             <button
               type="button"
               onClick={() => setActiveTab(prev => prev === 'history' ? 'info' : 'history')}
-              className={`border border-[#4f4633] text-[#d4e4fa] font-mono text-[10px] font-bold uppercase tracking-wider h-[32px] px-4 rounded hover:bg-[#122131] transition-colors flex items-center gap-1.5 cursor-pointer ${
+              className={`border border-zinc-800 text-[#d4e4fa] font-mono text-[10px] font-bold uppercase tracking-wider h-[32px] px-4 rounded hover:bg-[#122131] transition-colors flex items-center gap-1.5 cursor-pointer ${
                 activeTab === 'history' ? 'bg-[#122131] border-[#fbbf24] text-[#fbbf24]' : ''
               }`}
             >
@@ -381,7 +381,7 @@ export function MaterialDetailDrawer({
                   <span className="text-xs text-[#d3c5ac]">Cargando Kardex...</span>
                 </div>
               ) : itemTransactions.length === 0 ? (
-                <div className="py-12 text-center text-[#d3c5ac]/50 italic text-xs font-mono border border-dashed border-[#4f4633] rounded-lg bg-[#122131]/30">
+                <div className="py-12 text-center text-[#d3c5ac]/50 italic text-xs font-mono border border-dashed border-zinc-800 rounded-lg bg-[#122131]/30">
                   No hay movimientos registrados en Kardex para este material.
                 </div>
               ) : (

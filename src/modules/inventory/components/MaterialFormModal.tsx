@@ -144,11 +144,11 @@ export function MaterialFormModal({
       {/* Backdrop overlay */}
       <div 
         onClick={() => setIsOpen(false)} 
-        className="fixed inset-0 bg-black/75 backdrop-blur-xs z-[55] transition-opacity" 
+        className="fixed top-16 inset-x-0 bottom-0 bg-black/75 backdrop-blur-xs z-[55] transition-opacity" 
       />
 
       {/* Main Drawer container */}
-      <div className="fixed inset-y-0 right-0 w-full max-w-4xl bg-[#1E293B] border-l border-[#475569] shadow-2xl flex flex-col z-[60] transform transition-transform duration-300 animate-in slide-in-from-right duration-300">
+      <div className="fixed top-16 bottom-0 right-0 w-full max-w-4xl bg-[#1E293B] border-l border-zinc-800 shadow-2xl flex flex-col z-[60] transform transition-transform duration-300 animate-in slide-in-from-right duration-300">
         
         {/* Header */}
         <header className="flex items-center justify-between px-6 py-4 border-b border-[#334155] bg-[#1c2b3c] shrink-0">
