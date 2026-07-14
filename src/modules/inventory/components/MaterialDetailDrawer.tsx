@@ -35,7 +35,7 @@ interface MaterialDetailDrawerProps {
   categories: InventoryCategoryRow[];
   tags: InventoryTagRow[];
   handleStartEdit: () => void;
-  handleSaveEdit: (e: React.FormEvent) => Promise<void>;
+  handleSaveEdit: (e: React.FormEvent, overrideForm?: any) => Promise<void>;
   handleEditImageUpload: (e: React.ChangeEvent<HTMLInputElement>) => Promise<void>;
   openBulkAdjustment?: (overrideItems?: any[]) => void;
 }
@@ -186,17 +186,15 @@ export function MaterialDetailDrawer({
       ? Math.min(...localProvidersList.map(x => x.price)) 
       : editForm.cost;
 
-    // We must update the form in parent state and then trigger the submit
-    setEditForm({
+    const updatedForm = {
       ...editForm,
       providers: formattedProviders.join(', '),
       cost: cheapestPrice
-    });
+    };
 
-    // Short timeout to let react state flush before submitting
-    setTimeout(() => {
-      handleSaveEdit(e);
-    }, 50);
+    // We must update the form in parent state and then trigger the submit
+    setEditForm(updatedForm);
+    await handleSaveEdit(e, updatedForm);
   };
 
   const handleAddProviderRow = () => {

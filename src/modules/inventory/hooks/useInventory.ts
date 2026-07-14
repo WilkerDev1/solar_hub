@@ -323,31 +323,32 @@ export function useInventory() {
   };
 
   // Save changes from Edit form
-  const handleSaveEdit = async (e: React.FormEvent) => {
+  const handleSaveEdit = async (e: React.FormEvent, overrideForm?: any) => {
     e.preventDefault();
     if (!selectedItem) return;
     setActionLoading(true);
     try {
-      const formattedProviders = editForm.providers
+      const formToUse = overrideForm || editForm;
+      const formattedProviders = (formToUse.providers || '')
         .split(',')
-        .map(p => p.trim())
-        .filter(p => p.length > 0);
+        .map((p: string) => p.trim())
+        .filter((p: string) => p.length > 0);
 
       const updated = await updateInventoryItem(selectedItem.id, {
-        name: editForm.name,
-        sku: editForm.sku,
-        category_id: editForm.category_id || null,
-        description: editForm.description || null,
-        cost: Number(editForm.cost),
-        unit: editForm.unit,
-        packaging: editForm.packaging || null,
-        length: editForm.length ? Number(editForm.length) : null,
-        weight: editForm.weight ? Number(editForm.weight) : null,
-        stock: Number(editForm.stock),
-        min_stock: Number(editForm.min_stock),
+        name: formToUse.name,
+        sku: formToUse.sku,
+        category_id: formToUse.category_id || null,
+        description: formToUse.description || null,
+        cost: Number(formToUse.cost),
+        unit: formToUse.unit,
+        packaging: formToUse.packaging || null,
+        length: formToUse.length ? Number(formToUse.length) : null,
+        weight: formToUse.weight ? Number(formToUse.weight) : null,
+        stock: Number(formToUse.stock),
+        min_stock: Number(formToUse.min_stock),
         providers: formattedProviders,
-        tags: editForm.selectedTags,
-        image_urls: editForm.image_urls
+        tags: formToUse.selectedTags,
+        image_urls: formToUse.image_urls
       });
 
       setSelectedItem(updated);
