@@ -20,61 +20,76 @@ import {
   ChevronDown,
   PlusCircle
 } from 'lucide-react';
-import { Button } from '@/core/components/ui/button';
 import { InventoryCategoryRow, InventoryTagRow } from '@/core/services/inventory';
 import { getGlobalProviders } from './ConfigWMSModal';
 
-interface AddMaterialModalProps {
-  isAddModalOpen: boolean;
-  setIsAddModalOpen: (open: boolean) => void;
+interface MaterialFormModalProps {
+  isOpen: boolean;
+  setIsOpen: (open: boolean) => void;
+  mode: 'add' | 'edit';
   categories: InventoryCategoryRow[];
   tags: InventoryTagRow[];
-  addForm: any;
-  setAddForm: (form: any) => void;
-  uploadedImages: string[];
-  setUploadedImages: React.Dispatch<React.SetStateAction<string[]>>;
+  form: any;
+  setForm: (form: any) => void;
+  uploadedImages?: string[]; // for 'add' mode
+  setUploadedImages?: React.Dispatch<React.SetStateAction<string[]>>; // for 'add' mode
   uploadingImage: boolean;
   actionLoading: boolean;
   handleImageUpload: (e: React.ChangeEvent<HTMLInputElement>) => Promise<void>;
-  handleCreateItem: (e: React.FormEvent) => Promise<void>;
+  handleSubmit: (e: React.FormEvent, overrideForm?: any) => Promise<void>;
 }
 
-export function AddMaterialModal({
-  isAddModalOpen,
-  setIsAddModalOpen,
+export function MaterialFormModal({
+  isOpen,
+  setIsOpen,
+  mode,
   categories,
   tags,
-  addForm,
-  setAddForm,
+  form,
+  setForm,
   uploadedImages,
   setUploadedImages,
   uploadingImage,
   actionLoading,
   handleImageUpload,
-  handleCreateItem
-}: AddMaterialModalProps) {
+  handleSubmit
+}: MaterialFormModalProps) {
   const [localProvidersList, setLocalProvidersList] = useState<{ name: string; price: number }[]>([]);
 
+  // Sync initial form values to local list when opening
   useEffect(() => {
-    if (!isAddModalOpen) {
-      setLocalProvidersList([]);
+    if (isOpen) {
+      if (mode === 'edit' && form.providers) {
+        const list = form.providers.split(',').map((p: string) => {
+          const parts = p.trim().split(' - $');
+          if (parts.length === 2) {
+            return { name: parts[0].trim(), price: parseFloat(parts[1]) || 0 };
+          }
+          return { name: p.trim(), price: form.cost || 0 };
+        }).filter((x: any) => x.name.length > 0);
+        setLocalProvidersList(list);
+      } else {
+        setLocalProvidersList([]);
+      }
     }
-  }, [isAddModalOpen]);
+  }, [isOpen, mode]);
 
+  // Keep form.cost and form.providers synced with local providers list changes
   useEffect(() => {
+    if (!isOpen) return;
     const formatted = localProvidersList.map(x => `${x.name} - $${x.price.toFixed(2)}`);
     const cheapest = localProvidersList.length > 0
       ? Math.min(...localProvidersList.map(x => x.price))
-      : 0;
+      : form.cost;
 
-    setAddForm({
-      ...addForm,
+    setForm((prev: any) => ({
+      ...prev,
       providers: formatted.join(', '),
       cost: cheapest
-    });
-  }, [localProvidersList]);
+    }));
+  }, [localProvidersList, isOpen]);
 
-  if (!isAddModalOpen) return null;
+  if (!isOpen) return null;
 
   const handleAddProviderRow = () => {
     const globalProviders = getGlobalProviders();
@@ -95,6 +110,35 @@ export function AddMaterialModal({
     setLocalProvidersList(localProvidersList.filter((_, i) => i !== idx));
   };
 
+  const handleFormSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const formatted = localProvidersList.map(x => `${x.name} - $${x.price.toFixed(2)}`);
+    const cheapest = localProvidersList.length > 0
+      ? Math.min(...localProvidersList.map(x => x.price))
+      : form.cost;
+
+    const finalForm = {
+      ...form,
+      providers: formatted.join(', '),
+      cost: cheapest
+    };
+
+    await handleSubmit(e, finalForm);
+  };
+
+  const imagesToRender = mode === 'add' ? (uploadedImages || []) : (form.image_urls || []);
+
+  const handleRemoveImage = (idx: number) => {
+    if (mode === 'add' && setUploadedImages) {
+      setUploadedImages(prev => prev.filter((_, i) => i !== idx));
+    } else {
+      setForm((prev: any) => ({
+        ...prev,
+        image_urls: (prev.image_urls || []).filter((_: any, i: number) => i !== idx)
+      }));
+    }
+  };
+
   return (
     <div className="fixed inset-0 bg-[#051424]/85 backdrop-blur-sm flex items-center justify-center z-50 p-4">
       {/* Modal Container */}
@@ -104,11 +148,13 @@ export function AddMaterialModal({
         <header className="flex items-center justify-between px-6 py-4 border-b border-[#334155] bg-[#1c2b3c] shrink-0">
           <div className="flex items-center gap-2">
             <Package className="text-[#fbbf24] h-7 w-7" />
-            <h1 className="text-lg font-semibold tracking-tight text-[#d4e4fa]">Nuevo Material de Inventario</h1>
+            <h1 className="text-lg font-semibold tracking-tight text-[#d4e4fa]">
+              {mode === 'add' ? 'Nuevo Material de Inventario' : 'Editar Material de Inventario'}
+            </h1>
           </div>
           <button 
             type="button"
-            onClick={() => setIsAddModalOpen(false)} 
+            onClick={() => setIsOpen(false)} 
             className="text-[#d3c5ac] hover:text-[#d4e4fa] transition-colors"
           >
             <X className="h-5 w-5" />
@@ -117,7 +163,7 @@ export function AddMaterialModal({
 
         {/* Form Content (Scrollable) */}
         <div className="flex-1 overflow-y-auto p-6 space-y-6 text-left [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-[#122131] [&::-webkit-scrollbar-thumb]:bg-[#3f465c] [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-[#adb4ce]">
-          <form onSubmit={handleCreateItem} className="space-y-6">
+          <form onSubmit={handleFormSubmit} className="space-y-6">
             
             {/* Section 1: Información Básica */}
             <section className="bg-[#122131] p-4 rounded-lg border border-[#334155] space-y-4">
@@ -138,8 +184,8 @@ export function AddMaterialModal({
                     <input
                       required
                       type="text"
-                      value={addForm.name}
-                      onChange={e => setAddForm({ ...addForm, name: e.target.value })}
+                      value={form.name}
+                      onChange={e => setForm({ ...form, name: e.target.value })}
                       placeholder="Ej. Inversor Fronius 10kW"
                       className="block w-full pl-10 pr-3 py-2 bg-[#051424] border border-[#4f4633] rounded text-sm text-[#d4e4fa] placeholder-[#d3c5ac]/50 focus:outline-none focus:border-[#fbbf24] focus:ring-1 focus:ring-[#fbbf24] transition-colors"
                     />
@@ -158,8 +204,8 @@ export function AddMaterialModal({
                     <input
                       required
                       type="text"
-                      value={addForm.sku}
-                      onChange={e => setAddForm({ ...addForm, sku: e.target.value })}
+                      value={form.sku}
+                      onChange={e => setForm({ ...form, sku: e.target.value })}
                       placeholder="Ej. INV-FR-10KW"
                       className="block w-full pl-10 pr-3 py-2 bg-[#051424] border border-[#4f4633] rounded text-sm text-[#d4e4fa] placeholder-[#d3c5ac]/50 focus:outline-none focus:border-[#fbbf24] focus:ring-1 focus:ring-[#fbbf24] font-mono transition-colors"
                     />
@@ -177,8 +223,8 @@ export function AddMaterialModal({
                     </div>
                     <select
                       required
-                      value={addForm.category_id}
-                      onChange={e => setAddForm({ ...addForm, category_id: e.target.value })}
+                      value={form.category_id}
+                      onChange={e => setForm({ ...form, category_id: e.target.value })}
                       className="block w-full pl-10 pr-3 py-2 bg-[#051424] border border-[#4f4633] rounded text-sm text-[#d4e4fa] focus:outline-none focus:border-[#fbbf24] focus:ring-1 focus:ring-[#fbbf24] font-semibold cursor-pointer appearance-none transition-colors"
                     >
                       <option value="" disabled>Selecciona una categoría</option>
@@ -202,8 +248,8 @@ export function AddMaterialModal({
                       <FileText className="h-4.5 w-4.5 text-[#d3c5ac]" />
                     </div>
                     <textarea
-                      value={addForm.description}
-                      onChange={e => setAddForm({ ...addForm, description: e.target.value })}
+                      value={form.description}
+                      onChange={e => setForm({ ...form, description: e.target.value })}
                       placeholder="Ej. Inversor trifásico de alta eficiencia con monitoreo inteligente..."
                       className="block w-full pl-10 pr-3 py-2 bg-[#051424] border border-[#4f4633] rounded text-sm text-[#d4e4fa] placeholder-[#d3c5ac]/50 focus:outline-none focus:border-[#fbbf24] focus:ring-1 focus:ring-[#fbbf24] h-20 resize-none transition-colors"
                     />
@@ -233,8 +279,8 @@ export function AddMaterialModal({
                       disabled={localProvidersList.length > 0}
                       type="number"
                       step="0.01"
-                      value={addForm.cost || ''}
-                      onChange={e => setAddForm({ ...addForm, cost: Number(e.target.value) })}
+                      value={form.cost || ''}
+                      onChange={e => setForm({ ...form, cost: Number(e.target.value) })}
                       placeholder="0.00"
                       className={`block w-full pl-10 pr-3 py-2 bg-[#051424] border border-[#4f4633] rounded text-sm text-[#d4e4fa] placeholder-[#d3c5ac]/50 focus:outline-none focus:border-[#fbbf24] focus:ring-1 focus:ring-[#fbbf24] font-mono transition-colors ${
                         localProvidersList.length > 0 ? 'opacity-75 cursor-not-allowed bg-[#122131]' : ''
@@ -251,7 +297,7 @@ export function AddMaterialModal({
                 {/* Stock Inicial */}
                 <div>
                   <label className="block font-mono text-[11px] font-bold tracking-wider uppercase text-[#d4e4fa] mb-1">
-                    Stock Inicial
+                    {mode === 'add' ? 'Stock Inicial' : 'Stock Actual'}
                   </label>
                   <div className="relative">
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -259,8 +305,8 @@ export function AddMaterialModal({
                     </div>
                     <input
                       type="number"
-                      value={addForm.stock || ''}
-                      onChange={e => setAddForm({ ...addForm, stock: Number(e.target.value) })}
+                      value={form.stock || ''}
+                      onChange={e => setForm({ ...form, stock: Number(e.target.value) })}
                       placeholder="0"
                       className="block w-full pl-10 pr-3 py-2 bg-[#051424] border border-[#4f4633] rounded text-sm text-[#d4e4fa] placeholder-[#d3c5ac]/50 focus:outline-none focus:border-[#fbbf24] focus:ring-1 focus:ring-[#fbbf24] font-mono transition-colors"
                     />
@@ -278,8 +324,8 @@ export function AddMaterialModal({
                     </div>
                     <input
                       type="number"
-                      value={addForm.min_stock || ''}
-                      onChange={e => setAddForm({ ...addForm, min_stock: Number(e.target.value) })}
+                      value={form.min_stock || ''}
+                      onChange={e => setForm({ ...form, min_stock: Number(e.target.value) })}
                       placeholder="0"
                       className="block w-full pl-10 pr-3 py-2 bg-[#051424] border border-[#4f4633] rounded text-sm text-[#d4e4fa] placeholder-[#d3c5ac]/50 focus:outline-none focus:border-[#fbbf24] focus:ring-1 focus:ring-[#fbbf24] font-mono transition-colors"
                     />
@@ -302,8 +348,8 @@ export function AddMaterialModal({
                   </label>
                   <div className="relative">
                     <select
-                      value={addForm.packaging || 'caja'}
-                      onChange={e => setAddForm({ ...addForm, packaging: e.target.value })}
+                      value={form.packaging || 'caja'}
+                      onChange={e => setForm({ ...form, packaging: e.target.value })}
                       className="block w-full px-3 py-2 bg-[#051424] border border-[#4f4633] rounded text-sm text-[#d4e4fa] focus:outline-none focus:border-[#fbbf24] focus:ring-1 focus:ring-[#fbbf24] font-semibold cursor-pointer appearance-none transition-colors"
                     >
                       <option value="caja">Caja Individual</option>
@@ -323,8 +369,8 @@ export function AddMaterialModal({
                   </label>
                   <div className="relative">
                     <select
-                      value={addForm.unit}
-                      onChange={e => setAddForm({ ...addForm, unit: e.target.value })}
+                      value={form.unit}
+                      onChange={e => setForm({ ...form, unit: e.target.value })}
                       className="block w-full px-3 py-2 bg-[#051424] border border-[#4f4633] rounded text-sm text-[#d4e4fa] focus:outline-none focus:border-[#fbbf24] focus:ring-1 focus:ring-[#fbbf24] font-semibold cursor-pointer appearance-none transition-colors"
                     >
                       <option value="unidades">Unidades (pcs)</option>
@@ -351,8 +397,8 @@ export function AddMaterialModal({
                     <input
                       type="number"
                       step="0.1"
-                      value={addForm.length || ''}
-                      onChange={e => setAddForm({ ...addForm, length: e.target.value })}
+                      value={form.length || ''}
+                      onChange={e => setForm({ ...form, length: e.target.value })}
                       placeholder="0.0"
                       className="block w-full pl-10 pr-3 py-2 bg-[#051424] border border-[#4f4633] rounded text-sm text-[#d4e4fa] placeholder-[#d3c5ac]/50 focus:outline-none focus:border-[#fbbf24] focus:ring-1 focus:ring-[#fbbf24] font-mono transition-colors"
                     />
@@ -371,15 +417,16 @@ export function AddMaterialModal({
                     <input
                       type="number"
                       step="0.1"
-                      value={addForm.weight || ''}
-                      onChange={e => setAddForm({ ...addForm, weight: e.target.value })}
+                      value={form.weight || ''}
+                      onChange={e => setForm({ ...form, weight: e.target.value })}
                       placeholder="0.0"
-className="block w-full pl-10 pr-3 py-2 bg-[#051424] border border-[#4f4633] rounded text-sm text-[#d4e4fa] placeholder-[#d3c5ac]/50 focus:outline-none focus:border-[#fbbf24] focus:ring-1 focus:ring-[#fbbf24] font-mono transition-colors"
+                      className="block w-full pl-10 pr-3 py-2 bg-[#051424] border border-[#4f4633] rounded text-sm text-[#d4e4fa] placeholder-[#d3c5ac]/50 focus:outline-none focus:border-[#fbbf24] focus:ring-1 focus:ring-[#fbbf24] font-mono transition-colors"
                     />
                   </div>
                 </div>
               </div>
             </section>
+
             {/* Section 4: Proveedores y Etiquetas */}
             <section className="bg-[#122131] p-4 rounded-lg border border-[#334155] space-y-4">
               <div className="flex justify-between items-center border-b border-[#334155]/40 pb-2">
@@ -460,22 +507,23 @@ className="block w-full pl-10 pr-3 py-2 bg-[#051424] border border-[#4f4633] rou
                 <div className="w-full min-h-[60px] border border-dashed border-[#4f4633] rounded p-3 flex flex-wrap gap-3 items-center bg-[#051424]">
                   {tags.length > 0 ? (
                     tags.map(t => {
-                      const isChecked = addForm.selectedTags.includes(t.name);
+                      const isChecked = form.selectedTags?.includes(t.name);
                       return (
                         <label key={t.id} className="flex items-center gap-2 text-xs font-semibold text-[#d4e4fa] cursor-pointer select-none">
                           <input
                             type="checkbox"
                             checked={isChecked}
                             onChange={() => {
+                              const currentTags = form.selectedTags || [];
                               if (isChecked) {
-                                setAddForm({
-                                  ...addForm,
-                                  selectedTags: addForm.selectedTags.filter((x: string) => x !== t.name)
+                                setForm({
+                                  ...form,
+                                  selectedTags: currentTags.filter((x: string) => x !== t.name)
                                 });
                               } else {
-                                setAddForm({
-                                  ...addForm,
-                                  selectedTags: [...addForm.selectedTags, t.name]
+                                setForm({
+                                  ...form,
+                                  selectedTags: [...currentTags, t.name]
                                 });
                               }
                             }}
@@ -500,20 +548,27 @@ className="block w-full pl-10 pr-3 py-2 bg-[#051424] border border-[#4f4633] rou
                 <Upload className="h-4 w-4" /> Imágenes del Ítem
               </h2>
               
-              {uploadedImages.length > 0 && (
+              {imagesToRender.length > 0 && (
                 <div className="grid grid-cols-4 sm:grid-cols-6 gap-3 mb-4">
-                  {uploadedImages.map((url, idx) => (
-                    <div key={idx} className="relative aspect-square bg-[#051424] border border-[#4f4633] rounded group overflow-hidden shadow-md">
-                      <img src={url} alt={`Preview ${idx}`} className="h-full w-full object-cover" />
-                      <button
-                        type="button"
-                        onClick={() => setUploadedImages(prev => prev.filter((_, i) => i !== idx))}
-                        className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-red-500 hover:text-red-400 transition-colors cursor-pointer"
-                      >
-                        <Trash2 className="h-5 w-5" />
-                      </button>
-                    </div>
-                  ))}
+                  {imagesToRender.map((url: string, idx: number) => {
+                    // Resolve relative API URLs if necessary (primarily for edit mode)
+                    const previewUrl = url.startsWith('/api/storage/file/')
+                      ? `/api/storage/file/${url.split('/file/')[1]}` 
+                      : url;
+                    
+                    return (
+                      <div key={idx} className="relative aspect-square bg-[#051424] border border-[#4f4633] rounded group overflow-hidden shadow-md">
+                        <img src={previewUrl} alt={`Preview ${idx}`} className="h-full w-full object-cover" />
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveImage(idx)}
+                          className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-red-500 hover:text-red-400 transition-colors cursor-pointer"
+                        >
+                          <Trash2 className="h-5 w-5" />
+                        </button>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
 
@@ -542,7 +597,7 @@ className="block w-full pl-10 pr-3 py-2 bg-[#051424] border border-[#4f4633] rou
             <div className="pt-4 border-t border-[#334155] flex justify-end gap-3 shrink-0">
               <button
                 type="button"
-                onClick={() => setIsAddModalOpen(false)}
+                onClick={() => setIsOpen(false)}
                 className="px-4 py-2 rounded border border-[#4f4633] text-[#d4e4fa] font-semibold hover:bg-[#273647] transition-colors flex items-center gap-2 cursor-pointer text-sm"
               >
                 <X className="h-4.5 w-4.5" />
@@ -558,7 +613,7 @@ className="block w-full pl-10 pr-3 py-2 bg-[#051424] border border-[#4f4633] rou
                 ) : (
                   <Save className="h-4.5 w-4.5" />
                 )}
-                Guardar Material
+                {mode === 'add' ? 'Guardar Material' : 'Guardar Cambios'}
               </button>
             </div>
             

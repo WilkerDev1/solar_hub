@@ -16,7 +16,7 @@ import { getApiUrl } from '@/core/utils/api';
 // Subcomponents
 import { CatalogTable } from './components/CatalogTable';
 import { TransactionHistory } from './components/TransactionHistory';
-import { AddMaterialModal } from './components/AddMaterialModal';
+import { MaterialFormModal } from './components/MaterialFormModal';
 import { ConfigWMSModal, getGlobalProviders, saveGlobalProviders } from './components/ConfigWMSModal';
 import { BulkAdjustmentModal } from './components/BulkAdjustmentModal';
 import { MaterialDetailDrawer } from './components/MaterialDetailDrawer';
@@ -868,19 +868,35 @@ export default function InventoryModule() {
       {/* 3. WMS DIALOGS / DRAWER REGISTRATION */}
       {/* ========================================================================= */}
       {/* MODAL: INGRESAR MATERIAL */}
-      <AddMaterialModal
-        isAddModalOpen={isAddModalOpen}
-        setIsAddModalOpen={setIsAddModalOpen}
+      <MaterialFormModal
+        isOpen={isAddModalOpen}
+        setIsOpen={setIsAddModalOpen}
+        mode="add"
         categories={categories}
         tags={tags}
-        addForm={addForm}
-        setAddForm={setAddForm}
+        form={addForm}
+        setForm={setAddForm}
         uploadedImages={uploadedImages}
         setUploadedImages={setUploadedImages}
         uploadingImage={uploadingImage}
         actionLoading={actionLoading}
         handleImageUpload={handleImageUpload}
-        handleCreateItem={handleCreateItem}
+        handleSubmit={handleCreateItem}
+      />
+
+      {/* MODAL: EDITAR MATERIAL */}
+      <MaterialFormModal
+        isOpen={isEditing}
+        setIsOpen={setIsEditing}
+        mode="edit"
+        categories={categories}
+        tags={tags}
+        form={editForm}
+        setForm={setEditForm}
+        uploadingImage={uploadingImage}
+        actionLoading={actionLoading}
+        handleImageUpload={handleEditImageUpload}
+        handleSubmit={handleSaveEdit}
       />
 
       {/* MODAL: CONFIGURAR WMS */}
@@ -921,19 +937,10 @@ export default function InventoryModule() {
         selectedItem={selectedItem}
         itemTransactions={itemTransactions}
         loadingTransactions={loadingTransactions}
-        isEditing={isEditing}
-        setIsEditing={setIsEditing}
         activeImgUrl={activeImgUrl}
         setActiveImgUrl={setActiveImgUrl}
-        editForm={editForm}
-        setEditForm={setEditForm}
-        uploadingImage={uploadingImage}
-        actionLoading={actionLoading}
         categories={categories}
-        tags={tags}
         handleStartEdit={handleStartEdit}
-        handleSaveEdit={handleSaveEdit}
-        handleEditImageUpload={handleEditImageUpload}
         openBulkAdjustment={openBulkAdjustment}
       />
     </div>

@@ -14,7 +14,6 @@ import {
   InventoryTagRow, 
   InventoryTransactionWithUser 
 } from '@/core/services/inventory';
-import { getGlobalProviders } from './ConfigWMSModal';
 import { getApiUrl } from '@/core/utils/api';
 import { supabase } from '@/core/database/supabase';
 
@@ -24,19 +23,10 @@ interface MaterialDetailDrawerProps {
   selectedItem: InventoryItemRow | null;
   itemTransactions: InventoryTransactionWithUser[];
   loadingTransactions: boolean;
-  isEditing: boolean;
-  setIsEditing: (editing: boolean) => void;
   activeImgUrl: string | null;
   setActiveImgUrl: (url: string | null) => void;
-  editForm: any;
-  setEditForm: (form: any) => void;
-  uploadingImage: boolean;
-  actionLoading: boolean;
   categories: InventoryCategoryRow[];
-  tags: InventoryTagRow[];
   handleStartEdit: () => void;
-  handleSaveEdit: (e: React.FormEvent, overrideForm?: any) => Promise<void>;
-  handleEditImageUpload: (e: React.ChangeEvent<HTMLInputElement>) => Promise<void>;
   openBulkAdjustment?: (overrideItems?: any[]) => void;
 }
 
@@ -54,19 +44,10 @@ export function MaterialDetailDrawer({
   selectedItem,
   itemTransactions,
   loadingTransactions,
-  isEditing,
-  setIsEditing,
   activeImgUrl,
   setActiveImgUrl,
-  editForm,
-  setEditForm,
-  uploadingImage,
-  actionLoading,
   categories,
-  tags,
   handleStartEdit,
-  handleSaveEdit,
-  handleEditImageUpload,
   openBulkAdjustment
 }: MaterialDetailDrawerProps) {
   const { user } = useAuth();
@@ -83,9 +64,6 @@ export function MaterialDetailDrawer({
 
   // Supabase access token for images previsualización
   const [token, setToken] = useState<string | null>(null);
-
-  // Dynamic multiple providers editing state
-  const [localProvidersList, setLocalProvidersList] = useState<{ name: string; price: number }[]>([]);
 
   // Load session token on mount
   useEffect(() => {
@@ -107,20 +85,6 @@ export function MaterialDetailDrawer({
     }
   }, [selectedItem, isDetailDrawerOpen]);
 
-  // Sync editForm to local providers editor when starting to edit
-  useEffect(() => {
-    if (isEditing && selectedItem) {
-      const list = (selectedItem.providers || []).map(p => {
-        const parts = p.split(' - $');
-        if (parts.length === 2) {
-          return { name: parts[0].trim(), price: parseFloat(parts[1]) || selectedItem.cost };
-        }
-        return { name: p.trim(), price: selectedItem.cost };
-      });
-      setLocalProvidersList(list);
-    }
-  }, [isEditing, selectedItem]);
-
   // Helper to resolve and authorize relative image URLs in static-export
   const resolveImageUrl = (url: string | null) => {
     if (!url) return null;
@@ -132,10 +96,6 @@ export function MaterialDetailDrawer({
 
   // Helper to calculate cheapest price dynamically
   const getCheapestPrice = () => {
-    if (isEditing) {
-      if (localProvidersList.length === 0) return editForm.cost;
-      return Math.min(...localProvidersList.map(x => x.price));
-    }
     if (!selectedItem) return 0;
     if (!selectedItem.providers || selectedItem.providers.length === 0) return selectedItem.cost;
     const prices = selectedItem.providers.map(p => {
@@ -174,43 +134,6 @@ export function MaterialDetailDrawer({
     }
     setNotes(updated);
     setNewNoteContent('');
-  };
-
-  // Handle saving the edited material form (Requirement 6)
-  const handleSubmitForm = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    // Format local providers array back into comma-separated string format for useInventory service compatibility
-    const formattedProviders = localProvidersList.map(x => `${x.name} - $${x.price.toFixed(2)}`);
-    const cheapestPrice = localProvidersList.length > 0 
-      ? Math.min(...localProvidersList.map(x => x.price)) 
-      : editForm.cost;
-
-    const updatedForm = {
-      ...editForm,
-      providers: formattedProviders.join(', '),
-      cost: cheapestPrice
-    };
-
-    // We must update the form in parent state and then trigger the submit
-    setEditForm(updatedForm);
-    await handleSaveEdit(e, updatedForm);
-  };
-
-  const handleAddProviderRow = () => {
-    const globalProviders = getGlobalProviders();
-    const firstProvider = globalProviders[0] || 'Proveedor Genérico';
-    setLocalProvidersList([...localProvidersList, { name: firstProvider, price: selectedItem?.cost || 0 }]);
-  };
-
-  const handleUpdateProviderRow = (idx: number, field: 'name' | 'price', val: any) => {
-    const updated = [...localProvidersList];
-    updated[idx] = { ...updated[idx], [field]: val };
-    setLocalProvidersList(updated);
-  };
-
-  const handleRemoveProviderRow = (idx: number) => {
-    setLocalProvidersList(localProvidersList.filter((_, i) => i !== idx));
   };
 
   if (!isDetailDrawerOpen || !selectedItem) return null;
@@ -264,24 +187,13 @@ export function MaterialDetailDrawer({
 
             {/* Separator line */}
             <span className="h-4 w-px bg-zinc-800" />
-
             <RequirePermission action="inventory:write">
               <button
                 type="button"
-                onClick={() => {
-                  if (isEditing) {
-                    setIsEditing(false);
-                  } else {
-                    handleStartEdit();
-                  }
-                }}
-                className={`px-3 py-1 text-[11px] font-bold font-mono uppercase tracking-wider rounded-md border transition-all cursor-pointer ${
-                  isEditing 
-                    ? 'border-rose-500/30 bg-rose-500/5 text-rose-455 hover:bg-rose-500/10'
-                    : 'border-emerald-500/30 bg-emerald-500/5 text-emerald-400 hover:bg-emerald-500/10'
-                }`}
+                onClick={handleStartEdit}
+                className="px-3 py-1 text-[11px] font-bold font-mono uppercase tracking-wider rounded-md border border-emerald-500/30 bg-emerald-500/5 text-emerald-400 hover:bg-emerald-500/10 transition-all cursor-pointer"
               >
-                {isEditing ? 'Cancel' : 'Edit'}
+                Edit
               </button>
 
               <button
@@ -307,10 +219,10 @@ export function MaterialDetailDrawer({
         {/* MATERIAL TITLE HEADER SECTION */}
         <div className="px-6 pt-5 pb-3 border-b border-zinc-850/50 bg-[#121318] shrink-0 text-left space-y-1">
           <h1 className="text-xl font-bold text-white tracking-wide">
-            {isEditing ? editForm.name : selectedItem.name}
+            {selectedItem.name}
           </h1>
           <div className="flex items-center gap-2 text-xs text-zinc-450 font-mono">
-            <span className="font-semibold text-zinc-400">SKU: {isEditing ? editForm.sku : selectedItem.sku}</span>
+            <span className="font-semibold text-zinc-400">SKU: {selectedItem.sku}</span>
             <span>•</span>
             <span>{category ? category.name : 'Sin categoría'}</span>
             <span>•</span>
@@ -324,20 +236,18 @@ export function MaterialDetailDrawer({
         <div className="px-6 bg-[#121318] flex gap-2 border-b border-zinc-855 shrink-0">
           <button
             onClick={() => {
-              setIsEditing(false);
               setActiveTab('info');
             }}
             className={`py-3.5 px-1 text-[11px] font-bold font-mono uppercase tracking-wider border-b-2 transition-colors cursor-pointer ${
               activeTab === 'info'
                 ? 'border-emerald-500 text-emerald-400 font-extrabold'
-                : 'border-transparent text-zinc-500 hover:text-zinc-350'
+                : 'border-transparent text-zinc-500 hover:text-zinc-355'
             }`}
           >
             General Information
           </button>
           <button
             onClick={() => {
-              setIsEditing(false);
               setActiveTab('history');
             }}
             className={`py-3.5 px-1 text-[11px] font-bold font-mono uppercase tracking-wider border-b-2 transition-colors cursor-pointer ${
@@ -350,7 +260,6 @@ export function MaterialDetailDrawer({
           </button>
           <button
             onClick={() => {
-              setIsEditing(false);
               setActiveTab('notes');
             }}
             className={`py-3.5 px-1 text-[11px] font-bold font-mono uppercase tracking-wider border-b-2 transition-colors cursor-pointer ${
@@ -370,262 +279,7 @@ export function MaterialDetailDrawer({
           {/* TAB 1: GENERAL INFORMATION */}
           {/* ========================================================================= */}
           {activeTab === 'info' && (
-            <>
-              {isEditing ? (
-                /* Dynamic cards-based inline editing form (Requirement 6) */
-                <form onSubmit={handleSubmitForm} className="space-y-6 text-left">
-                  
-                  {/* Card 1: Core Fields */}
-                  <div className="bg-[#15171d] border border-zinc-800/80 p-5 space-y-4 shadow-lg rounded-none">
-                    <h3 className="text-xs font-bold text-white uppercase font-mono tracking-wider border-b border-zinc-850/40 pb-2">
-                      Identificación y Categoría
-                    </h3>
-                    
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-zinc-500 uppercase font-mono">Nombre del Material *</label>
-                        <input
-                          required
-                          type="text"
-                          value={editForm.name}
-                          onChange={e => setEditForm({...editForm, name: e.target.value})}
-                          className="w-full bg-zinc-950 border border-zinc-850 rounded p-2.5 text-xs text-white focus:outline-none focus:border-emerald-500"
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-zinc-500 uppercase font-mono">Código SKU *</label>
-                        <input
-                          required
-                          type="text"
-                          value={editForm.sku}
-                          onChange={e => setEditForm({...editForm, sku: e.target.value})}
-                          className="w-full bg-zinc-950 border border-zinc-850 rounded p-2.5 text-xs text-white focus:outline-none focus:border-emerald-500 font-mono uppercase"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-zinc-500 uppercase font-mono">Categoría</label>
-                        <select
-                          value={editForm.category_id}
-                          onChange={e => setEditForm({...editForm, category_id: e.target.value})}
-                          className="w-full bg-zinc-950 border border-zinc-850 rounded p-2.5 text-xs text-white focus:outline-none font-semibold cursor-pointer"
-                        >
-                          <option value="">Selecciona categoría</option>
-                          {categories.map(c => (
-                            <option key={c.id} value={c.id}>{c.name}</option>
-                          ))}
-                        </select>
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-zinc-500 uppercase font-mono">Unidad de Medida</label>
-                        <select
-                          value={editForm.unit}
-                          onChange={e => setEditForm({...editForm, unit: e.target.value})}
-                          className="w-full bg-zinc-950 border border-zinc-850 rounded p-2.5 text-xs text-white focus:outline-none font-semibold cursor-pointer"
-                        >
-                          <option value="unidades">Unidades (pcs)</option>
-                          <option value="metros">Metros (m)</option>
-                          <option value="rollos">Rollos</option>
-                          <option value="cajas">Cajas</option>
-                          <option value="kilogramos">Kilogramos (kg)</option>
-                        </select>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Card 2: Dynamic Multi-providers & Prices (Requirement 6) */}
-                  <div className="bg-[#15171d] border border-zinc-800/80 p-5 space-y-4 shadow-lg rounded-none">
-                    <div className="flex justify-between items-center border-b border-zinc-850/40 pb-2">
-                      <h3 className="text-xs font-bold text-white uppercase font-mono tracking-wider">
-                        Proveedores y Precios de Adquisición
-                      </h3>
-                      <button
-                        type="button"
-                        onClick={handleAddProviderRow}
-                        className="text-[10px] font-bold text-emerald-450 hover:text-emerald-400 font-mono uppercase tracking-wider flex items-center gap-1 cursor-pointer"
-                      >
-                        <PlusCircle className="h-4 w-4" /> Añadir Proveedor
-                      </button>
-                    </div>
-
-                    <div className="space-y-3">
-                      {localProvidersList.map((row, idx) => {
-                        const globalList = getGlobalProviders();
-                        return (
-                          <div key={idx} className="flex items-center gap-3 bg-zinc-950 p-3 border border-zinc-850">
-                            {/* Supplier Selector */}
-                            <div className="flex-1 space-y-1 text-left">
-                              <label className="text-[9px] font-bold text-zinc-550 uppercase font-mono">Proveedor</label>
-                              <select
-                                value={row.name}
-                                onChange={e => handleUpdateProviderRow(idx, 'name', e.target.value)}
-                                className="w-full bg-[#121318] border border-zinc-800 rounded p-1.5 text-xs text-white focus:outline-none font-semibold cursor-pointer"
-                              >
-                                {globalList.map(prov => (
-                                  <option key={prov} value={prov}>{prov}</option>
-                                ))}
-                              </select>
-                            </div>
-
-                            {/* Purchase Price Input */}
-                            <div className="w-32 space-y-1 text-left">
-                              <label className="text-[9px] font-bold text-zinc-550 uppercase font-mono">Precio Unitario ($)</label>
-                              <input
-                                required
-                                type="number"
-                                step="0.01"
-                                value={row.price}
-                                onChange={e => handleUpdateProviderRow(idx, 'price', parseFloat(e.target.value) || 0)}
-                                className="w-full bg-[#121318] border border-zinc-800 rounded p-1.5 text-xs text-white focus:outline-none font-mono font-bold"
-                              />
-                            </div>
-
-                            {/* Remove row button */}
-                            <button
-                              type="button"
-                              onClick={() => handleRemoveProviderRow(idx)}
-                              className="mt-5 p-1.5 hover:bg-zinc-900 rounded text-rose-500 hover:text-rose-455 transition-colors cursor-pointer"
-                            >
-                              <Trash className="h-4 w-4" />
-                            </button>
-                          </div>
-                        );
-                      })}
-
-                      {localProvidersList.length === 0 && (
-                        <div className="py-6 text-center text-zinc-650 text-xs italic font-mono border border-dashed border-zinc-850 rounded">
-                          No hay proveedores vinculados a este material. Haz clic en "Añadir Proveedor" arriba.
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="text-[10px] text-zinc-500 font-mono font-semibold pt-1 text-left">
-                      💡 El costo unitario de visualización se autocalculará como el **mínimo costo de adquisición** registrado (${cheapestPrice.toFixed(2)}).
-                    </div>
-                  </div>
-
-                  {/* Card 3: Dimensions / Specifications */}
-                  <div className="bg-[#15171d] border border-zinc-800/80 p-5 space-y-4 shadow-lg rounded-none">
-                    <h3 className="text-xs font-bold text-white uppercase font-mono tracking-wider border-b border-zinc-850/40 pb-2">
-                      Ficha de Medición
-                    </h3>
-                    
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-zinc-500 uppercase font-mono">Punto de Reorden (Min. Requerido)</label>
-                        <input
-                          type="number"
-                          value={editForm.min_stock}
-                          onChange={e => setEditForm({...editForm, min_stock: Number(e.target.value)})}
-                          className="w-full bg-zinc-950 border border-zinc-850 rounded p-2.5 text-xs text-white focus:outline-none font-mono"
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-zinc-500 uppercase font-mono">Embalaje</label>
-                        <input
-                          type="text"
-                          placeholder="Caja, Rollo, etc."
-                          value={editForm.packaging}
-                          onChange={e => setEditForm({...editForm, packaging: e.target.value})}
-                          className="w-full bg-zinc-955 border border-zinc-850 rounded p-2.5 text-xs text-white focus:outline-none"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-zinc-500 uppercase font-mono">Longitud (m)</label>
-                        <input
-                          type="number"
-                          step="0.1"
-                          value={editForm.length}
-                          onChange={e => setEditForm({...editForm, length: e.target.value})}
-                          className="w-full bg-zinc-950 border border-zinc-850 rounded p-2.5 text-xs text-white focus:outline-none font-mono"
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-zinc-500 uppercase font-mono">Peso (kg)</label>
-                        <input
-                          type="number"
-                          step="0.1"
-                          value={editForm.weight}
-                          onChange={e => setEditForm({...editForm, weight: e.target.value})}
-                          className="w-full bg-zinc-950 border border-zinc-850 rounded p-2.5 text-xs text-white focus:outline-none font-mono"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-zinc-500 uppercase font-mono">Descripción Técnica</label>
-                      <textarea
-                        value={editForm.description}
-                        onChange={e => setEditForm({...editForm, description: e.target.value})}
-                        className="w-full bg-zinc-955 border border-zinc-850 rounded p-2.5 text-xs text-white focus:outline-none h-16 resize-none"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Card 4: Multimedia Uploads */}
-                  <div className="bg-[#15171d] border border-zinc-800/80 p-5 space-y-4 shadow-lg rounded-none">
-                    <h3 className="text-xs font-bold text-white uppercase font-mono tracking-wider border-b border-zinc-850/40 pb-2">
-                      Fotografías del Material
-                    </h3>
-
-                    <div className="bg-zinc-950 border border-zinc-850 rounded p-3 flex flex-wrap gap-2.5 items-center">
-                      {(editForm.image_urls || []).map((url: string, idx: number) => {
-                        const previewUrl = resolveImageUrl(url);
-                        return (
-                          <div key={idx} className="relative h-16 w-16 bg-zinc-900 border border-zinc-800 rounded group overflow-hidden">
-                            {previewUrl && <img src={previewUrl} alt={`Preview ${idx}`} className="h-full w-full object-cover" />}
-                            <button
-                              type="button"
-                              onClick={() => setEditForm((prev: any) => ({
-                                ...prev,
-                                image_urls: prev.image_urls.filter((_: any, i: number) => i !== idx)
-                              }))}
-                              className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center text-rose-500 cursor-pointer"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </button>
-                          </div>
-                        );
-                      })}
-                      
-                      <label className="h-16 w-16 border border-dashed border-zinc-800 hover:border-emerald-500/50 rounded flex flex-col items-center justify-center text-zinc-500 hover:text-emerald-400 transition-all cursor-pointer">
-                        <input
-                          type="file"
-                          multiple
-                          accept="image/*"
-                          onChange={handleEditImageUpload}
-                          className="hidden"
-                          disabled={uploadingImage}
-                        />
-                        {uploadingImage ? (
-                          <Loader2 className="h-4 w-4 animate-spin text-emerald-500" />
-                        ) : (
-                          <>
-                            <Plus className="h-4 w-4" />
-                            <span className="text-[8px] font-bold uppercase mt-1">Subir</span>
-                          </>
-                        )}
-                      </label>
-                    </div>
-                  </div>
-
-                  <div className="pt-4 border-t border-zinc-850 flex justify-end gap-2 shrink-0">
-                    <Button type="button" variant="ghost" onClick={() => setIsEditing(false)} className="text-zinc-400 font-mono text-[10px] uppercase font-bold tracking-wider">
-                      Cancelar
-                    </Button>
-                    <Button type="submit" disabled={actionLoading} className="bg-emerald-600 hover:bg-emerald-500 text-white font-mono text-[10px] uppercase font-bold tracking-wider px-5 rounded">
-                      {actionLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null} Guardar Cambios
-                    </Button>
-                  </div>
-                </form>
-              ) : (
-                /* Sleek 2-column details view */
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 text-left">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 text-left">
                   
                   {/* Left Column (Images, Basic Info, Dimensions, Costs) */}
                   <div className="lg:col-span-2 space-y-6">
@@ -826,10 +480,9 @@ export function MaterialDetailDrawer({
 
                   </div>
 
-                </div>
-              )}
-            </>
-          )}
+              </div>
+            )
+          }
 
           {/* ========================================================================= */}
           {/* TAB 2: TRANSACTION HISTORY TIMELINE */}
@@ -975,22 +628,12 @@ export function MaterialDetailDrawer({
         {/* BOTTOM DRAWER BAR */}
         <div className="p-4 border-t border-zinc-850 shrink-0 flex justify-between items-center bg-[#15171d] bg-opacity-40">
           <RequirePermission action="inventory:write">
-            {!isEditing ? (
-              <Button
-                onClick={handleStartEdit}
-                className="bg-emerald-600 hover:bg-emerald-500 text-white font-mono text-[10px] font-bold uppercase tracking-wider h-9 px-4.5 rounded cursor-pointer"
-              >
-                <Edit3 className="h-4 w-4 mr-1.5" /> Edit Material
-              </Button>
-            ) : (
-              <Button
-                onClick={handleSubmitForm}
-                disabled={actionLoading}
-                className="bg-emerald-600 hover:bg-emerald-500 text-white font-mono text-[10px] font-bold uppercase tracking-wider h-9 px-4.5 rounded cursor-pointer"
-              >
-                {actionLoading ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : null} Save Changes
-              </Button>
-            )}
+            <Button
+              onClick={handleStartEdit}
+              className="bg-emerald-600 hover:bg-emerald-500 text-white font-mono text-[10px] font-bold uppercase tracking-wider h-9 px-4.5 rounded cursor-pointer"
+            >
+              <Edit3 className="h-4 w-4 mr-1.5" /> Edit Material
+            </Button>
           </RequirePermission>
           <Button 
             onClick={() => setIsDetailDrawerOpen(false)} 
