@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   X, 
   Trash2, 
@@ -17,7 +17,8 @@ import {
   FileText, 
   Ruler,
   AlertTriangle,
-  ChevronDown
+  ChevronDown,
+  PlusCircle
 } from 'lucide-react';
 import { Button } from '@/core/components/ui/button';
 import { InventoryCategoryRow, InventoryTagRow } from '@/core/services/inventory';
@@ -52,16 +53,46 @@ export function AddMaterialModal({
   handleImageUpload,
   handleCreateItem
 }: AddMaterialModalProps) {
+  const [localProvidersList, setLocalProvidersList] = useState<{ name: string; price: number }[]>([]);
+
+  useEffect(() => {
+    if (!isAddModalOpen) {
+      setLocalProvidersList([]);
+    }
+  }, [isAddModalOpen]);
+
+  useEffect(() => {
+    const formatted = localProvidersList.map(x => `${x.name} - $${x.price.toFixed(2)}`);
+    const cheapest = localProvidersList.length > 0
+      ? Math.min(...localProvidersList.map(x => x.price))
+      : 0;
+
+    setAddForm({
+      ...addForm,
+      providers: formatted.join(', '),
+      cost: cheapest
+    });
+  }, [localProvidersList]);
+
   if (!isAddModalOpen) return null;
 
-  // Helper to parse comma-separated providers into array for tag display
-  const providersArray = addForm.providers
-    ? addForm.providers.split(',').map((p: string) => p.trim()).filter((p: string) => p.length > 0)
-    : [];
+  const handleAddProviderRow = () => {
+    const globalProviders = getGlobalProviders();
+    const firstAvailable = globalProviders.find(
+      g => !localProvidersList.some(p => p.name === g)
+    ) || globalProviders[0] || 'Proveedor Genérico';
 
-  const handleRemoveProvider = (name: string) => {
-    const updated = providersArray.filter((p: string) => p !== name).join(', ');
-    setAddForm({ ...addForm, providers: updated });
+    setLocalProvidersList([...localProvidersList, { name: firstAvailable, price: 0 }]);
+  };
+
+  const handleUpdateProviderRow = (idx: number, field: 'name' | 'price', val: any) => {
+    const updated = [...localProvidersList];
+    updated[idx] = { ...updated[idx], [field]: val };
+    setLocalProvidersList(updated);
+  };
+
+  const handleRemoveProviderRow = (idx: number) => {
+    setLocalProvidersList(localProvidersList.filter((_, i) => i !== idx));
   };
 
   return (
@@ -199,14 +230,22 @@ export function AddMaterialModal({
                     </div>
                     <input
                       required
+                      disabled={localProvidersList.length > 0}
                       type="number"
                       step="0.01"
                       value={addForm.cost || ''}
                       onChange={e => setAddForm({ ...addForm, cost: Number(e.target.value) })}
                       placeholder="0.00"
-                      className="block w-full pl-10 pr-3 py-2 bg-[#051424] border border-[#4f4633] rounded text-sm text-[#d4e4fa] placeholder-[#d3c5ac]/50 focus:outline-none focus:border-[#fbbf24] focus:ring-1 focus:ring-[#fbbf24] font-mono transition-colors"
+                      className={`block w-full pl-10 pr-3 py-2 bg-[#051424] border border-[#4f4633] rounded text-sm text-[#d4e4fa] placeholder-[#d3c5ac]/50 focus:outline-none focus:border-[#fbbf24] focus:ring-1 focus:ring-[#fbbf24] font-mono transition-colors ${
+                        localProvidersList.length > 0 ? 'opacity-75 cursor-not-allowed bg-[#122131]' : ''
+                      }`}
                     />
                   </div>
+                  {localProvidersList.length > 0 && (
+                    <span className="text-[9.5px] text-[#fbbf24] font-mono mt-0.5 block">
+                      Autocalculado (mínimo de proveedores)
+                    </span>
+                  )}
                 </div>
 
                 {/* Stock Inicial */}
@@ -335,118 +374,122 @@ export function AddMaterialModal({
                       value={addForm.weight || ''}
                       onChange={e => setAddForm({ ...addForm, weight: e.target.value })}
                       placeholder="0.0"
-                      className="block w-full pl-10 pr-3 py-2 bg-[#051424] border border-[#4f4633] rounded text-sm text-[#d4e4fa] placeholder-[#d3c5ac]/50 focus:outline-none focus:border-[#fbbf24] focus:ring-1 focus:ring-[#fbbf24] font-mono transition-colors"
+className="block w-full pl-10 pr-3 py-2 bg-[#051424] border border-[#4f4633] rounded text-sm text-[#d4e4fa] placeholder-[#d3c5ac]/50 focus:outline-none focus:border-[#fbbf24] focus:ring-1 focus:ring-[#fbbf24] font-mono transition-colors"
                     />
                   </div>
                 </div>
               </div>
             </section>
-
             {/* Section 4: Proveedores y Etiquetas */}
             <section className="bg-[#122131] p-4 rounded-lg border border-[#334155] space-y-4">
-              <h2 className="font-mono text-[11px] font-bold tracking-wider uppercase text-[#d3c5ac] flex items-center gap-2">
-                <Store className="h-4 w-4" /> Proveedores y Etiquetas
-              </h2>
+              <div className="flex justify-between items-center border-b border-[#334155]/40 pb-2">
+                <h2 className="font-mono text-[11px] font-bold tracking-wider uppercase text-[#d3c5ac] flex items-center gap-2">
+                  <Store className="h-4 w-4" /> Proveedores y Precios de Adquisición
+                </h2>
+                <button
+                  type="button"
+                  onClick={handleAddProviderRow}
+                  className="text-[10px] font-bold text-emerald-400 hover:text-emerald-300 font-mono uppercase tracking-wider flex items-center gap-1 cursor-pointer transition-colors"
+                >
+                  <PlusCircle className="h-4 w-4" /> Añadir Proveedor
+                </button>
+              </div>
               
-              <div className="space-y-4">
-                {/* Proveedores */}
-                <div>
-                  <label className="block font-mono text-[11px] font-bold tracking-wider uppercase text-[#d4e4fa] mb-1">
-                    Proveedores
-                  </label>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <Store className="h-4.5 w-4.5 text-[#d3c5ac]" />
-                    </div>
-                    <select
-                      value=""
-                      onChange={e => {
-                        const val = e.target.value;
-                        if (val && !providersArray.includes(val)) {
-                          const updated = [...providersArray, val].join(', ');
-                          setAddForm({ ...addForm, providers: updated });
-                        }
-                      }}
-                      className="block w-full pl-10 pr-10 py-2 bg-[#051424] border border-[#4f4633] rounded text-sm text-[#d4e4fa] focus:outline-none focus:border-[#fbbf24] focus:ring-1 focus:ring-[#fbbf24] font-semibold cursor-pointer appearance-none transition-colors"
-                    >
-                      <option value="" disabled>Selecciona un proveedor de la lista para añadir...</option>
-                      {getGlobalProviders()
-                        .filter((prov: string) => !providersArray.includes(prov))
-                        .map((prov: string) => (
-                          <option key={prov} value={prov}>
-                            {prov}
-                          </option>
-                        ))}
-                    </select>
-                    <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none text-[#d3c5ac]">
-                      <ChevronDown className="h-4 w-4" />
-                    </div>
-                  </div>
-                  
-                  {providersArray.length > 0 ? (
-                    <div className="flex flex-wrap gap-2 mt-2">
-                      {providersArray.map((prov: string, idx: number) => (
-                        <span 
-                          key={idx} 
-                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-[#334155] text-xs font-semibold text-[#d4e4fa] border border-[#475569] shadow-sm animate-in fade-in zoom-in-95 duration-150"
-                        >
-                          {prov}
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveProvider(prov)}
-                            className="text-[#d3c5ac] hover:text-[#ffb4ab] transition-colors"
+              <div className="space-y-3">
+                {localProvidersList.map((row, idx) => {
+                  const globalList = getGlobalProviders();
+                  return (
+                    <div key={idx} className="flex items-center gap-3 bg-[#051424] p-3 border border-[#4f4633] rounded">
+                      {/* Supplier Selector */}
+                      <div className="flex-1 space-y-1 text-left">
+                        <label className="text-[9px] font-bold text-[#d3c5ac]/70 uppercase font-mono">Proveedor</label>
+                        <div className="relative">
+                          <select
+                            value={row.name}
+                            onChange={e => handleUpdateProviderRow(idx, 'name', e.target.value)}
+                            className="w-full bg-[#121318] border border-zinc-800 rounded p-1.5 text-xs text-white focus:outline-none focus:border-[#fbbf24] font-semibold cursor-pointer appearance-none"
                           >
-                            <X className="h-3.5 w-3.5" />
-                          </button>
-                        </span>
-                      ))}
+                            {globalList.map(prov => (
+                              <option key={prov} value={prov}>{prov}</option>
+                            ))}
+                          </select>
+                          <div className="absolute inset-y-0 right-0 pr-2 flex items-center pointer-events-none text-[#d3c5ac]">
+                            <ChevronDown className="h-3 w-3" />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Purchase Price Input */}
+                      <div className="w-32 space-y-1 text-left">
+                        <label className="text-[9px] font-bold text-[#d3c5ac]/70 uppercase font-mono">Precio Unitario ($)</label>
+                        <input
+                          required
+                          type="number"
+                          step="0.01"
+                          value={row.price || ''}
+                          onChange={e => handleUpdateProviderRow(idx, 'price', parseFloat(e.target.value) || 0)}
+                          className="w-full bg-[#121318] border border-zinc-800 rounded p-1.5 text-xs text-white focus:outline-none focus:border-[#fbbf24] font-mono font-bold"
+                          placeholder="0.00"
+                        />
+                      </div>
+
+                      {/* Remove row button */}
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveProviderRow(idx)}
+                        className="mt-5 p-1.5 hover:bg-zinc-900 rounded text-rose-500 hover:text-rose-455 transition-colors cursor-pointer"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
                     </div>
+                  );
+                })}
+
+                {localProvidersList.length === 0 && (
+                  <div className="py-6 text-center text-[#d3c5ac]/50 text-xs italic font-mono border border-dashed border-[#4f4633] rounded">
+                    No hay proveedores vinculados a este material. Haz clic en "Añadir Proveedor" arriba.
+                  </div>
+                )}
+              </div>
+
+              {/* Etiquetas checkboxes */}
+              <div className="pt-2 border-t border-[#334155]/40 space-y-2">
+                <label className="block font-mono text-[11px] font-bold tracking-wider uppercase text-[#d4e4fa]">
+                  Etiquetas del Ítem
+                </label>
+                <div className="w-full min-h-[60px] border border-dashed border-[#4f4633] rounded p-3 flex flex-wrap gap-3 items-center bg-[#051424]">
+                  {tags.length > 0 ? (
+                    tags.map(t => {
+                      const isChecked = addForm.selectedTags.includes(t.name);
+                      return (
+                        <label key={t.id} className="flex items-center gap-2 text-xs font-semibold text-[#d4e4fa] cursor-pointer select-none">
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={() => {
+                              if (isChecked) {
+                                setAddForm({
+                                  ...addForm,
+                                  selectedTags: addForm.selectedTags.filter((x: string) => x !== t.name)
+                                });
+                              } else {
+                                setAddForm({
+                                  ...addForm,
+                                  selectedTags: [...addForm.selectedTags, t.name]
+                                });
+                              }
+                            }}
+                            className="rounded border-[#4f4633] bg-[#051424] text-[#fbbf24] focus:ring-[#fbbf24]/20 h-4 w-4"
+                          />
+                          <span>{t.name}</span>
+                        </label>
+                      );
+                    })
                   ) : (
-                    <div className="text-[11px] text-[#d3c5ac]/60 font-mono italic mt-1">
-                      No hay proveedores seleccionados. Selecciona uno del menú de arriba para vincular.
+                    <div className="w-full text-center text-[#d3c5ac]/70 text-xs italic font-mono">
+                      No hay etiquetas configuradas.
                     </div>
                   )}
-                </div>
-
-                {/* Etiquetas checkboxes */}
-                <div>
-                  <label className="block font-mono text-[11px] font-bold tracking-wider uppercase text-[#d4e4fa] mb-1">
-                    Etiquetas del Ítem
-                  </label>
-                  <div className="w-full min-h-[60px] border border-dashed border-[#4f4633] rounded p-3 flex flex-wrap gap-3 items-center bg-[#051424]">
-                    {tags.length > 0 ? (
-                      tags.map(t => {
-                        const isChecked = addForm.selectedTags.includes(t.name);
-                        return (
-                          <label key={t.id} className="flex items-center gap-2 text-xs font-semibold text-[#d4e4fa] cursor-pointer select-none">
-                            <input
-                              type="checkbox"
-                              checked={isChecked}
-                              onChange={() => {
-                                if (isChecked) {
-                                  setAddForm({
-                                    ...addForm,
-                                    selectedTags: addForm.selectedTags.filter((x: string) => x !== t.name)
-                                  });
-                                } else {
-                                  setAddForm({
-                                    ...addForm,
-                                    selectedTags: [...addForm.selectedTags, t.name]
-                                  });
-                                }
-                              }}
-                              className="rounded border-[#4f4633] bg-[#051424] text-[#fbbf24] focus:ring-[#fbbf24]/20 h-4 w-4"
-                            />
-                            <span>{t.name}</span>
-                          </label>
-                        );
-                      })
-                    ) : (
-                      <div className="w-full text-center text-[#d3c5ac]/70 text-xs italic font-mono">
-                        No hay etiquetas configuradas.
-                      </div>
-                    )}
-                  </div>
                 </div>
               </div>
             </section>
