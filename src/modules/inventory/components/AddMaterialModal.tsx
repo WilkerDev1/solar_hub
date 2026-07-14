@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/core/components/ui/button';
 import { InventoryCategoryRow, InventoryTagRow } from '@/core/services/inventory';
+import { getGlobalProviders } from './ConfigWMSModal';
 
 interface AddMaterialModalProps {
   isAddModalOpen: boolean;
@@ -51,27 +52,12 @@ export function AddMaterialModal({
   handleImageUpload,
   handleCreateItem
 }: AddMaterialModalProps) {
-  const [newProviderInput, setNewProviderInput] = useState('');
-
   if (!isAddModalOpen) return null;
 
   // Helper to parse comma-separated providers into array for tag display
   const providersArray = addForm.providers
     ? addForm.providers.split(',').map((p: string) => p.trim()).filter((p: string) => p.length > 0)
     : [];
-
-  const handleAddProvider = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      const val = newProviderInput.trim();
-      if (!val) return;
-      if (!providersArray.includes(val)) {
-        const updated = [...providersArray, val].join(', ');
-        setAddForm({ ...addForm, providers: updated });
-      }
-      setNewProviderInput('');
-    }
-  };
 
   const handleRemoveProvider = (name: string) => {
     const updated = providersArray.filter((p: string) => p !== name).join(', ');
@@ -372,14 +358,29 @@ export function AddMaterialModal({
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                       <Store className="h-4.5 w-4.5 text-[#d3c5ac]" />
                     </div>
-                    <input
-                      type="text"
-                      value={newProviderInput}
-                      onChange={e => setNewProviderInput(e.target.value)}
-                      onKeyDown={handleAddProvider}
-                      placeholder="Añadir proveedor y presionar Enter..."
-                      className="block w-full pl-10 pr-3 py-2 bg-[#051424] border border-[#4f4633] rounded text-sm text-[#d4e4fa] placeholder-[#d3c5ac]/55 focus:outline-none focus:border-[#fbbf24] focus:ring-1 focus:ring-[#fbbf24] transition-colors"
-                    />
+                    <select
+                      value=""
+                      onChange={e => {
+                        const val = e.target.value;
+                        if (val && !providersArray.includes(val)) {
+                          const updated = [...providersArray, val].join(', ');
+                          setAddForm({ ...addForm, providers: updated });
+                        }
+                      }}
+                      className="block w-full pl-10 pr-10 py-2 bg-[#051424] border border-[#4f4633] rounded text-sm text-[#d4e4fa] focus:outline-none focus:border-[#fbbf24] focus:ring-1 focus:ring-[#fbbf24] font-semibold cursor-pointer appearance-none transition-colors"
+                    >
+                      <option value="" disabled>Selecciona un proveedor de la lista para añadir...</option>
+                      {getGlobalProviders()
+                        .filter((prov: string) => !providersArray.includes(prov))
+                        .map((prov: string) => (
+                          <option key={prov} value={prov}>
+                            {prov}
+                          </option>
+                        ))}
+                    </select>
+                    <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none text-[#d3c5ac]">
+                      <ChevronDown className="h-4 w-4" />
+                    </div>
                   </div>
                   
                   {providersArray.length > 0 ? (
@@ -402,7 +403,7 @@ export function AddMaterialModal({
                     </div>
                   ) : (
                     <div className="text-[11px] text-[#d3c5ac]/60 font-mono italic mt-1">
-                      No hay proveedores configurados. Escribe arriba y presiona Enter para añadir.
+                      No hay proveedores seleccionados. Selecciona uno del menú de arriba para vincular.
                     </div>
                   )}
                 </div>
